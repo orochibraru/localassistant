@@ -1,0 +1,303 @@
+name: Publish
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!.agents/**"
+      - "!.claude/**"
+      - "!**/*.md"
+      - "CHANGELOG.md"
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+env:
+  TZ: Europe/Paris
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+  RELEASE_RULES: breaking=major,feat=patch,docs=patch,refactor=patch,style=patch,test=patch,build=patch,ci=patch,chore=patch
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Resolve Release
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+      version: ${{ steps.releaser.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Dry-run release to compute the next version
+        id: releaser
+        uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
+        with:
+          branch: main
+          rules: ${{ env.RELEASE_RULES }}
+          prerelease: canary
+          release-pr: "true"
+          dry-run: "true"
+
+      - name: Tell a merged release PR from a canary push
+        id: mode
+        env:
+          VERSION: ${{ steps.releaser.outputs.version }}
+          PRERELEASE: ${{ steps.releaser.outputs.prerelease }}
+        run: |
+          subject="$(git log -1 --format=%s)"
+          if [[ "$subject" =~ ^chore\(release\):\ [0-9]+\.[0-9]+\.[0-9]+(\ \(#[0-9]+\))?$ ]]; then
+            if [ -z "$VERSION" ] || [ "$PRERELEASE" != "false" ]; then
+              echo "::error::Merged release PR ($subject), but releaser would release '$VERSION'."
+              exit 1
+            fi
+            echo "Merged release PR: releasing $VERSION from its canary."
+            echo "mode=stable" >> "$GITHUB_OUTPUT"
+          elif [ "$PRERELEASE" = "true" ]; then
+            echo "This push publishes canary $VERSION."
+            echo "mode=canary" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Conventional Commit since the last canary: nothing to publish."
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+          fi
+
+  tested:
+    name: Find Tested PR Image
+    needs: [version]
+    if: needs.version.outputs.mode == 'canary'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pull_request: ${{ steps.find.outputs.pull_request }}
+      image: ${{ steps.find.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: docker.io
+          username: orochibraru
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Match the merged PR's image by source tree
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: docker.io/orochibraru/localassistant
+        run: |
+          number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq '[.[] | select(.merged_at != null)][0].number // empty')"
+          echo "pull_request=$number" >> "$GITHUB_OUTPUT"
+          [ -n "$number" ] || { echo "Not a PR merge."; exit 0; }
+
+          pull_request_image="$IMAGE:pr-$number"
+          if ! manifest="$(docker buildx imagetools inspect "$pull_request_image" --format '{{json .Manifest}}' 2>/dev/null)"; then
+            echo "No $pull_request_image published."; exit 0
+          fi
+          tree="$(docker buildx imagetools inspect "$pull_request_image" --format '{{json .Image}}' \
+            | jq -r '.["linux/amd64"].config.Labels["app.source-tree"] // empty')"
+          if [ "$tree" != "$(git rev-parse 'HEAD^{tree}')" ]; then
+            echo "$pull_request_image was built from tree '${tree}', not this commit's."; exit 0
+          fi
+          digest="$(jq -r .digest <<<"$manifest")"
+          echo "Promoting $pull_request_image ($digest)"
+          echo "image=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
+
+  code_quality:
+    name: Code Quality
+    needs: [tested]
+    if: needs.tested.outputs.image == ''
+    uses: ./.github/workflows/code_quality.yaml
+
+  build-app:
+    name: Docker Build (App)
+    uses: ./.github/workflows/docker.yaml
+    needs: [code_quality, version]
+    with:
+      image_tag: ${{ needs.version.outputs.version }}
+      extra_tag: canary
+      app_version: ${{ needs.version.outputs.version }}
+      image_name: orochibraru/localassistant
+      registry_name: docker.io
+      registry_username: orochibraru
+      bake_target: app
+    secrets:
+      registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+  publish:
+    name: Publish ${{ needs.version.outputs.version }}
+    needs: [version, build-app]
+    uses: ./.github/workflows/docker-manifest.yaml
+    with:
+      image_name: orochibraru/localassistant
+      registry_name: docker.io
+      registry_username: orochibraru
+      bake_target: app
+    secrets:
+      registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+  promote:
+    name: Promote ${{ needs.version.outputs.version }}
+    needs: [tested, version]
+    if: needs.tested.outputs.image != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: docker.io
+          username: orochibraru
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Tag the tested image
+        env:
+          SOURCE: ${{ needs.tested.outputs.image }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          printf 'FROM %s\nENV APP_VERSION=%s\n' "$SOURCE" "$VERSION" \
+            | docker buildx build --platform linux/amd64,linux/arm64 --push \
+              -t "docker.io/orochibraru/localassistant:$VERSION" \
+              -t docker.io/orochibraru/localassistant:canary -
+
+  stable-images:
+    name: Promote Canary to ${{ needs.version.outputs.version }}
+    needs: [version]
+    if: needs.version.outputs.mode == 'stable'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check the canary is what this release ships
+        id: canary
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="$(git tag --list "v$VERSION-canary.*" --sort=-v:refname | head -n1)"
+          if [ -z "$tag" ]; then
+            echo "::error::No v$VERSION-canary.* tag to release."
+            exit 1
+          fi
+          commit="$(git rev-parse "$tag^{commit}")"
+          drift="$(git diff --name-only "$commit" HEAD -- . ':(glob,exclude)docs/**' ':(glob,exclude)**/*.md' ':(glob,exclude).agents/**' ':(glob,exclude).claude/**' ':(exclude)package.json')"
+          if [ -n "$drift" ] || [ "$(git show "$commit:package.json" | jq -S 'del(.version)')" != "$(jq -S 'del(.version)' package.json)" ]; then
+            echo "::error::The release PR carries changes $tag wasn't built from. Let Publish finish on main, then re-run this workflow."
+            echo "$drift"
+            exit 1
+          fi
+          echo "Releasing $tag ($commit)."
+          echo "image=docker.io/orochibraru/localassistant:${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: docker.io
+          username: orochibraru
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Tag the canary image
+        env:
+          SOURCE: ${{ steps.canary.outputs.image }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          printf 'FROM %s\nENV APP_VERSION=%s\n' "$SOURCE" "$VERSION" \
+            | docker buildx build --platform linux/amd64,linux/arm64 --push \
+              -t "docker.io/orochibraru/localassistant:$VERSION" \
+              -t docker.io/orochibraru/localassistant:latest \
+              -t docker.io/orochibraru/localassistant:canary -
+
+  release:
+    name: Release ${{ needs.version.outputs.version }}
+    runs-on: ubuntu-latest
+    needs: [version, publish, promote, stable-images]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') &&
+      (needs.publish.result == 'success' || needs.promote.result == 'success' ||
+      needs.stable-images.result == 'success') }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }} # zizmor: ignore[artipacked]
+
+      - name: Tag, release and update the release PR
+        id: releaser
+        uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
+        with:
+          branch: main
+          rules: ${{ env.RELEASE_RULES }}
+          prerelease: canary
+          release-pr: "true"
+
+      - name: Fail if the release doesn't match the images
+        if: steps.releaser.outputs.version != needs.version.outputs.version
+        env:
+          RELEASED: ${{ steps.releaser.outputs.version }}
+          EXPECTED: ${{ needs.version.outputs.version }}
+        run: |
+          echo "::error::releaser released '$RELEASED', but the images were tagged '$EXPECTED'."
+          exit 1
+
+      - name: Keep only the last five canary releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 100 --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease)] | .[5:] | .[].tagName' \
+            | xargs -r -n1 gh release delete --yes
+
+  dockerhub-description:
+    name: Update Docker Hub Description
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the short description from package.json
+        id: package
+        run: echo "description=$(jq -r .description package.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Push README.md to Docker Hub
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: orochibraru
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          repository: orochibraru/localassistant
+          short-description: ${{ steps.package.outputs.description }}
+          enable-url-completion: true
+
+  cleanup:
+    name: Delete PR Image
+    needs: [tested, release]
+    if: always() && needs.tested.outputs.pull_request != ''
+    uses: ./.github/workflows/delete-pr-image.yaml
+    with:
+      pr_number: ${{ needs.tested.outputs.pull_request }}
+    secrets:
+      registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}

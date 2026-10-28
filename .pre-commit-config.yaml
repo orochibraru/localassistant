@@ -1,0 +1,185 @@
+default_install_hook_types: [pre-commit, commit-msg, pre-push, post-checkout]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+        name: Look for merge conflicts
+      - id: check-case-conflict
+        name: Look for case conflicts
+      - id: check-yaml
+        name: Validate YAML
+      - id: check-added-large-files
+        name: Look for large files
+      - id: mixed-line-ending
+        name: Fix line endings
+        args: [--fix=lf]
+        exclude: &generated ^(drizzle/|CHANGELOG\.md$|bun\.lock$)
+      - id: end-of-file-fixer
+        name: Fix end of files
+        exclude: *generated
+      - id: trailing-whitespace
+        name: Fix trailing whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: *generated
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        name: Ensure conventional commits
+        stages: [commit-msg]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        name: Look for hardcoded secrets
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.51.1
+    hooks:
+      - id: typos
+        name: Look for typos
+        args: [--force-exclude]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        name: Lint GitHub Actions
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.31.1
+    hooks:
+      - id: zizmor
+        name: Audit GitHub Actions security (zizmor)
+
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.15.1
+    hooks:
+      - id: hadolint
+        name: Lint Dockerfile
+
+  - repo: local
+    hooks:
+      - id: pinact
+        name: Pin GitHub Actions
+        entry: pinact run
+        language: golang
+        language_version: "1.27.3"
+        additional_dependencies:
+          - github.com/suzuki-shunsuke/pinact/v5/cmd/pinact@v5.0.2
+        files: ^\.github/(workflows|actions)/.*\.ya?ml$
+
+      - id: lint
+        name: Lint (bun lint)
+        entry: bun lint --type-aware --max-warnings 0 --fix --no-error-on-unmatched-pattern
+        language: system
+        require_serial: true
+        files: \.(ts|js|mjs|cjs|svelte)$
+
+      - id: format
+        name: Format and sort imports (bun fmt)
+        entry: bun fmt --ignore-unknown --no-error-on-unmatched-pattern --log-level warn
+        language: system
+        require_serial: true
+
+      - id: markdownlint
+        name: Lint Markdown
+        entry: node_modules/.bin/markdownlint-cli2
+        language: system
+        types: [markdown]
+
+      - id: agnix
+        name: Lint AI config (agnix)
+        entry: node_modules/.bin/agnix --strict .
+        language: system
+        pass_filenames: false
+        files: (\.md$|^\.claude/|^\.agents/|^\.agnix\.toml$)
+
+      - id: lint-tailwind
+        name: Lint Tailwind (tailwint)
+        entry: node_modules/.bin/tailwint --fix --timeout 120000
+        language: system
+        require_serial: true
+        files: ^src/.*\.(svelte|css|html)$
+
+      - id: append-only-migrations
+        name: Keep committed migrations append-only
+        entry: bun scripts/check-migrations.ts
+        language: system
+        pass_filenames: false
+        files: ^drizzle/
+
+      - id: markdown-links
+        name: Resolve Markdown links
+        entry: bun scripts/check-links.ts
+        language: system
+        types: [markdown]
+
+      - id: check
+        name: Type check
+        entry: bun run check
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: ^(src/|tests/|scripts/|[^/]*\.ts$|tsconfig.*\.json$|package\.json$|bun\.lock$)
+
+      - id: circular
+        name: Circular imports
+        entry: bun run circular
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: ^(src/.*\.ts|scripts/circular\.ts|tsconfig\.madge\.json)$
+
+      - id: test-unit
+        name: Unit tests
+        entry: bun run test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: ^(src/|tests/|bunfig\.toml$|package\.json$|bun\.lock$)
+
+      - id: bun-install
+        name: Sync dependencies after checkout
+        entry: bun install
+        language: system
+        stages: [post-checkout]
+        always_run: true
+        pass_filenames: false
+
+      - id: no-manual-route-typing
+        name: Let ./$types type route files
+        language: pygrep
+        entry: |-
+          (: (PageData|PageProps|LayoutData|LayoutProps|ActionData|PageServerLoad|LayoutServerLoad|PageLoad|LayoutLoad|Actions|RequestHandler)\b|from "\./\$types")
+        files: ^src/routes/.*\.(ts|svelte)$
+
+      - id: no-raw-drizzle-in-routes
+        name: Use DTOs in routes, not Drizzle
+        language: pygrep
+        entry: \bdb\.(select|insert|update|delete)\(
+        files: ^src/routes/.*\.ts$
+
+      - id: no-redirect-in-hooks
+        name: Throw redirects from server load files, not hooks
+        language: pygrep
+        entry: \bredirect\(
+        files: ^src/hooks\.(server|client)\.ts$
+
+      - id: no-direct-env
+        name: Read env through src/env.ts and $app/env/private
+        language: pygrep
+        entry: \b(process\.env|Bun\.env|import\.meta\.env)\b
+        files: ^(src|tests|scripts)/.*\.(ts|svelte)$
+        exclude: ^tests/live/
+
+      - id: internal-links-resolve
+        name: Resolve internal links
+        language: pygrep
+        entry: href="/
+        files: ^src/.*\.svelte$

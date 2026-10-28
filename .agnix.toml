@@ -1,0 +1,15 @@
+tools = ["claude-code"]
+exclude = [
+	"node_modules/**",
+	".git/**",
+	".svelte-kit/**",
+	"build/**",
+	"data/**",
+	".claude/worktrees/**",
+]
+
+[rules]
+disabled_rules = []
+
+[tool_versions]
+claude_code = "2.1.310"

@@ -1,0 +1,29 @@
+[install]
+exact = true
+
+[run]
+bun = true
+
+[test]
+preload = ["./tests/unit/app/svelte-loader.ts"]
+rerunEach = 3
+coverage = true
+coverageThreshold = { functions = 0.8, lines = 0.8 }
+coveragePathIgnorePatterns = [
+	"tests/**",
+	"src/lib/components/ui/**",
+	"src/lib/server/db/schema.ts",
+	"*.config.ts",
+]
+
+[fmt]
+useTabs = true
+tabWidth = 2
+ignorePatterns = ["CHANGELOG.md", "drizzle/", "static/", "bun.lock"]
+
+[fmt.sortImports]
+newlinesBetween = true
+
+[[fmt.overrides]]
+files = ["*.md"]
+options = { useTabs = false, proseWrap = "always" }

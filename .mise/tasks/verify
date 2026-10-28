@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Every prek hook over the whole repo at the commit and push stages, what CI runs"
+set -e
+prek run --all-files
+prek run --all-files --hook-stage pre-push

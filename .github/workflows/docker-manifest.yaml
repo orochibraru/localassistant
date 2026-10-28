@@ -1,0 +1,82 @@
+name: Docker Manifest
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        description: "Subpath and image to push to, example myorg/myimage"
+        type: string
+      registry_name:
+        required: true
+        description: "Docker registry target to authenticate against and push to"
+        type: string
+      registry_username:
+        required: true
+        description: "Docker registry username"
+        type: string
+      bake_target:
+        required: true
+        description: "The target whose digests should be merged, e.g. app"
+        type: string
+    secrets:
+      registry_password:
+        required: true
+    outputs:
+      image-tag:
+        description: "The primary image tag that was published"
+        value: ${{ jobs.merge.outputs.image-tag }}
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ${{ inputs.registry_name }}/${{ inputs.image_name }}
+  TZ: Europe/Paris
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
+jobs:
+  merge:
+    name: Create Manifest and Tag then Push
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.inspect.outputs.tag }}
+    steps:
+      - name: Download meta bake definition
+        uses: orochibraru/download-artifact@554003634ca680409ecdbf97e0de85a6002f420b # 8.0.2
+        with:
+          name: bake-meta-${{ inputs.bake_target }}
+          path: ${{ runner.temp }}
+
+      - name: Download digests
+        uses: orochibraru/download-artifact@554003634ca680409ecdbf97e0de85a6002f420b # 8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ inputs.bake_target }}-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to Container registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ inputs.registry_name }}
+          username: ${{ inputs.registry_username }}
+          password: ${{ secrets.registry_password }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' "$RUNNER_TEMP/bake-meta.json") \
+            $(printf "$IMAGE@sha256:%s " *)
+
+      - name: Inspect image
+        id: inspect
+        run: |
+          tag=$(jq -r '.target."docker-metadata-action".args.DOCKER_META_VERSION' "$RUNNER_TEMP/bake-meta.json")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          docker buildx imagetools inspect "$IMAGE:$tag"

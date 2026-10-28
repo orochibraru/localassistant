@@ -1,0 +1,9 @@
+{
+	"recommendations": [
+		"oven.bun-vscode",
+		"oxc.oxc-vscode",
+		"svelte.svelte-vscode",
+		"bradlc.vscode-tailwindcss",
+		"davidanson.vscode-markdownlint"
+	]
+}

@@ -1,0 +1,11 @@
+*
+!package.json
+!bun.lock
+!bunfig.toml
+!.npmrc
+!tsconfig.json
+!vite.config.ts
+!src/
+!static/
+!drizzle/
+**/.DS_Store

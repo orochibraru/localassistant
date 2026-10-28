@@ -1,0 +1,5 @@
+failure-threshold: info
+ignored:
+  - DL3018
+trustedRegistries:
+  - docker.io

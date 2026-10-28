@@ -1,0 +1,6 @@
+rules:
+  self-repository:
+    disable: true
+  cache-poisoning:
+    ignore:
+      - pull_request.yaml

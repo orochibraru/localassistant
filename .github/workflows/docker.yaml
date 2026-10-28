@@ -1,0 +1,172 @@
+name: Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        description: "Subpath and image to push to, example myorg/myimage"
+        type: string
+      image_tag:
+        required: true
+        description: "Tag to apply to the built image, e.g. pr-123 or a commit SHA"
+        type: string
+      registry_name:
+        required: true
+        description: "Docker registry target to authenticate against and push to"
+        type: string
+      registry_username:
+        required: true
+        description: "Docker registry username"
+        type: string
+      bake_target:
+        required: true
+        description: "Target to build from docker-bake.hcl, e.g. app"
+        type: string
+      extra_tag:
+        required: false
+        default: ""
+        description: "A second, moving tag applied alongside image_tag, e.g. canary"
+        type: string
+      app_version:
+        required: false
+        default: ""
+        description: "Version baked into the image. Empty keeps package.json's."
+        type: string
+      push:
+        required: false
+        default: true
+        description:
+          "Whether to push the built image. False builds to the layer cache only,
+          for pull requests from a fork, which get no registry credentials."
+        type: boolean
+    secrets:
+      registry_password:
+        required: false
+    outputs:
+      image:
+        description: "Registry path of the built image, without a tag"
+        value: ${{ jobs.prepare.outputs.image }}
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ${{ inputs.registry_name }}/${{ inputs.image_name }}
+  TZ: Europe/Paris
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    name: "Matrix & Metadata"
+    outputs:
+      matrix: '["linux/amd64", "linux/arm64"]'
+      image: ${{ env.IMAGE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=${{ inputs.image_tag }}
+            type=raw,value=${{ inputs.extra_tag }},enable=${{ inputs.extra_tag != '' }}
+
+      - name: Rename meta bake definition file
+        env:
+          BAKE_FILE: ${{ steps.meta.outputs.bake-file }}
+        run: |
+          mv "$BAKE_FILE" "$RUNNER_TEMP/bake-meta.json"
+
+      - name: Upload meta bake definition
+        uses: orochibraru/upload-artifact@aeca548ce375fd719f0400e020a3ad90509632bc # v8.0.1
+        with:
+          name: bake-meta-${{ inputs.bake_target }}
+          path: ${{ runner.temp }}/bake-meta.json
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    name: Build Images
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' ||
+      'ubuntu-latest' }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Prepare
+        env:
+          platform: ${{ matrix.platform }}
+        run: |
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+
+      - name: Download meta bake definition
+        uses: orochibraru/download-artifact@554003634ca680409ecdbf97e0de85a6002f420b # 8.0.2
+        with:
+          name: bake-meta-${{ inputs.bake_target }}
+          path: ${{ runner.temp }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Record source tree
+        run: echo "TREE=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_ENV"
+
+      - name: Login to Container registry
+        if: inputs.push
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ inputs.registry_name }}
+          username: ${{ inputs.registry_username }}
+          password: ${{ secrets.registry_password }}
+
+      - name: Build
+        id: bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          files: |
+            ./docker-bake.hcl
+            cwd://${{ runner.temp }}/bake-meta.json
+          targets: ${{ inputs.bake_target }}
+          set: |
+            *.tags=${{ env.IMAGE }}
+            *.platform=${{ matrix.platform }}
+            *.args.APP_VERSION=${{ inputs.app_version }}
+            *.labels.app.source-tree=${{ env.TREE }}
+            *.output=${{ inputs.push && 'type=image,push-by-digest=true,name-canonical=true,push=true' || 'type=cacheonly' }}
+            ${{ inputs.bake_target }}.cache-from=type=gha,scope=${{ inputs.bake_target }}-${{ env.PLATFORM_PAIR }}-${{ github.ref_name }}
+            ${{ inputs.bake_target }}.cache-to=type=gha,mode=max,scope=${{ inputs.bake_target }}-${{ env.PLATFORM_PAIR }}-${{ github.ref_name }}
+
+      - name: Export digest
+        if: inputs.push
+        env:
+          digest: ${{ fromJSON(steps.bake.outputs.metadata)[inputs.bake_target]['containerimage.digest'] }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: inputs.push
+        uses: orochibraru/upload-artifact@aeca548ce375fd719f0400e020a3ad90509632bc # v8.0.1
+        with:
+          name: digests-${{ inputs.bake_target }}-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1

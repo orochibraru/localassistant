@@ -1,0 +1,45 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", ":semanticCommits"],
+	"schedule": ["before 6am on monday"],
+	"rangeStrategy": "pin",
+	"pre-commit": {
+		"enabled": true
+	},
+	"packageRules": [
+		{
+			"matchUpdateTypes": ["pin", "digest"],
+			"automerge": true
+		},
+		{
+			"description": "svelte-check refuses TypeScript 7",
+			"matchDepNames": ["typescript"],
+			"allowedVersions": "<7"
+		},
+		{
+			"matchDepNames": ["bun", "oven/bun", "@types/bun"],
+			"groupName": "bun"
+		},
+		{
+			"matchPackageNames": ["better-auth", "@better-auth/**"],
+			"groupName": "better-auth"
+		},
+		{
+			"matchPackageNames": ["svelte", "@sveltejs/**", "svelte-check"],
+			"groupName": "svelte"
+		},
+		{
+			"matchPackageNames": ["tailwindcss", "@tailwindcss/**"],
+			"groupName": "tailwind"
+		},
+		{
+			"matchPackageNames": ["drizzle-orm", "drizzle-kit"],
+			"groupName": "drizzle"
+		},
+		{
+			"matchManagers": ["github-actions"],
+			"matchUpdateTypes": ["minor", "patch", "digest"],
+			"groupName": "GitHub Actions"
+		}
+	]
+}

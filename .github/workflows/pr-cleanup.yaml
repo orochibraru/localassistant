@@ -1,0 +1,23 @@
+name: PR Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: pr-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  delete-image:
+    name: Delete PR Image
+    if: github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.merged
+    uses: ./.github/workflows/delete-pr-image.yaml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+    secrets:
+      registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}

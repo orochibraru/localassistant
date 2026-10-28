@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"moduleResolution": "bundler",
+		"paths": {
+			"#lib": ["src/lib/index.ts"],
+			"#lib/*": ["src/lib/*"]
+		}
+	}
+}

@@ -1,0 +1,14 @@
+services:
+  localassistant:
+    build: .
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    volumes:
+      - localassistant:/data
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET, e.g. openssl rand -base64 32}
+      ORIGIN: ${ORIGIN:-}
+
+volumes:
+  localassistant: {}

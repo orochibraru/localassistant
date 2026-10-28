@@ -1,0 +1,45 @@
+{
+	"$schema": "https://orochibraru.com/docs-config.schema.json",
+	"categories": [
+		{
+			"title": "Getting started",
+			"description": "Run LocalAssistant and claim the instance.",
+			"icon": "rocket",
+			"pages": [
+				{
+					"slug": "introduction",
+					"title": "Introduction",
+					"icon": "book-open"
+				},
+				{ "slug": "install", "title": "Install", "icon": "container" },
+				{
+					"slug": "configuration",
+					"title": "Configuration",
+					"icon": "sliders-horizontal"
+				},
+				{ "slug": "first-run", "title": "First run", "icon": "play" }
+			]
+		},
+		{
+			"title": "Devices",
+			"description": "Getting each integration's credentials and what it controls.",
+			"icon": "house",
+			"pages": [
+				{ "slug": "tuya-blinds", "title": "Tuya blinds", "icon": "blinds" },
+				{
+					"slug": "mitsubishi",
+					"title": "Mitsubishi heat pumps",
+					"icon": "thermometer"
+				}
+			]
+		},
+		{
+			"title": "Contributing",
+			"description": "Working on LocalAssistant itself.",
+			"icon": "code",
+			"pages": [
+				{ "slug": "development", "title": "Development", "icon": "terminal" }
+			]
+		}
+	]
+}
