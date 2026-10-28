@@ -101,13 +101,13 @@ describe("sign-in methods", () => {
 describe("getAuth", () => {
 	beforeEach(resetDatabase);
 
-	test("rebuilds only when providers or sign-ups change", () => {
+	test("rebuilds only when providers or the session lifetime change", () => {
 		const first = authService.get();
 		expect(authService.get()).toBe(first);
 		setSetting("ssoProviders", [provider("authentik", true)]);
 		const withProvider = authService.get();
 		expect(withProvider).not.toBe(first);
-		setSetting("signUpsEnabled", true);
+		setSetting("sessionDays", 30);
 		expect(authService.get()).not.toBe(withProvider);
 	});
 

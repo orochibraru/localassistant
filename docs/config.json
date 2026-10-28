@@ -11,13 +11,21 @@
 					"title": "Introduction",
 					"icon": "book-open"
 				},
-				{ "slug": "install", "title": "Install", "icon": "container" },
+				{
+					"slug": "install",
+					"title": "Install",
+					"icon": "container"
+				},
 				{
 					"slug": "configuration",
 					"title": "Configuration",
 					"icon": "sliders-horizontal"
 				},
-				{ "slug": "first-run", "title": "First run", "icon": "play" }
+				{
+					"slug": "first-run",
+					"title": "First run",
+					"icon": "play"
+				}
 			]
 		},
 		{
@@ -25,11 +33,25 @@
 			"description": "Getting each integration's credentials and what it controls.",
 			"icon": "house",
 			"pages": [
-				{ "slug": "tuya-blinds", "title": "Tuya blinds", "icon": "blinds" },
+				{
+					"slug": "tuya-blinds",
+					"title": "Tuya blinds",
+					"icon": "blinds"
+				},
 				{
 					"slug": "mitsubishi",
 					"title": "Mitsubishi heat pumps",
 					"icon": "thermometer"
+				},
+				{
+					"slug": "bambu",
+					"title": "Bambu Lab printers",
+					"icon": "printer"
+				},
+				{
+					"slug": "ai-apps",
+					"title": "AI apps",
+					"icon": "bot"
 				}
 			]
 		},
@@ -38,7 +60,11 @@
 			"description": "Working on LocalAssistant itself.",
 			"icon": "code",
 			"pages": [
-				{ "slug": "development", "title": "Development", "icon": "terminal" }
+				{
+					"slug": "development",
+					"title": "Development",
+					"icon": "terminal"
+				}
 			]
 		}
 	]

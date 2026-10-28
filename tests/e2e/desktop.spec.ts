@@ -2,9 +2,14 @@ import { expect, test } from "@playwright/test";
 
 test("an admin adds a blind and finds it on Home", async ({ page }) => {
 	await page.goto("/");
-	await expect(page.getByText("No devices yet")).toBeVisible();
-	await page.getByRole("link", { name: "Add devices" }).click();
-	await expect(page).toHaveURL(/\/admin\/devices/);
+	await expect(
+		page.getByRole("main").getByText("No devices yet"),
+	).toBeVisible();
+	await page
+		.getByRole("main")
+		.getByRole("link", { name: "Add devices" })
+		.click();
+	await expect(page).toHaveURL(/\/devices$/);
 
 	await page.getByRole("button", { name: "Add a blind" }).click();
 	const sheet = page.getByRole("dialog");
@@ -14,7 +19,7 @@ test("an admin adds a blind and finds it on Home", async ({ page }) => {
 	await sheet.getByLabel("Local key").fill("abcdabcdabcdabcd");
 	await sheet.getByRole("button", { name: "Add blind" }).click();
 	await expect(page.getByText("Blind added.")).toBeVisible();
-	await expect(page.getByText("Office blind")).toBeVisible();
+	await expect(page.getByRole("main").getByText("Office blind")).toBeVisible();
 
 	await page.getByRole("link", { name: "Home" }).first().click();
 	await expect(

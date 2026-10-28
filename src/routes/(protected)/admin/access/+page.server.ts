@@ -9,7 +9,6 @@ import { mailer } from "#lib/server/notifications/mailer.js";
 import { parseForm } from "#lib/server/validation/form.js";
 
 const accessSchema = z.object({
-	signUpsEnabled: z.stringbool().default(false),
 	requireTwoFactor: z.stringbool().default(false),
 	requirePasskey: z.stringbool().default(false),
 	sessionDays: z.coerce
@@ -27,7 +26,6 @@ const accessSchema = z.object({
 export const load = async ({ parent }) => {
 	await parent();
 	return {
-		signUpsEnabled: getSetting("signUpsEnabled"),
 		requireTwoFactor: getSetting("requireTwoFactor"),
 		requirePasskey: getSetting("requirePasskey"),
 		sessionDays: getSetting("sessionDays"),
@@ -47,12 +45,6 @@ export const actions = {
 		if (!parsed.success) {
 			return fail(400, { errors: parsed.errors });
 		}
-		if (parsed.data.signUpsEnabled && !mailer.isConfigured()) {
-			return fail(400, {
-				error: "Set up email first: sign-ups verify addresses by email.",
-			});
-		}
-		setSetting("signUpsEnabled", parsed.data.signUpsEnabled);
 		setSetting("requireTwoFactor", parsed.data.requireTwoFactor);
 		setSetting("requirePasskey", parsed.data.requirePasskey);
 		setSetting("sessionDays", parsed.data.sessionDays);

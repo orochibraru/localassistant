@@ -4,9 +4,9 @@
 
 # LocalAssistant
 
-Your Tuya blinds and Mitsubishi heat pumps on one page, on a server you run. A
-small, self-hosted alternative to Home Assistant that installs on your phone
-like an app.
+Your Tuya blinds, Mitsubishi heat pumps and Bambu Lab printer on one page, on a
+server you run. A small, self-hosted alternative to Home Assistant that installs
+on your phone like an app.
 
 ## What it does
 
@@ -15,8 +15,15 @@ like an app.
 - **Mitsubishi heat pumps through MELCloud**: power, mode and target temperature
   for air-to-air units; power, zone 1 temperature and hot water boost for
   air-to-water (Ecodan) units; the room temperature for both.
+- **Bambu Lab printers over your network**: progress, time left and temperatures
+  live, and pause, resume, stop, light and speed (with Developer Mode on).
+- **AI apps**: Claude, ChatGPT or Gemini drive the house over MCP, each person
+  signing in and allowing their own app.
 - **Instant controls**: every tap shows on the card at once and goes out as one
   command when you stop, with a spinner while it's sent and no pop-ups.
+- **Your house**: floors from the basement up, rooms with icons on each, outside
+  ones like the garage or the terrace, and each device in a room or the whole
+  house. A page per room, Home grouped by room.
 - **Always current**: a background worker reads every device every two minutes,
   re-reads a blind once it stopped moving, and pushes the admins a notification
   when a device has been unreachable for an hour.
@@ -62,8 +69,9 @@ the server's log shows:
 docker compose -f compose.prod.yaml logs localassistant | grep "Setup code"
 ```
 
-Enter it, then create your account: it's the admin. Then **Admin, Devices**:
-connect MELCloud, add each blind. See [First run](docs/first-run.md).
+Enter it, then create your account: it's the admin. Then **House** and
+**Devices**: connect MELCloud, add each blind. See
+[First run](docs/first-run.md).
 
 ### Upgrades
 

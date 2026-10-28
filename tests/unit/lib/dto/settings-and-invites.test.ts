@@ -16,12 +16,12 @@ describe("settings", () => {
 
 	test("falls back to defaults and stores values", () => {
 		expect(allSettings()).toEqual({
-			signUpsEnabled: false,
 			requireTwoFactor: false,
 			requirePasskey: false,
 			sessionDays: 7,
 			smtp: null,
 			melcloud: null,
+			multipleHomes: false,
 			passwordSignIn: true,
 			passkeySignIn: true,
 			magicLinkSignIn: false,
@@ -30,10 +30,13 @@ describe("settings", () => {
 			vapid: null,
 			publicOrigin: null,
 		});
-		setSetting("signUpsEnabled", true);
-		setSetting("signUpsEnabled", false);
+		setSetting("requireTwoFactor", true);
+		setSetting("requireTwoFactor", false);
 		setSetting("requirePasskey", true);
-		expect(getSetting("signUpsEnabled")).toBe(false);
+		expect(getSetting("requireTwoFactor")).toBe(false);
+		setSetting("melcloud", { email: "a@b.c", encryptedPassword: "x" });
+		setSetting("melcloud", null);
+		expect(getSetting("melcloud")).toBeNull();
 		expect(getSetting("requirePasskey")).toBe(true);
 	});
 });

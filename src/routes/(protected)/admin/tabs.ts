@@ -1,10 +1,11 @@
 import { resolve } from "$app/paths";
 import ActivityIcon from "@lucide/svelte/icons/activity";
 import DoorOpenIcon from "@lucide/svelte/icons/door-open";
+import FileJsonIcon from "@lucide/svelte/icons/file-json";
+import HousePlusIcon from "@lucide/svelte/icons/house-plus";
 import KeyRoundIcon from "@lucide/svelte/icons/key-round";
 import MailIcon from "@lucide/svelte/icons/mail";
 import MailPlusIcon from "@lucide/svelte/icons/mail-plus";
-import PlugIcon from "@lucide/svelte/icons/plug";
 import UsersIcon from "@lucide/svelte/icons/users";
 
 import type { SectionTab } from "#lib/components/nav-cards.svelte";
@@ -19,10 +20,17 @@ export function adminTabs(): SectionTab[] {
 			icon: ActivityIcon,
 		},
 		{
-			href: resolve("/(protected)/admin/devices"),
-			label: "Devices",
-			description: "Tuya blinds on your network and your MELCloud account.",
-			icon: PlugIcon,
+			href: resolve("/(protected)/admin/homes"),
+			label: "Homes",
+			description:
+				"Manage several homes, each with its own floors and devices.",
+			icon: HousePlusIcon,
+		},
+		{
+			href: resolve("/(protected)/admin/configuration"),
+			label: "Configuration",
+			description: "Export or import floors, rooms and devices as JSON.",
+			icon: FileJsonIcon,
 		},
 		{
 			href: resolve("/(protected)/admin/users"),
@@ -39,7 +47,7 @@ export function adminTabs(): SectionTab[] {
 		{
 			href: resolve("/(protected)/admin/access"),
 			label: "Access",
-			description: "Open or close sign-ups and require stronger sign-in.",
+			description: "Require stronger sign-in and set how long sessions last.",
 			icon: DoorOpenIcon,
 		},
 		{
@@ -51,7 +59,7 @@ export function adminTabs(): SectionTab[] {
 		{
 			href: resolve("/(protected)/admin/email"),
 			label: "Email",
-			description: "The SMTP server invites and sign-up codes go through.",
+			description: "The SMTP server invites and sign-in emails go through.",
 			icon: MailIcon,
 		},
 	];

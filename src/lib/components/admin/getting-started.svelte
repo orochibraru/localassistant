@@ -22,7 +22,7 @@
 		{
 			done: emailConfigured,
 			label: "Set up email",
-			hint: "So invites and sign-up codes arrive by themselves.",
+			hint: "So invites and sign-in emails arrive by themselves.",
 			href: resolve("/(protected)/admin/email"),
 		},
 		{

@@ -3,7 +3,6 @@ import { fail, redirect } from "@sveltejs/kit";
 import { APIError } from "better-auth/api";
 import { z } from "zod";
 
-import { getSetting } from "#lib/dto/setting.js";
 import { access } from "#lib/server/auth/access.js";
 import { authService } from "#lib/server/auth/auth.js";
 import { rateLimits } from "#lib/server/auth/rate-limit.js";
@@ -20,7 +19,6 @@ const ssoSchema = z.object({ provider: z.string().min(1) });
 
 export const load = ({ url }) => ({
 	redirectTo: access.safeRedirectTarget(url),
-	signUpsOpen: getSetting("signUpsEnabled"),
 	methods: signInMethods.enabled(),
 	passwordReset: signInMethods.isOn("passwordSignIn") && mailer.isConfigured(),
 });

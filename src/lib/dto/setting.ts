@@ -37,12 +37,12 @@ export interface VapidKeys {
 export const sessionDayOptions = [1, 7, 30] as const;
 
 export interface SettingValues {
-	signUpsEnabled: boolean;
 	requireTwoFactor: boolean;
 	requirePasskey: boolean;
 	sessionDays: (typeof sessionDayOptions)[number];
 	smtp: SmtpSettings | null;
 	melcloud: MelCloudAccount | null;
+	multipleHomes: boolean;
 	passwordSignIn: boolean;
 	passkeySignIn: boolean;
 	magicLinkSignIn: boolean;
@@ -53,12 +53,12 @@ export interface SettingValues {
 }
 
 const defaults: SettingValues = {
-	signUpsEnabled: false,
 	requireTwoFactor: false,
 	requirePasskey: false,
 	sessionDays: 7,
 	smtp: null,
 	melcloud: null,
+	multipleHomes: false,
 	passwordSignIn: true,
 	passkeySignIn: true,
 	magicLinkSignIn: false,
@@ -84,12 +84,12 @@ export function getSetting<Key extends keyof SettingValues>(
 /** Every setting, defaults filled in. */
 export function allSettings(): SettingValues {
 	return {
-		signUpsEnabled: getSetting("signUpsEnabled"),
 		requireTwoFactor: getSetting("requireTwoFactor"),
 		requirePasskey: getSetting("requirePasskey"),
 		sessionDays: getSetting("sessionDays"),
 		smtp: getSetting("smtp"),
 		melcloud: getSetting("melcloud"),
+		multipleHomes: getSetting("multipleHomes"),
 		passwordSignIn: getSetting("passwordSignIn"),
 		passkeySignIn: getSetting("passkeySignIn"),
 		magicLinkSignIn: getSetting("magicLinkSignIn"),
@@ -100,11 +100,15 @@ export function allSettings(): SettingValues {
 	};
 }
 
-/** Stores `value` for `key`. */
+/** Stores `value` for `key`; `null` clears it back to its default. */
 export function setSetting<Key extends keyof SettingValues>(
 	key: Key,
 	value: SettingValues[Key],
 ): void {
+	if (value === null) {
+		databaseConnection.get().delete(setting).where(eq(setting.key, key)).run();
+		return;
+	}
 	databaseConnection
 		.get()
 		.insert(setting)

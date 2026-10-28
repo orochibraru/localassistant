@@ -14,9 +14,6 @@ const { mailer } = await import("#lib/server/notifications/mailer.js");
 
 describe("emails", () => {
 	test("templates escape names and carry the code or link", () => {
-		expect(emails.verificationCode("a@b.c", "123456").subject).toContain(
-			"123 456",
-		);
 		const invite = emails.invite(
 			"a@b.c",
 			"https://app.test/auth/invite/x",

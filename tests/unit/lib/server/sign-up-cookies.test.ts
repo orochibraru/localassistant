@@ -14,26 +14,6 @@ function cookieJar(): Cookies {
 	} as unknown as Cookies;
 }
 
-describe("sign-up cookies", () => {
-	test("walk the stepper from email to code to details and back", () => {
-		const cookies = cookieJar();
-		const url = new URL("https://app.test/auth/sign-up");
-		expect(signUpCookies.currentStep(cookies)).toEqual({ step: "email" });
-		signUpCookies.rememberPending(cookies, url, "a@b.c");
-		expect(signUpCookies.currentStep(cookies)).toEqual({
-			step: "code",
-			email: "a@b.c",
-		});
-		signUpCookies.grantTicket(cookies, url, "a@b.c");
-		expect(signUpCookies.currentStep(cookies)).toEqual({
-			step: "details",
-			email: "a@b.c",
-		});
-		signUpCookies.clear(cookies);
-		expect(signUpCookies.currentStep(cookies)).toEqual({ step: "email" });
-	});
-});
-
 describe("setup ticket", () => {
 	test("is granted, read and cleared", () => {
 		const cookies = cookieJar();

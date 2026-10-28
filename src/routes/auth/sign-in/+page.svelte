@@ -320,13 +320,6 @@
 	</ResponsiveSheet>
 
 	{#snippet footer()}
-		{#if data.signUpsOpen}
-			New here? <a
-				href={resolve("/auth/sign-up")}
-				class="text-primary font-medium">Create an account</a
-			>
-		{:else}
-			This server is invite only. Ask an admin for an invite.
-		{/if}
+		This server is invite only. Ask an admin for an invite.
 	{/snippet}
 </AuthShell>

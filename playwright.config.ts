@@ -23,7 +23,7 @@ export default defineConfig({
 		},
 		{
 			name: "desktop",
-			testMatch: /desktop\.spec\.ts/,
+			testMatch: /(desktop|house)\.spec\.ts/,
 			dependencies: ["setup"],
 			use: {
 				...devices["Desktop Chrome"],

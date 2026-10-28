@@ -8,8 +8,16 @@ import {
 	signInSchema,
 } from "#lib/server/validation/auth.js";
 import {
+	bambuPrinterSchema,
 	climateChangeSchema,
+	editBambuPrinterSchema,
+	editFloorSchema,
+	editRoomSchema,
 	editTuyaCoverSchema,
+	floorSchema,
+	printerChangeSchema,
+	renameDeviceSchema,
+	roomSettingsSchema,
 	tuyaCoverSchema,
 } from "#lib/server/validation/device.js";
 import { parseForm } from "#lib/server/validation/form.js";
@@ -82,6 +90,7 @@ describe("parseForm", () => {
 			success: true,
 			data: {
 				...fields,
+				roomId: null,
 				inverted: false,
 				localKey: undefined,
 				controlDp: 1,
@@ -100,6 +109,125 @@ describe("parseForm", () => {
 		expect(custom.success || Object.keys(custom.errors)).toEqual([
 			"positionDp",
 		]);
+	});
+
+	test("a printer needs its address, serial number and 8-character access code", () => {
+		expect(
+			parseForm(
+				bambuPrinterSchema,
+				form({
+					name: "P1S",
+					host: "192.168.1.50",
+					externalId: " 01p00a000000000 ",
+					accessCode: "12345678",
+				}),
+			),
+		).toEqual({
+			success: true,
+			data: {
+				name: "P1S",
+				roomId: null,
+				host: "192.168.1.50",
+				externalId: "01P00A000000000",
+				accessCode: "12345678",
+			},
+		});
+		const parsed = parseForm(
+			bambuPrinterSchema,
+			form({ name: "P1S", host: "", externalId: "x", accessCode: "123" }),
+		);
+		expect(parsed.success || Object.keys(parsed.errors).sort()).toEqual([
+			"accessCode",
+			"externalId",
+			"host",
+		]);
+		expect(
+			parseForm(
+				editBambuPrinterSchema,
+				form({ id: "p", name: "P1S", host: "192.168.1.51", accessCode: "" }),
+			),
+		).toEqual({
+			success: true,
+			data: {
+				id: "p",
+				name: "P1S",
+				roomId: null,
+				host: "192.168.1.51",
+				accessCode: undefined,
+			},
+		});
+		expect(
+			printerChangeSchema.safeParse({ deviceId: "p", speed: 4 }).success,
+		).toBe(true);
+		expect(
+			printerChangeSchema.safeParse({ deviceId: "p", speed: 5 }).success,
+		).toBe(false);
+		expect(printerChangeSchema.safeParse({ deviceId: "p" }).success).toBe(
+			false,
+		);
+	});
+
+	test("a room has a name, an icon and a place, and house means no room", () => {
+		expect(
+			parseForm(
+				roomSettingsSchema,
+				form({ name: " Garage ", icon: "garage", place: "outside" }),
+			),
+		).toEqual({
+			success: true,
+			data: { name: "Garage", icon: "garage", floorId: null, outdoor: true },
+		});
+		expect(
+			parseForm(
+				editRoomSchema,
+				form({ id: "r", name: "Bedroom", place: "f1" }),
+			),
+		).toEqual({
+			success: true,
+			data: {
+				id: "r",
+				name: "Bedroom",
+				icon: "door",
+				floorId: "f1",
+				outdoor: false,
+			},
+		});
+		expect(
+			parseForm(roomSettingsSchema, form({ name: "Hall", place: "none" })),
+		).toMatchObject({ success: true, data: { floorId: null, outdoor: false } });
+		for (const name of ["", "house", "Whole house"]) {
+			expect(parseForm(roomSettingsSchema, form({ name })).success).toBe(false);
+		}
+		expect(
+			parseForm(roomSettingsSchema, form({ name: "Hall", icon: "rocket" }))
+				.success,
+		).toBe(false);
+		expect(
+			parseForm(
+				renameDeviceSchema,
+				form({ id: "d", name: "PAC", roomId: "house" }),
+			),
+		).toEqual({ success: true, data: { id: "d", name: "PAC", roomId: null } });
+		expect(
+			parseForm(
+				renameDeviceSchema,
+				form({ id: "d", name: "PAC", roomId: "r" }),
+			),
+		).toEqual({ success: true, data: { id: "d", name: "PAC", roomId: "r" } });
+	});
+
+	test("a floor has a name and a level from the deep basement up", () => {
+		expect(
+			parseForm(floorSchema, form({ name: "Basement", level: "-1" })),
+		).toEqual({ success: true, data: { name: "Basement", level: -1 } });
+		expect(
+			parseForm(editFloorSchema, form({ id: "f", name: "Attic", level: "2" })),
+		).toEqual({ success: true, data: { id: "f", name: "Attic", level: 2 } });
+		for (const level of ["-6", "31", "1.5", "up"]) {
+			expect(parseForm(floorSchema, form({ name: "X", level })).success).toBe(
+				false,
+			);
+		}
 	});
 
 	test("a heat pump change says what to change", () => {
@@ -130,6 +258,7 @@ describe("parseForm", () => {
 			success: true,
 			data: {
 				name: "Living room",
+				roomId: null,
 				host: "192.168.1.40",
 				externalId: "bf1234567890abcdefgh",
 				localKey: "abcdabcdabcdabcd",

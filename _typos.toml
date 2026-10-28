@@ -1,14 +1,7 @@
 [files]
-extend-exclude = [
-	"CHANGELOG.md",
-	"bun.lock",
-	"drizzle/",
-	"src/lib/category-keywords.json",
-	"src/lib/server/banking/enable-banking-api.d.ts",
-]
+extend-exclude = ["CHANGELOG.md", "bun.lock", "drizzle/"]
 
 [default.extend-words]
 ba = "ba"
-impot = "impot"
-OTHR = "OTHR"
-VALU = "VALU"
+chambre = "chambre"
+RECOMMANDATIONS = "RECOMMANDATIONS"

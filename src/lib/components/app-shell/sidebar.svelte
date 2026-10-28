@@ -1,32 +1,73 @@
 <script lang="ts">
-	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
-	import LogOutIcon from "@lucide/svelte/icons/log-out";
-	import PaletteIcon from "@lucide/svelte/icons/palette";
-	import UserRoundIcon from "@lucide/svelte/icons/user-round";
+	import BlindsIcon from "@lucide/svelte/icons/blinds";
+	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
+	import HouseIcon from "@lucide/svelte/icons/house";
+	import LayersIcon from "@lucide/svelte/icons/layers";
+	import PlusIcon from "@lucide/svelte/icons/plus";
+	import PrinterIcon from "@lucide/svelte/icons/printer";
+	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
+	import type { Component } from "svelte";
 
 	import {
 		isActive,
 		navigationItems,
 	} from "#lib/components/app-shell/navigation.js";
 	import BrandMark from "#lib/components/brand-mark.svelte";
+	import HomeSwitcher from "#lib/components/house/home-switcher.svelte";
+	import IconButton from "#lib/components/icon-button.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { type HouseFloor, houseGroups, type HouseRoom } from "#lib/house.js";
+	import { roomIcon } from "#lib/room-icons.js";
+	import { useSheets } from "#lib/sheets.svelte.js";
 
 	interface Props {
 		isAdmin: boolean;
-		user: { name: string; email: string };
+		rooms: HouseRoom[];
+		floors: HouseFloor[];
+		devices: {
+			id: string;
+			name: string;
+			kind: string;
+			roomId: string | null;
+		}[];
+		home: { id: string; name: string };
+		homes: { id: string; name: string }[];
 	}
 
-	const { isAdmin, user }: Props = $props();
+	const { isAdmin, rooms, floors, devices, home, homes }: Props = $props();
+
+	const sheets = useSheets();
+
+	const kindIcons: Record<string, Component<{ class?: string }>> = {
+		"tuya-cover": BlindsIcon,
+		"bambu-printer": PrinterIcon,
+	};
 
 	const homeHref = resolve("/(protected)");
-	const accountHref = resolve("/(protected)/account");
+	const sectionHrefs = new Set<string>([
+		resolve("/(protected)/account"),
+		resolve("/(protected)/house"),
+		resolve("/(protected)/devices"),
+	]);
 	const items = $derived(
-		navigationItems(isAdmin).filter((item) => item.href !== accountHref),
+		navigationItems(isAdmin).filter((item) => !sectionHrefs.has(item.href)),
 	);
-	let signOutForm: HTMLFormElement | undefined = $state();
+	const groups = $derived(houseGroups(floors, rooms));
+	const showGroupNames = $derived(
+		groups.length > 1 || groups.some((group) => group.id === "outside"),
+	);
+	const sortedDevices = $derived(
+		devices.toSorted((first, second) => first.name.localeCompare(second.name)),
+	);
+
+	const linkClass =
+		"text-muted-foreground hover:bg-muted hover:text-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors";
+
+	function roomHref(roomId: string): string {
+		return resolve("/(protected)/rooms/[roomId]", { roomId });
+	}
 </script>
 
 <aside
@@ -35,13 +76,19 @@
 	aria-label="Sidebar"
 >
 	<a
-		href={resolve("/(protected)")}
+		href={homeHref}
 		class="flex h-16 shrink-0 items-center gap-2.5 px-5"
 		aria-label="LocalAssistant home"
 	>
 		<BrandMark class="size-8" />
 		<span class="font-display text-lg font-semibold">LocalAssistant</span>
 	</a>
+
+	{#if homes.length > 0}
+		<div class="px-3 pb-3">
+			<HomeSwitcher {home} {homes} />
+		</div>
+	{/if}
 
 	<nav aria-label="Main" class="px-3">
 		<ul class="flex flex-col gap-0.5">
@@ -66,60 +113,146 @@
 		</ul>
 	</nav>
 
-	<div class="flex-1"></div>
-
-	<div class="border-t p-3">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="hover:bg-muted aria-expanded:bg-muted flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors"
-			>
-				<span
-					class="from-primary flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br to-[oklch(0.6_0.15_calc(var(--hue)+60))] text-sm font-semibold text-white"
-					aria-hidden="true"
+	<div
+		class="no-scrollbar mt-6 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-3 pb-6"
+	>
+		<section aria-label="House">
+			<div class="flex items-center justify-between px-3 pb-1.5">
+				<a
+					href={resolve("/(protected)/house")}
+					class="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+					>House</a
 				>
-					{user.name.slice(0, 1).toUpperCase()}
-				</span>
-				<span class="min-w-0 flex-1">
-					<span class="block truncate text-sm font-medium">{user.name}</span>
-					<span class="text-muted-foreground block truncate text-xs"
-						>{user.email}</span
+				{#if isAdmin}
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							{#snippet child({ props })}
+								<IconButton
+									{...props}
+									label="Add to the house"
+									icon={PlusIcon}
+									class="text-muted-foreground -mr-1.5 size-7 md:size-7"
+								/>
+							{/snippet}
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="start" class="w-48">
+							<DropdownMenu.Item onSelect={() => (sheets.room = { id: null })}>
+								<DoorOpenIcon />Add a room
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onSelect={() => (sheets.floor = { id: null })}>
+								<LayersIcon />Add a floor
+							</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+				{/if}
+			</div>
+			<ul class="flex flex-col gap-0.5">
+				<li>
+					<a
+						href={roomHref("house")}
+						aria-current={page.url.pathname === roomHref("house")
+							? "page"
+							: undefined}
+						class={linkClass}
 					>
-				</span>
-				<ChevronsUpDownIcon class="text-muted-foreground size-4 shrink-0" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content side="top" align="start" class="w-56">
-				<DropdownMenu.Item>
-					{#snippet child({ props })}
-						<a {...props} href={resolve("/(protected)/account/profile")}>
-							<UserRoundIcon />
-							Account
-						</a>
-					{/snippet}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item>
-					{#snippet child({ props })}
-						<a {...props} href={resolve("/(protected)/account/appearance")}>
-							<PaletteIcon />
-							Appearance
-						</a>
-					{/snippet}
-				</DropdownMenu.Item>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item
-					variant="destructive"
-					onSelect={() => signOutForm?.requestSubmit()}
-				>
-					<LogOutIcon />
-					Sign out
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-		<form
-			bind:this={signOutForm}
-			method="POST"
-			action="{accountHref}?/signOut"
-			use:enhance
-			hidden
-		></form>
+						<HouseIcon class="size-4 shrink-0" />
+						<span class="truncate">Whole house</span>
+					</a>
+				</li>
+			</ul>
+			{#each groups as group (group.id)}
+				{#if showGroupNames}
+					<h3
+						class="text-muted-foreground/70 mt-3 px-3 pb-1 text-[0.6875rem] font-medium tracking-wide uppercase"
+					>
+						{group.name}
+					</h3>
+				{/if}
+				<ul class="flex flex-col gap-0.5">
+					{#each group.rooms as room (room.id)}
+						{@const Icon = roomIcon(room.icon)}
+						<li>
+							<a
+								href={roomHref(room.id)}
+								aria-current={page.url.pathname === roomHref(room.id)
+									? "page"
+									: undefined}
+								class={linkClass}
+							>
+								<Icon class="size-4 shrink-0" />
+								<span class="truncate">{room.name}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			{/each}
+		</section>
+
+		<section aria-label="Devices">
+			<div class="flex items-center justify-between px-3 pb-1.5">
+				{#if isAdmin}
+					<a
+						href={resolve("/(protected)/devices")}
+						class="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+						>Devices</a
+					>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							{#snippet child({ props })}
+								<IconButton
+									{...props}
+									label="Add a device"
+									icon={PlusIcon}
+									class="text-muted-foreground -mr-1.5 size-7 md:size-7"
+								/>
+							{/snippet}
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="start" class="w-56">
+							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "blind")}>
+								<BlindsIcon />Tuya blind
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onSelect={() => (sheets.addDevice = "printer")}
+							>
+								<PrinterIcon />Bambu Lab printer
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onSelect={() => (sheets.addDevice = "melcloud")}
+							>
+								<ThermometerIcon />Mitsubishi heat pumps
+							</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+				{:else}
+					<h2 class="text-muted-foreground text-xs font-medium">Devices</h2>
+				{/if}
+			</div>
+			<ul class="flex flex-col gap-0.5">
+				{#each sortedDevices as device (device.id)}
+					{@const Icon = kindIcons[device.kind] ?? ThermometerIcon}
+					<li>
+						{#if isAdmin}
+							<button
+								type="button"
+								class={linkClass}
+								onclick={() => (sheets.editDeviceId = device.id)}
+							>
+								<Icon class="size-4 shrink-0" />
+								<span class="truncate">{device.name}</span>
+							</button>
+						{:else}
+							<a href={roomHref(device.roomId ?? "house")} class={linkClass}>
+								<Icon class="size-4 shrink-0" />
+								<span class="truncate">{device.name}</span>
+							</a>
+						{/if}
+					</li>
+				{:else}
+					<li class="text-muted-foreground px-3 py-2 text-sm">
+						No devices yet.
+					</li>
+				{/each}
+			</ul>
+		</section>
 	</div>
 </aside>

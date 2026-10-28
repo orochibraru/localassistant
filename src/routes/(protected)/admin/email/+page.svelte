@@ -38,7 +38,7 @@
 		<div>
 			<h2 class="font-semibold">SMTP server</h2>
 			<p class="text-muted-foreground mt-1 text-sm">
-				Used for invites and sign-up codes. Emails leave from the background
+				Used for invites and sign-in emails. Emails leave from the background
 				worker, with retries.
 			</p>
 		</div>

@@ -1,9 +1,13 @@
+import { HomeDTO } from "#lib/dto/home.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import {
 	appearance,
 	device,
+	floor,
+	home,
 	invite,
 	job,
+	room,
 	setting,
 	user,
 	verification,
@@ -19,6 +23,9 @@ export function resetDatabase(): void {
 		appearance,
 		verification,
 		device,
+		room,
+		floor,
+		home,
 		user,
 	]) {
 		database.delete(table).run();
@@ -35,4 +42,8 @@ export function createUser(
 		.values({ id, name, email: `${id}@example.com` })
 		.run();
 	return { id, name };
+}
+
+export function homeId(): string {
+	return HomeDTO.first().id;
 }

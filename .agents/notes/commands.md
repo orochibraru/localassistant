@@ -93,3 +93,11 @@ Plain `bun install` works without mise.
   MELCloud by spying on `fetch`. The integration suite adds a blind at
   `127.0.0.1` and checks the worker recorded a read (an error, since nothing
   answers there).
+
+## Icons
+
+Made once from `static/favicon.svg` with `@vite-pwa/assets-generator`: the `any`
+icons keep the rounded square (padding 0.05); the maskable (192, 512) and Apple
+(180) icons are full-bleed (padding 0, background `#911f43`) so a phone's
+circle, squircle or rounded-square mask never shows a white ring or white
+corners. The house stays inside the maskable safe zone (the centre 80%).

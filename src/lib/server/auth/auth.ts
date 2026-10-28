@@ -3,6 +3,9 @@ import { createHmac } from "node:crypto";
 import { dev } from "$app/env";
 import { resolve } from "$app/paths";
 import { getRequestEvent } from "$app/server";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import { mcp } from "@better-auth/mcp";
 import { passkey } from "@better-auth/passkey";
 import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -18,6 +21,7 @@ import { generateRandomString } from "better-auth/crypto";
 import {
 	emailOTP,
 	genericOAuth,
+	jwt,
 	magicLink,
 	twoFactor,
 } from "better-auth/plugins";
@@ -36,6 +40,8 @@ import { emails } from "#lib/server/notifications/emails.js";
 import { mailer } from "#lib/server/notifications/mailer.js";
 
 const logger = new Logger("Auth");
+
+const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const passkeySignInPaths = new Set([
 	"/passkey/generate-authenticate-options",
@@ -62,6 +68,14 @@ const browserPaths = [
 	"/sign-out",
 	"/error",
 	"/ok",
+	"/oauth2/authorize",
+	"/oauth2/token",
+	"/oauth2/register",
+	"/oauth2/consent",
+	"/oauth2/revoke",
+	"/oauth2/userinfo",
+	"/jwks",
+	"/.well-known/",
 ];
 
 const passkeyRegistrationPaths = new Set([
@@ -87,23 +101,17 @@ class AuthService {
 
 	/**
 	 * The better-auth instance, created on first use so a build never opens the database or needs the secret, and rebuilt
-	 * when an admin changes the single sign-on providers, the sign-up policy or the session lifetime, or the origin it is
-	 * reached at changes: the public origin, else the request's.
+	 * when an admin changes the single sign-on providers or the session lifetime, or the origin it is
+	 * reached at changes: the public origin, else the request's, which the MCP server's OAuth endpoints are built from.
 	 */
 	get(): Auth {
 		const providers = getSetting("ssoProviders");
-		const signUpsEnabled = getSetting("signUpsEnabled");
 		const sessionDays = getSetting("sessionDays");
 		const origin = this.publicOrigin() ?? this.#requestOrigin();
-		const key = JSON.stringify([
-			providers,
-			signUpsEnabled,
-			sessionDays,
-			origin,
-		]);
+		const key = JSON.stringify([providers, sessionDays, origin]);
 		if (this.#instance?.key !== key) {
 			this.#instance = {
-				auth: this.build(providers, signUpsEnabled, sessionDays, origin),
+				auth: this.build(providers, sessionDays, origin),
 				key,
 			};
 		}
@@ -130,6 +138,17 @@ class AuthService {
 		}
 	}
 
+	/** The address AI apps reach the MCP server at on `origin`, or none when it isn't HTTPS or localhost, which OAuth requires. */
+	mcpResource(origin: string | undefined): string | undefined {
+		if (!origin) {
+			return undefined;
+		}
+		const url = new URL("/mcp", origin);
+		return url.protocol === "https:" || loopbackHosts.has(url.hostname)
+			? url.href
+			: undefined;
+	}
+
 	/** Routes a better-auth log line through the app logger, dropping the "Base URL is not set" warning the request-derived origin causes. */
 	forwardLog(
 		level: "debug" | "info" | "warn" | "error",
@@ -145,7 +164,6 @@ class AuthService {
 	/** Builds a better-auth instance for these settings; `get()` caches it. */
 	build(
 		providers: SsoProvider[],
-		signUpsEnabled: boolean,
 		sessionDays: number,
 		origin: string | undefined,
 	) {
@@ -237,9 +255,10 @@ class AuthService {
 						clientSecret: secrets.decrypt(provider.encryptedClientSecret),
 						scopes: ["openid", "email", "profile"],
 						pkce: true,
-						disableImplicitSignUp: !signUpsEnabled,
+						disableImplicitSignUp: true,
 					})),
 				}),
+				...this.#aiAppPlugins(this.mcpResource(origin)),
 				sveltekitCookies(getRequestEvent),
 			],
 		});
@@ -275,6 +294,26 @@ class AuthService {
 		} catch {
 			return undefined;
 		}
+	}
+
+	/** The plugins that let AI apps sign in over OAuth and reach `/mcp`, none without a usable `resource`. */
+	#aiAppPlugins(resource: string | undefined) {
+		if (!resource) {
+			return [];
+		}
+		return [
+			jwt(),
+			mcp({
+				resource,
+				loginPage: "/auth/oauth",
+				consentPage: "/oauth/consent",
+				scopes: ["openid", "offline_access"],
+				allowDynamicClientRegistration: true,
+				allowUnauthenticatedClientRegistration: true,
+				clientRegistrationDefaultApplicationType: "infer",
+			}),
+			cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
+		];
 	}
 
 	/** Why an email link or code request is refused: the method is off, email isn't set up, or it isn't for signing in. */

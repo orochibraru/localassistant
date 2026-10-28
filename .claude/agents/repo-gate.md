@@ -49,8 +49,8 @@ Read the changed files, don't just grep: these rules have narrow triggers.
   `import type {...} from "./$types"`. Shared modules under `#lib/` are typed
   explicitly; don't over-apply the rule there.
 - **Every signed-in page lives under `src/routes/(protected)/`**; sign-in and
-  sign-up live under `src/routes/auth/`. A new page reading `locals.user`
-  outside `(protected)/` is a finding.
+  setup and invites live under `src/routes/auth/`. A new page reading
+  `locals.user` outside `(protected)/` is a finding.
 - **Redirects are thrown from `+layout.server.ts`, `+page.server.ts` or a remote
   function (via `access.requireUser()`), never from hooks.** `hooks.server.ts`
   only populates `locals`, runs the migrations in `init`, logs requests through

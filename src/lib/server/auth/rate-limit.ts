@@ -39,7 +39,7 @@ export class RateLimiter {
 	}
 }
 
-/** The attempt limits sign-in, sign-up, setup and the emails they send are held to. */
+/** The attempt limits sign-in, setup and the emails they send are held to. */
 class RateLimits {
 	readonly passwordAttempts = new RateLimiter(10, 15 * 60_000);
 	readonly addressAttempts = new RateLimiter(50, 15 * 60_000);
@@ -47,10 +47,9 @@ class RateLimits {
 	readonly secondFactorAttempts = new RateLimiter(10, 15 * 60_000);
 	readonly emailsPerRecipient = new RateLimiter(3, 15 * 60_000);
 	readonly emailsPerClient = new RateLimiter(20, 60 * 60_000);
-	readonly signUpCodeAttempts = new RateLimiter(15, 24 * 60 * 60_000);
 	readonly setupCodeAttempts = new RateLimiter(10, 60 * 60_000);
 
-	/** Whether a sign-in or sign-up email may go to `recipient` for `client` now, counting it when it may. */
+	/** Whether a sign-in email may go to `recipient` for `client` now, counting it when it may. */
 	mayEmail(recipient: string, client: string): boolean {
 		if (
 			this.emailsPerRecipient.blocked(recipient) ||

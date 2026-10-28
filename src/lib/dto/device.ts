@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { DeviceState } from "#lib/devices.js";
 import { BaseDTO } from "#lib/dto/base-dto.js";
@@ -10,7 +10,9 @@ export type DeviceKind = (typeof deviceKinds)[number];
 export interface DeviceRow {
 	id: string;
 	kind: DeviceKind;
+	homeId: string | null;
 	name: string;
+	roomId: string | null;
 	externalId: string;
 	host: string | null;
 	protocolVersion: string | null;
@@ -28,6 +30,7 @@ export interface DeviceRow {
 
 export interface TuyaCoverSettings {
 	name: string;
+	roomId: string | null;
 	host: string;
 	protocolVersion: string;
 	inverted: boolean;
@@ -39,7 +42,9 @@ export interface TuyaCoverSettings {
 
 export interface NewDevice {
 	kind: DeviceKind;
+	homeId: string;
 	name: string;
+	roomId?: string | null;
 	externalId: string;
 	host?: string;
 	protocolVersion?: string;
@@ -54,7 +59,9 @@ export interface NewDevice {
 const columns = {
 	id: device.id,
 	kind: device.kind,
+	homeId: device.homeId,
 	name: device.name,
+	roomId: device.roomId,
 	externalId: device.externalId,
 	host: device.host,
 	protocolVersion: device.protocolVersion,
@@ -73,6 +80,35 @@ const columns = {
 type SelectedRow = Omit<DeviceRow, "state"> & { state: unknown };
 
 export class DeviceDTO extends BaseDTO<DeviceRow> {
+	/** The devices of `homeId`, by name. */
+	static inHome(homeId: string): DeviceDTO[] {
+		return databaseConnection
+			.get()
+			.select(columns)
+			.from(device)
+			.where(eq(device.homeId, homeId))
+			.orderBy(asc(device.name))
+			.all()
+			.map((row) => DeviceDTO.#wrap(row));
+	}
+
+	/** The devices of `homeId` in `roomId`, or its whole house's when `null`, by name. */
+	static inRoom(homeId: string, roomId: string | null): DeviceDTO[] {
+		return databaseConnection
+			.get()
+			.select(columns)
+			.from(device)
+			.where(
+				and(
+					eq(device.homeId, homeId),
+					roomId === null ? isNull(device.roomId) : eq(device.roomId, roomId),
+				),
+			)
+			.orderBy(asc(device.name))
+			.all()
+			.map((row) => DeviceDTO.#wrap(row));
+	}
+
 	/** Every device, by name. */
 	static all(): DeviceDTO[] {
 		return databaseConnection
@@ -84,13 +120,17 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 			.map((row) => DeviceDTO.#wrap(row));
 	}
 
-	/** The device with `id`. */
-	static find(id: string): DeviceDTO | undefined {
+	/** The device with `id`, only in `homeId` when given. */
+	static find(id: string, homeId?: string): DeviceDTO | undefined {
 		const row = databaseConnection
 			.get()
 			.select(columns)
 			.from(device)
-			.where(eq(device.id, id))
+			.where(
+				homeId === undefined
+					? eq(device.id, id)
+					: and(eq(device.id, id), eq(device.homeId, homeId)),
+			)
 			.get();
 		return row ? DeviceDTO.#wrap(row) : undefined;
 	}
@@ -220,19 +260,36 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		this.#update({ unreachableAlerted: true });
 	}
 
-	/** Renames the device. */
-	rename(name: string): void {
+	/** Renames the device and moves it to `roomId`, the whole house when `null`. */
+	rename(name: string, roomId: string | null): void {
 		databaseConnection
 			.get()
 			.update(device)
-			.set({ name, updatedAt: new Date() })
+			.set({ name, roomId, updatedAt: new Date() })
 			.where(eq(device.id, this.row.id))
 			.run();
-		this.row.name = name;
+		Object.assign(this.row, { name, roomId });
 	}
 
 	/** Changes how a Tuya cover is reached; the local key only when a new one is given. */
 	reconfigure(values: TuyaCoverSettings): void {
+		const { encryptedLocalKey, ...rest } = values;
+		databaseConnection
+			.get()
+			.update(device)
+			.set({ ...rest, localKey: encryptedLocalKey, updatedAt: new Date() })
+			.where(eq(device.id, this.row.id))
+			.run();
+		Object.assign(this.row, rest);
+	}
+
+	/** Changes a printer's name and address, and its access code when a new one is given. */
+	reconnect(values: {
+		name: string;
+		roomId: string | null;
+		host: string;
+		encryptedLocalKey?: string;
+	}): void {
 		const { encryptedLocalKey, ...rest } = values;
 		databaseConnection
 			.get()

@@ -8,6 +8,7 @@ import {
 	climateChangeSchema,
 	coverActionSchema,
 	coverPositionSchema,
+	printerChangeSchema,
 } from "#lib/server/validation/device.js";
 
 function deviceFor(deviceId: string): DeviceDTO {
@@ -50,5 +51,14 @@ export const controlClimate = command(
 		access.requireUser();
 		const device = deviceFor(deviceId);
 		await attempt(() => devices.climate(device, change));
+	},
+);
+
+export const controlPrinter = command(
+	printerChangeSchema,
+	async ({ deviceId, ...change }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.printer(device, change));
 	},
 );

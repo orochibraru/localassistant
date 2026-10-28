@@ -13,8 +13,6 @@ export const signInSchema = z.object({
 	password: z.string().min(1, "Enter your password.").max(passwordMaxLength),
 });
 
-export const signUpStartSchema = z.object({ email: emailSchema });
-
 export const codeSchema = z.object({
 	code: z
 		.string()

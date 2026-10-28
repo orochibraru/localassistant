@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { readAgo } from "#lib/devices.js";
+import { readAgo, timeLeft } from "#lib/devices.js";
 
 describe("readAgo", () => {
 	const now = Date.parse("2026-10-28T12:00:00Z");
@@ -14,5 +14,13 @@ describe("readAgo", () => {
 		expect(readAgo(ago(2 * 3600), now)).toBe("2 hours ago");
 		expect(readAgo(ago(26 * 3600), now)).toBe("yesterday");
 		expect(readAgo(ago(3 * 86_400), now)).toBe("3 days ago");
+	});
+});
+
+describe("timeLeft", () => {
+	test("says a print's time left in hours and minutes", () => {
+		expect(timeLeft(12)).toBe("12 min");
+		expect(timeLeft(125)).toBe("2 h 05 min");
+		expect(timeLeft(60)).toBe("1 h 00 min");
 	});
 });

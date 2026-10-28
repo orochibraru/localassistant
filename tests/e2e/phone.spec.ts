@@ -4,7 +4,7 @@ test("Home fits a phone and the blind drawer opens", async ({ page }) => {
 	await page.addInitScript(() =>
 		localStorage.setItem("localassistant-install-prompted", "e2e"),
 	);
-	await page.goto("/admin/devices");
+	await page.goto("/devices");
 	await page.getByRole("button", { name: "Add a blind" }).click();
 	const sheet = page.getByRole("dialog").last();
 	await expect(sheet.getByLabel("Local key")).toBeVisible();

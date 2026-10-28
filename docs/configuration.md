@@ -1,7 +1,7 @@
 # Configuration
 
 Environment variables cover what the server needs at boot. Everything else
-(devices, sign-ups, sign-in methods, email) is set in the app's admin area.
+(devices, invites, sign-in methods, email) is set in the app's admin area.
 
 ## Required
 
@@ -46,12 +46,13 @@ Migrations run at every boot, before the worker starts.
 
 ## Logging
 
-| Variable     | Default in the image | Values                                    |
-| ------------ | -------------------- | ----------------------------------------- |
-| `LOG_LEVEL`  | `info`               | `trace`, `debug`, `info`, `warn`, `error` |
-| `LOG_FORMAT` | `json`               | `json`, `console`                         |
+| Variable     | Default   | Values                                    |
+| ------------ | --------- | ----------------------------------------- |
+| `LOG_LEVEL`  | `info`    | `trace`, `debug`, `info`, `warn`, `error` |
+| `LOG_FORMAT` | `console` | `console`, `json`                         |
 
-Outside the image, `LOG_FORMAT` defaults to `console`.
+`console` writes coloured lines; `json` writes one object per line, for a log
+shipper.
 
 ## Version
 

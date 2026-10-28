@@ -12,7 +12,6 @@ export const load = async ({ locals, parent }) => {
 	return {
 		users,
 		pendingInvites: InviteDTO.pendingCount(),
-		signUpsEnabled: settings.signUpsEnabled,
 		emailConfigured: settings.smtp !== null,
 		devices: DeviceDTO.all().length,
 		requireTwoFactor: settings.requireTwoFactor,

@@ -5,67 +5,11 @@ import { setSetting } from "#lib/dto/setting.js";
 import { UserDTO } from "#lib/dto/user.js";
 import { authService } from "#lib/server/auth/auth.js";
 import { securityPolicy } from "#lib/server/auth/security-policy.js";
-import { signUp, SignUpError } from "#lib/server/auth/sign-up.js";
+import { signUp } from "#lib/server/auth/sign-up.js";
 import { databaseConnection } from "#lib/server/db/database.js";
-import { job, user } from "#lib/server/db/schema.js";
+import { user } from "#lib/server/db/schema.js";
 
 import { createUser, resetDatabase } from "../../database.js";
-
-const signInLink = "https://app.test/auth/sign-in";
-
-const smtp = {
-	host: "smtp.example.com",
-	port: 587,
-	security: "starttls" as const,
-	username: "",
-	encryptedPassword: "",
-	fromAddress: "localassistant@example.com",
-	fromName: "LocalAssistant",
-};
-
-describe("startSignUp", () => {
-	beforeEach(resetDatabase);
-
-	test("is closed while sign-ups are off", () => {
-		expect(() => signUp.start("someone@example.com", signInLink)).toThrow(
-			SignUpError,
-		);
-		expect(() => signUp.start("someone@example.com", signInLink)).toThrow(
-			"invite",
-		);
-	});
-
-	test("open sign-ups still need SMTP, then email the code", () => {
-		setSetting("signUpsEnabled", true);
-		expect(() => signUp.start("someone@example.com", signInLink)).toThrow(
-			"email delivery",
-		);
-		setSetting("smtp", smtp);
-		signUp.start("someone@example.com", signInLink);
-		expect(
-			databaseConnection.get().select({ type: job.type }).from(job).all(),
-		).toEqual([{ type: "email.send" }]);
-		expect(() => signUp.start("someone@example.com", signInLink)).toThrow(
-			"Wait a minute",
-		);
-	});
-
-	test("answers a taken address like a new one, mailing its owner a sign-in link instead of a code", () => {
-		createUser("ada");
-		expect(() => signUp.start("ada@example.com", signInLink)).toThrow("invite");
-		setSetting("signUpsEnabled", true);
-		setSetting("smtp", smtp);
-		signUp.start("ada@example.com", signInLink);
-		const [queued] = databaseConnection
-			.get()
-			.select({ payload: job.payload })
-			.from(job)
-			.all();
-		expect(JSON.stringify(queued?.payload)).toContain(
-			"You already have an LocalAssistant account",
-		);
-	});
-});
 
 describe("createVerifiedAccount and missingFactors", () => {
 	beforeEach(resetDatabase);

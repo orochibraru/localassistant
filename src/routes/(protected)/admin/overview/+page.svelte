@@ -41,12 +41,6 @@
 			href={resolve("/(protected)/admin/invites")}
 		/>
 		<StatCard
-			label="Sign-ups"
-			value={data.signUpsEnabled ? "Open" : "Invite only"}
-			icon={DoorOpenIcon}
-			href={resolve("/(protected)/admin/access")}
-		/>
-		<StatCard
 			label="Sign-in requires"
 			value={requirement}
 			icon={ShieldCheckIcon}
@@ -64,7 +58,7 @@
 			label="Devices"
 			value={String(data.devices)}
 			icon={PlugIcon}
-			href={resolve("/(protected)/admin/devices")}
+			href={resolve("/(protected)/devices")}
 		/>
 	</div>
 

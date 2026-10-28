@@ -1,5 +1,6 @@
 import { resolve } from "$app/paths";
 import BellIcon from "@lucide/svelte/icons/bell";
+import BotIcon from "@lucide/svelte/icons/bot";
 import FingerprintIcon from "@lucide/svelte/icons/fingerprint";
 import PaletteIcon from "@lucide/svelte/icons/palette";
 import UserRoundIcon from "@lucide/svelte/icons/user-round";
@@ -33,6 +34,12 @@ export function accountTabs(): SectionTab[] {
 			label: "Notifications",
 			description: "Get told on this device when something needs you.",
 			icon: BellIcon,
+		},
+		{
+			href: resolve("/(protected)/account/ai-apps"),
+			label: "AI apps",
+			description: "Let Claude, ChatGPT or Gemini see the house and drive it.",
+			icon: BotIcon,
 		},
 	];
 }

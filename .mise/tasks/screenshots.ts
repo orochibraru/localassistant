@@ -13,6 +13,9 @@ import { $, Image } from "bun";
 
 import type { DeviceState } from "#lib/devices.js";
 import { DeviceDTO } from "#lib/dto/device.js";
+import { FloorDTO } from "#lib/dto/floor.js";
+import { HomeDTO } from "#lib/dto/home.js";
+import { RoomDTO } from "#lib/dto/room.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
@@ -72,11 +75,32 @@ databaseConnection
 	})
 	.run();
 
+const homeId = HomeDTO.first().id;
+const ground = FloorDTO.create(homeId, "Ground floor", 0).toJSON().id;
+const first = FloorDTO.create(homeId, "First floor", 1).toJSON().id;
+const rooms = Object.fromEntries(
+	(
+		[
+			["Living room", "living", ground, false],
+			["Kitchen", "kitchen", ground, false],
+			["Bedroom", "bedroom", first, false],
+			["Office", "office", first, false],
+			["Garage", "garage", null, true],
+			["Workshop", "workshop", null, true],
+		] as const
+	).map(([name, icon, floorId, outdoor]) => [
+		name,
+		RoomDTO.create(homeId, { name, icon, floorId, outdoor }).toJSON().id,
+	]),
+);
+
 const demo: [DeviceDTO, DeviceState][] = [
 	[
 		DeviceDTO.upsert({
+			homeId,
 			kind: "melcloud-ata",
 			name: "Living room",
+			roomId: rooms["Living room"],
 			externalId: "1001",
 			buildingId: 1,
 		}),
@@ -94,8 +118,10 @@ const demo: [DeviceDTO, DeviceState][] = [
 	],
 	[
 		DeviceDTO.upsert({
+			homeId,
 			kind: "melcloud-ata",
 			name: "Bedroom",
+			roomId: rooms.Bedroom,
 			externalId: "1002",
 			buildingId: 1,
 		}),
@@ -113,6 +139,7 @@ const demo: [DeviceDTO, DeviceState][] = [
 	],
 	[
 		DeviceDTO.upsert({
+			homeId,
 			kind: "melcloud-atw",
 			name: "Heat pump",
 			externalId: "1003",
@@ -131,16 +158,42 @@ const demo: [DeviceDTO, DeviceState][] = [
 			hotWater: { boost: false, temperature: 47, target: 50 },
 		},
 	],
+	[
+		DeviceDTO.upsert({
+			homeId,
+			kind: "bambu-printer",
+			name: "P1S",
+			roomId: rooms.Workshop,
+			externalId: "01P00A000000000",
+			host: "192.0.2.50",
+			encryptedLocalKey: secrets.encrypt("12345678"),
+		}),
+		{
+			type: "printer",
+			stage: "printing",
+			progress: 42,
+			remainingMinutes: 75,
+			fileName: "planter_v3",
+			layer: 120,
+			totalLayers: 300,
+			nozzle: { temperature: 219.6, target: 220 },
+			bed: { temperature: 60, target: 60 },
+			light: true,
+			speed: 2,
+		},
+	],
 	...(
 		[
-			["Living room blind", 100],
-			["Kitchen blind", 40],
-			["Bedroom blind", 0],
+			["Living room blind", 100, "Living room"],
+			["Kitchen blind", 40, "Kitchen"],
+			["Bedroom blind", 0, "Bedroom"],
 		] as const
-	).map(([name, position], index): [DeviceDTO, DeviceState] => [
+	).map(([name, position, room], index): [DeviceDTO, DeviceState] => [
 		DeviceDTO.upsert({
+			homeId,
 			kind: "tuya-cover",
 			name,
+			roomId: rooms[room],
 			externalId: `bfdemo00000000000${index}`,
 			host: `192.0.2.${10 + index}`,
 			protocolVersion: "3.3",
@@ -232,14 +285,26 @@ try {
 
 	const wide = await signedIn(desktop);
 	await shoot(wide, "home-desktop");
-	await wide.goto(`${origin}/admin/devices`);
+	await wide.goto(`${origin}/house`);
+	await shoot(wide, "house-desktop");
+	await wide.getByRole("button", { name: "Add a room" }).first().click();
+	await wide.getByLabel("Name").fill("Terrace");
+	await wide.getByRole("radio", { name: "Terrace" }).click();
+	await Bun.sleep(400);
+	await Bun.write(
+		join(images, "room-sheet-desktop.webp"),
+		await new Image(await wide.screenshot()).webp({ quality: 90 }).bytes(),
+	);
+	process.stdout.write("docs/images/room-sheet-desktop.webp\n");
+	await wide.keyboard.press("Escape");
+	await wide.goto(`${origin}/devices`);
 	await shoot(wide, "devices-desktop");
 	await wide.goto(`${origin}/admin/overview`);
 	await shoot(wide, "admin-desktop");
 
 	const phone = await signedIn(mobile);
 	await shoot(phone, "home-mobile");
-	await phone.goto(`${origin}/admin/devices`);
+	await phone.goto(`${origin}/devices`);
 	await shoot(phone, "devices-mobile");
 	await phone.getByRole("button", { name: "Add a blind" }).click();
 	await phone.getByLabel("Name").fill("Office blind");

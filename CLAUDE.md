@@ -3,9 +3,9 @@
 ## What this is
 
 LocalAssistant is a small, self-hosted alternative to Home Assistant for one
-household: it drives Tuya blinds straight over the LAN with their local keys and
-Mitsubishi Electric heat pumps through MELCloud, from one Home page. Admins add
-devices and integration credentials; everyone signed in drives them. It's
+household: it drives Tuya blinds and Bambu Lab printers straight over the LAN,
+and Mitsubishi Electric heat pumps through MELCloud, from one Home page. Admins
+add devices and integration credentials; everyone signed in drives them. It's
 installed as a PWA on phones where it must feel like a native app, and on
 desktop it's a full app with a sidebar. Few integrations, done properly.
 
@@ -13,8 +13,9 @@ SvelteKit 3 with Svelte 5 runes on Bun, compiled by `@sveltejs/adapter-bun` into
 `build/server`, which spawns and supervises the compiled worker `build/worker`:
 one container, one SQLite file (Drizzle over `bun:sqlite`). better-auth with
 two-factor, passkeys, email sign-in and SSO. Tuya through `tuyapi`, MELCloud
-through its web API. Tailwind v4 and shadcn-svelte, `bun lint`, `bun fmt`, prek
-hooks, mise.
+through its web API, Bambu through `mqtt`. AI apps reach `/mcp` (house and
+device tools) behind better-auth's OAuth provider with CIMD. Tailwind v4 and
+shadcn-svelte, `bun lint`, `bun fmt`, prek hooks, mise.
 
 ## How to work here
 
@@ -40,7 +41,7 @@ Each is a hard rule.
   modules under `#lib/` are typed explicitly.
 - Every signed-in page lives under `src/routes/(protected)/`, whose
   `+layout.server.ts` sends signed-out visitors to `access.redirectToSignIn()`.
-  Sign-in and sign-up live under `src/routes/auth/`.
+  Sign-in, setup and invites live under `src/routes/auth/`.
 - Redirects are thrown from `+layout.server.ts`, `+page.server.ts` and form
   actions, never from hooks. `hooks.server.ts` only populates `locals`, runs
   migrations and starts the worker in `init`, logs requests, sets the security
@@ -54,11 +55,9 @@ Each is a hard rule.
   the users tab, never themselves. Admin routes live under `(protected)/admin/`,
   whose layout 404s anyone else, and every admin form action re-checks with
   `access.adminFrom(locals)`.
-- Accounts only come from the setup flow, the sign-up stepper (email,
-  verification code, then name and password typed twice against
-  `#lib/password-policy.ts`) or an admin invite; better-auth's public
-  `/sign-up/email` endpoint is disabled. Sign-ups stay closed unless an admin
-  opens them, which needs SMTP.
+- Accounts only come from the setup flow or an admin invite (name and password
+  typed twice against `#lib/password-policy.ts`). There's no open sign-up:
+  better-auth's `/sign-up/email` is disabled and SSO never creates accounts.
 - A fresh instance (no account) sends every page to `/auth/setup`: a setup code
   from the server log (printed at boot, reprintable), then the first account,
   which becomes the admin. Once an account exists the route sends visitors to
@@ -69,8 +68,10 @@ Each is a hard rule.
   HTTP only on `browserPaths`. Handing out access needs
   `securityPolicy.signedInRecently()`.
 - Devices belong to the household: every signed-in account reads and drives
-  every device. Adding, renaming or removing one, and the integrations'
-  credentials, are admin actions under `(protected)/admin/devices`.
+  every device. A device sits in a room or, with no room, in the whole house
+  (`/rooms/house`); rooms sit on a floor or outside. Device and integration
+  setup are admin actions on `/devices`, rooms and floors on `/house`; their
+  sheets live in the shell (`#lib/sheets.svelte.ts`) so any page can open them.
 - Secrets never reach a page. A Tuya local key lives encrypted in
   `device.local_key`, read only through `DeviceDTO.encryptedLocalKey()`, never
   in `toJSON()`; the MELCloud account and every instance secret live in the
@@ -79,10 +80,11 @@ Each is a hard rule.
 - Integrations live in `#lib/server/devices/`: a client per integration reading
   a `DeviceState` (`#lib/devices.ts`) and applying commands, routed by the
   `devices` service. The worker reads every device every two minutes, one after
-  the other so MELCloud never sees a burst, and re-reads a cover 30 seconds
-  after a command. Commands are the one request that awaits slow work (a remote
-  function in `#lib/remote/devices.remote.ts`): the person tapping needs to
-  know.
+  the other so MELCloud never sees a burst, re-reads a cover 30 seconds after a
+  command, and keeps one MQTT connection per printer (one `pushall`, then the
+  pushed changes, saved every 5 seconds). Commands are the one request that
+  awaits slow work (a remote function in `#lib/remote/devices.remote.ts`): the
+  person tapping needs to know.
 - A tabbed page is one real route per tab under a `TabSection` layout, each tab
   with a description. On phones the index route is `NavCards` and each tab is a
   page with a back button; on desktop the index opens the first tab and `TabNav`
@@ -195,5 +197,4 @@ Agents (`.claude/agents/`):
 - `devex`: records developer-experience friction as `TODO.md` lines.
 
 Skill frontmatter must be valid YAML: `description: >-` with the text indented.
-The Stop hook runs `.claude/hooks/gate.sh` and blocks the hand-back until
-`bun run check`, prek and the tests pass.
+The Stop hook (`.claude/hooks/gate.sh`) blocks the hand-back until it's green.

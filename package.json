@@ -22,7 +22,11 @@
 		"prepare": "svelte-kit sync || true && prek install --allow-missing-config || true"
 	},
 	"dependencies": {
+		"@better-auth/cimd": "1.7.14",
+		"@better-auth/mcp": "1.7.14",
+		"@better-auth/oauth-provider": "1.7.14",
 		"@better-auth/passkey": "1.7.14",
+		"@modelcontextprotocol/server": "2.4.0",
 		"better-auth": "1.7.14",
 		"drizzle-orm": "0.45.4",
 		"mqtt": "5.16.1",

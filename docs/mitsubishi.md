@@ -6,8 +6,8 @@ stored encrypted with `AUTH_SECRET` and never shown again.
 
 ## Connect
 
-**Admin, Devices**, sign in with the MELCloud email and password. Every unit on
-the account is added:
+**Devices**, sign in with the MELCloud email and password. Every unit on the
+account is added:
 
 - **Air-to-air** (split units): power, mode (heat, dry, cool, fan, and auto when
   the model has it), target temperature in half degrees, room temperature.

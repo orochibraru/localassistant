@@ -73,7 +73,6 @@ export const actions = {
 			return admin;
 		}
 		setSetting("smtp", null);
-		setSetting("signUpsEnabled", false);
 		return { removed: true };
 	},
 };

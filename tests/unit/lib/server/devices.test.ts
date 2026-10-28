@@ -17,7 +17,7 @@ import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { device, job, user } from "#lib/server/db/schema.js";
 
-import { createUser, resetDatabase } from "../../database.js";
+import { createUser, homeId, resetDatabase } from "../../database.js";
 
 const tuya = {
 	options: [] as Record<string, unknown>[],
@@ -186,6 +186,7 @@ function fakeMelCloud(input: string | URL | Request, init?: RequestInit) {
 
 function addCover(inverted = false) {
 	return DeviceDTO.upsert({
+		homeId: homeId(),
 		kind: "tuya-cover",
 		name: "Bedroom",
 		externalId: "bfabcdabcdabcdabcdgh",
@@ -227,6 +228,7 @@ describe("DeviceDTO", () => {
 	test("upserts on kind and external id, keeps the local key off toJSON", () => {
 		const first = addCover();
 		const again = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "tuya-cover",
 			name: "Bedroom blind",
 			externalId: "bfabcdabcdabcdabcdgh",
@@ -248,10 +250,11 @@ describe("DeviceDTO", () => {
 		const stored = DeviceDTO.find(cover.id)?.toJSON();
 		expect(stored?.state).toEqual({ type: "cover", position: 30 });
 		expect(stored?.stateError).toBe("unreachable");
-		cover.rename("Office");
+		cover.rename("Office", null);
 		expect(DeviceDTO.find(cover.id)?.toJSON().name).toBe("Office");
 		cover.reconfigure({
 			name: "Office blind",
+			roomId: null,
 			host: "192.168.1.41",
 			protocolVersion: "3.5",
 			inverted: true,
@@ -273,6 +276,7 @@ describe("DeviceDTO", () => {
 		);
 		cover.reconfigure({
 			name: "Office blind",
+			roomId: null,
 			host: "192.168.1.41",
 			protocolVersion: "3.5",
 			inverted: true,
@@ -284,7 +288,12 @@ describe("DeviceDTO", () => {
 		expect(secrets.decrypt(cover.encryptedLocalKey() ?? "")).toBe(
 			"dcbadcbadcbadcba",
 		);
-		DeviceDTO.upsert({ kind: "melcloud-ata", name: "Heat", externalId: "77" });
+		DeviceDTO.upsert({
+			homeId: homeId(),
+			kind: "melcloud-ata",
+			name: "Heat",
+			externalId: "77",
+		});
 		expect(DeviceDTO.removeKinds(["melcloud-ata", "melcloud-atw"])).toBe(1);
 		cover.delete();
 		expect(DeviceDTO.find(cover.id)).toBeUndefined();
@@ -338,6 +347,7 @@ describe("Tuya covers", () => {
 		const cover = addCover();
 		cover.reconfigure({
 			name: "Bedroom",
+			roomId: null,
 			host: "192.168.1.40",
 			protocolVersion: "3.4",
 			inverted: false,
@@ -414,6 +424,7 @@ describe("Tuya covers", () => {
 
 	test("refuses a cover with no key and a heat pump given cover commands", async () => {
 		const bare = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "tuya-cover",
 			name: "Bare",
 			externalId: "bf9999999999abcdefgh",
@@ -422,6 +433,7 @@ describe("Tuya covers", () => {
 			"no address or local key",
 		);
 		const heater = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "melcloud-ata",
 			name: "Heat",
 			externalId: "77",
@@ -465,6 +477,7 @@ describe("MELCloud", () => {
 		spyOn(globalThis, "fetch").mockImplementation(fakeMelCloud as typeof fetch);
 		connectMelCloud();
 		const unit = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "melcloud-ata",
 			name: "Living room",
 			externalId: "77",
@@ -507,6 +520,7 @@ describe("MELCloud", () => {
 		spyOn(globalThis, "fetch").mockImplementation(fakeMelCloud as typeof fetch);
 		connectMelCloud();
 		const unit = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "melcloud-atw",
 			name: "Heat pump",
 			externalId: "78",
@@ -526,6 +540,7 @@ describe("MELCloud", () => {
 			hotWater: { boost: true, temperature: 48, target: 50 },
 		});
 		const tankless = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "melcloud-atw",
 			name: "Floor heating",
 			externalId: "80",
@@ -541,6 +556,7 @@ describe("MELCloud", () => {
 		spyOn(globalThis, "fetch").mockImplementation(fakeMelCloud as typeof fetch);
 		connectMelCloud();
 		const unit = DeviceDTO.upsert({
+			homeId: homeId(),
 			kind: "melcloud-atw",
 			name: "Floor heating",
 			externalId: "78",

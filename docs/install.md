@@ -20,7 +20,8 @@ connections to your LAN are routed through the host. Give every blind a fixed
 address in your router (a DHCP reservation), since LocalAssistant connects to
 the address you typed.
 
-MELCloud is reached at `app.melcloud.com` over HTTPS.
+Printers are reached on port 8883 (MQTT over TLS). MELCloud is reached at
+`app.melcloud.com` over HTTPS.
 
 ## Behind a proxy
 

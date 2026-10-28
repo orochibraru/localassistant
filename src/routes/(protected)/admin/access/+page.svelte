@@ -18,20 +18,6 @@
 	use:enhance={saveToast("Access settings")}
 >
 	<section class="glass rounded-2xl p-4 md:p-6">
-		<h2 class="mb-4 font-semibold">Joining</h2>
-		<div class="divide-border divide-y">
-			<SettingSwitch
-				name="signUpsEnabled"
-				label="Open sign-ups"
-				description={data.emailConfigured
-					? "Anyone can create an account after confirming their email. Off means invite only."
-					: "Needs email to be set up, to confirm addresses. Until then, it's invite only."}
-				checked={data.signUpsEnabled}
-				disabled={!data.emailConfigured}
-			/>
-		</div>
-	</section>
-	<section class="glass rounded-2xl p-4 md:p-6">
 		<h2 class="mb-4 font-semibold">Sign-in security</h2>
 		<div class="divide-border divide-y">
 			<SettingSwitch

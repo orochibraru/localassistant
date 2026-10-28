@@ -1,0 +1,1 @@
+DROP INDEX `room_name_unique`;
