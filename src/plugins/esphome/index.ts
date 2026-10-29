@@ -1,6 +1,12 @@
-import type { ClimateChange, ClimateMode, ClimateState } from "#lib/devices.js";
-import type { DeviceDTO } from "#lib/dto/device.js";
-import { secrets } from "#lib/server/core/secrets.js";
+import type { ClimateMode, ClimateState } from "#lib/devices.js";
+import {
+	definePlugin,
+	type DeviceCommand,
+	type FoundDevice,
+	type Plugin,
+	type PluginDevice,
+} from "#lib/plugin-sdk.js";
+import type { PluginValues } from "#lib/plugins.js";
 
 const requestTimeoutMs = 10_000;
 
@@ -33,23 +39,39 @@ interface ClimateEntity {
  * Mitsubishi indoor units driven locally by an ESPHome CN105 adapter, through ESPHome's `web_server` REST API: no
  * cloud, no rate limit.
  */
-class EspHome {
+class EspHome implements Plugin {
+	/** The unit the form describes, known by its adapter's address and climate id. */
+	add(values: PluginValues): FoundDevice {
+		return {
+			kind: "esphome-climate",
+			externalId: `${String(values.host)}/${String(values.objectId)}`,
+			host: String(values.host),
+		};
+	}
+
 	/**
 	 * Reads the unit's mode and temperatures.
 	 *
 	 * @throws When the adapter can't be reached or refuses the password.
 	 */
-	async read(device: DeviceDTO): Promise<ClimateState> {
+	async read(device: PluginDevice): Promise<ClimateState> {
 		const response = await this.#request(device, "", "GET");
 		return this.state((await response.json()) as ClimateEntity);
 	}
 
 	/**
-	 * Applies `change` to the unit, then reads it back.
+	 * Applies a climate change to the unit, then reads it back.
 	 *
 	 * @throws When the adapter can't be reached, refuses the password or the change.
 	 */
-	async apply(device: DeviceDTO, change: ClimateChange): Promise<ClimateState> {
+	async command(
+		device: PluginDevice,
+		command: DeviceCommand,
+	): Promise<ClimateState> {
+		if (command.type !== "climate") {
+			throw new Error("A heat pump only takes climate changes.");
+		}
+		const change = command.change;
 		const current = await this.read(device);
 		const query = new URLSearchParams();
 		const power = change.power ?? current.power;
@@ -83,22 +105,24 @@ class EspHome {
 	}
 
 	async #request(
-		device: DeviceDTO,
+		device: PluginDevice,
 		path: string,
 		method: "GET" | "POST",
 	): Promise<Response> {
-		const objectId = device.options.objectId;
+		const objectId = device.fields.objectId;
 		if (!device.host || !objectId) {
 			throw new Error("This unit has no address or climate id.");
 		}
-		const encrypted = device.encryptedLocalKey();
-		const headers: Record<string, string> = encrypted
-			? { Authorization: `Basic ${btoa(secrets.decrypt(encrypted))}` }
-			: {};
+		const username = device.fields.username;
+		const password = device.secret("password");
+		const headers: Record<string, string> =
+			username && password
+				? { Authorization: `Basic ${btoa(`${String(username)}:${password}`)}` }
+				: {};
 		let response: Response;
 		try {
 			response = await fetch(
-				`http://${device.host}/climate/${encodeURIComponent(objectId)}${path}`,
+				`http://${device.host}/climate/${encodeURIComponent(String(objectId))}${path}`,
 				{ method, headers, signal: AbortSignal.timeout(requestTimeoutMs) },
 			);
 		} catch (error) {
@@ -124,4 +148,4 @@ class EspHome {
 	}
 }
 
-export const espHome = new EspHome();
+export default definePlugin(new EspHome());

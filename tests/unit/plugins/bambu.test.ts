@@ -3,8 +3,10 @@ import { EventEmitter } from "node:events";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { secrets } from "#lib/server/core/secrets.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
-import { homeId, resetDatabase } from "../../database.js";
+import { homeId, resetDatabase } from "../database.js";
+import { addDevice, hosted, pluginOf, seen } from "./support.js";
 
 interface Published {
 	topic: string;
@@ -110,17 +112,22 @@ mock.module("mqtt", () => ({
 	},
 }));
 
-const { bambuPrinters } = await import("#lib/server/devices/bambu.js");
 const { devices } = await import("#lib/server/devices/devices.js");
+const bambuPrinters = pluginOf<{
+	forgetExcept(deviceIds: Set<string>): void;
+	prune(context: unknown): void;
+	state(print: Record<string, unknown>): unknown;
+}>("bambu");
+const context = hosted("bambu").context;
 
 function addPrinter(code = "12345678") {
-	return DeviceDTO.upsert({
-		homeId: homeId(),
+	return addDevice({
 		kind: "bambu-printer",
 		name: "P1S",
 		externalId: "01P00A000000000",
 		host: "192.168.1.50",
-		encryptedLocalKey: secrets.encrypt(code),
+		fields: { host: "192.168.1.50", serial: "01P00A000000000" },
+		secrets: { accessCode: code },
 	});
 }
 
@@ -164,6 +171,7 @@ describe("Bambu Lab printers", () => {
 			bed: { temperature: 60, target: 60 },
 			light: true,
 			speed: 2,
+			camera: "camera.jpg",
 		});
 	});
 
@@ -182,11 +190,13 @@ describe("Bambu Lab printers", () => {
 			progress: 43,
 			layer: 120,
 		});
-		printer.reconnect({
+		printer.configure({
 			name: "P1S",
 			roomId: null,
+			externalId: "01P00A000000000",
 			host: "192.168.1.51",
-			encryptedLocalKey: secrets.encrypt("87654321"),
+			fields: {},
+			encryptedSecrets: { accessCode: secrets.encrypt("87654321") },
 		});
 		await devices.refresh(DeviceDTO.find(printer.id) ?? printer);
 		expect(broker.connections).toHaveLength(2);
@@ -194,8 +204,10 @@ describe("Bambu Lab printers", () => {
 		expect(DeviceDTO.find(printer.id)?.toJSON().host).toBe("192.168.1.51");
 		await devices.refreshAll();
 		printer.delete();
-		await devices.refreshAll();
+		bambuPrinters.prune(context);
 		expect(broker.ended).toBe(2);
+		await plugins.start("bambu");
+		await plugins.stop("bambu");
 	});
 
 	test("explains a refused access code and a printer that's off", async () => {
@@ -213,7 +225,10 @@ describe("Bambu Lab printers", () => {
 			"The printer is off or unreachable.",
 		);
 		await expect(
-			devices.printer(printer, { command: "pause" }),
+			devices.command(printer, {
+				type: "printer",
+				change: { command: "pause" },
+			}),
 		).rejects.toThrow("off or unreachable");
 		const bare = DeviceDTO.upsert({
 			homeId: homeId(),
@@ -221,17 +236,16 @@ describe("Bambu Lab printers", () => {
 			name: "Bare",
 			externalId: "01P00A000000001",
 		});
-		await expect(bambuPrinters.read(bare)).rejects.toThrow(
+		await expect(bambuPrinters.read?.(seen(bare), context)).rejects.toThrow(
 			"no address or access code",
 		);
 	});
 
 	test("pauses, lights and sets the speed, and says when Developer Mode is off", async () => {
 		const printer = addPrinter();
-		await devices.printer(printer, {
-			command: "pause",
-			light: false,
-			speed: 3,
+		await devices.command(printer, {
+			type: "printer",
+			change: { command: "pause", light: false, speed: 3 },
 		});
 		expect(broker.published.map((entry) => entry.payload)).toMatchObject([
 			{ print: { command: "pause", param: "" } },
@@ -247,25 +261,59 @@ describe("Bambu Lab printers", () => {
 		expect(broker.published.every((entry) => entry.qos === 1)).toBe(true);
 		expect(broker.ended).toBe(3);
 		broker.result = "failed";
-		await expect(devices.printer(printer, { command: "stop" })).rejects.toThrow(
-			"Developer Mode",
-		);
+		await expect(
+			devices.command(printer, {
+				type: "printer",
+				change: { command: "stop" },
+			}),
+		).rejects.toThrow("Developer Mode");
 		broker.refuse = true;
-		await expect(devices.printer(printer, { light: true })).rejects.toThrow(
-			"refused the access code",
-		);
+		await expect(
+			devices.command(printer, { type: "printer", change: { light: true } }),
+		).rejects.toThrow("refused the access code");
 		const heater = DeviceDTO.upsert({
 			homeId: homeId(),
 			kind: "melcloud-ata",
 			name: "Heat",
 			externalId: "77",
 		});
-		await expect(devices.printer(heater, { command: "pause" })).rejects.toThrow(
-			"not a printer",
+		await expect(
+			devices.command(heater, {
+				type: "printer",
+				change: { command: "pause" },
+			}),
+		).rejects.toThrow("not a printer");
+		await expect(
+			devices.command(printer, { type: "climate", change: { power: true } }),
+		).rejects.toThrow("not a heat pump");
+		await expect(
+			bambuPrinters.command?.(
+				seen(printer),
+				{ type: "switch", on: true },
+				context,
+			),
+		).rejects.toThrow("only takes printer commands");
+	});
+
+	test("serves only its camera, and stops every connection", async () => {
+		const printer = addPrinter();
+		const missing = await bambuPrinters.serve?.(
+			seen(printer),
+			"other.jpg",
+			new Request("http://localhost"),
+			context,
 		);
-		await expect(devices.climate(printer, { power: true })).rejects.toThrow(
-			"not a heat pump",
-		);
+		expect(missing?.status).toBe(404);
+		await devices.refresh(printer);
+		await bambuPrinters.stop?.();
+		expect(broker.ended).toBe(1);
+		expect(
+			bambuPrinters.add?.({ serial: "01p00a", host: "192.168.1.9" }, context),
+		).toEqual({
+			kind: "bambu-printer",
+			externalId: "01P00A",
+			host: "192.168.1.9",
+		});
 	});
 
 	test("maps unknown stages, odd speeds, no light and no file name", () => {

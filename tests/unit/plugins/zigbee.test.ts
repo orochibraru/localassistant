@@ -3,10 +3,19 @@ import { EventEmitter } from "node:events";
 
 import type { ValveState } from "#lib/devices.js";
 import { DeviceDTO } from "#lib/dto/device.js";
-import { getSetting, type MqttBroker, setSetting } from "#lib/dto/setting.js";
+import {
+	getSetting,
+	type MqttBroker,
+	setPluginSettings,
+	setSetting,
+} from "#lib/dto/setting.js";
 import { secrets } from "#lib/server/core/secrets.js";
+import { deviceEvents } from "#lib/server/devices/device-events.js";
+import { plugins } from "#lib/server/plugins/registry.js";
+import { zigbee } from "#plugins/zigbee/mapping.js";
 
-import { homeId, resetDatabase } from "../../database.js";
+import { homeId, resetDatabase } from "../database.js";
+import { hosted, pluginOf } from "./support.js";
 
 const published: { topic: string; payload: string }[] = [];
 const subscribed: (string | string[])[] = [];
@@ -33,6 +42,10 @@ class FakeClient extends EventEmitter {
 		subscribed.push(topic);
 	}
 
+	unsubscribe(topic: string | string[]) {
+		subscribed.push(`-${String(topic)}`);
+	}
+
 	publishAsync(topic: string, payload: string) {
 		published.push({ topic, payload });
 		return Promise.resolve();
@@ -46,10 +59,21 @@ class FakeClient extends EventEmitter {
 mock.module("mqtt", () => ({ default: { connect: () => new FakeClient() } }));
 
 const { broker } = await import("#lib/server/devices/broker.js");
-const { zigbee } = await import("#lib/server/devices/zigbee.js");
 const { devices } = await import("#lib/server/devices/devices.js");
 const { jobHandlers } = await import("#lib/server/jobs/handlers.js");
 
+const plugin = pluginOf<{
+	handle(
+		context: unknown,
+		topic: string,
+		received: string,
+		payload: Buffer,
+	): void;
+	flush(context: unknown): void;
+}>("zigbee");
+const context = hosted("zigbee").context;
+const handle = (topic: string, payload: string) =>
+	plugin.handle(context, "zigbee2mqtt", topic, Buffer.from(payload));
 const bridge = [
 	{ ieee_address: "0x00", friendly_name: "Coordinator", type: "Coordinator" },
 	{
@@ -105,7 +129,6 @@ function settings(): MqttBroker {
 		url: "mqtt://broker.local:1883",
 		username: "home",
 		encryptedPassword: secrets.encrypt("secret"),
-		zigbeeTopic: "zigbee2mqtt",
 		homeId: homeId(),
 	};
 }
@@ -113,12 +136,22 @@ function settings(): MqttBroker {
 const byName = (name: string) =>
 	DeviceDTO.all().find((device) => device.toJSON().name === name) as DeviceDTO;
 
-beforeEach(() => {
+function connectZigbee() {
+	setPluginSettings("zigbee", {
+		homeId: homeId(),
+		values: { topic: "zigbee2mqtt" },
+		secrets: {},
+	});
+}
+
+beforeEach(async () => {
 	resetDatabase();
+	await plugins.stop("zigbee");
 	published.length = 0;
 	subscribed.length = 0;
 	connectAs = "ok";
 	broker.stop();
+	connectZigbee();
 });
 
 describe("Zigbee2MQTT", () => {
@@ -147,30 +180,20 @@ describe("Zigbee2MQTT", () => {
 	});
 
 	test("imports the device list, saves reports and tells listeners about doors at once", async () => {
-		const config = settings();
-		await broker.handle(
-			config,
-			"zigbee2mqtt/bridge/devices",
-			JSON.stringify(bridge),
-		);
+		handle("zigbee2mqtt/bridge/devices", JSON.stringify(bridge));
 		expect(DeviceDTO.inHome(homeId())).toHaveLength(4);
 		const window = byName("Bedroom window");
 		window.rename("Window", null);
-		await broker.handle(
-			config,
-			"zigbee2mqtt/bridge/devices",
-			JSON.stringify(bridge),
-		);
+		handle("zigbee2mqtt/bridge/devices", JSON.stringify(bridge));
 		expect(byName("Window").kind).toBe("zigbee-contact");
 
 		const heard: boolean[] = [];
-		broker.onContact((_device, _previous, next) => {
-			if (next.type === "contact" && next.open !== null) {
+		deviceEvents.onContact((_device, next) => {
+			if (next.open !== null) {
 				heard.push(next.open);
 			}
 		});
-		await broker.handle(
-			config,
+		handle(
 			"zigbee2mqtt/Bedroom window",
 			JSON.stringify({ contact: false, battery: 90 }),
 		);
@@ -179,23 +202,21 @@ describe("Zigbee2MQTT", () => {
 			open: true,
 			battery: 90,
 		});
+		await Bun.sleep(1);
 		expect(heard).toEqual([true]);
 
-		await broker.handle(
-			config,
+		handle(
 			"zigbee2mqtt/Bedroom radiator",
 			JSON.stringify({
 				occupied_heating_setpoint: 21,
 				local_temperature: 19.5,
 			}),
 		);
-		await broker.handle(
-			config,
+		handle(
 			"zigbee2mqtt/Dryer",
 			JSON.stringify({ state: "ON", power: 2100, energy: 12.4 }),
 		);
-		await broker.handle(
-			config,
+		handle(
 			"zigbee2mqtt/Linky",
 			JSON.stringify({
 				apparent_power: 1800,
@@ -203,7 +224,7 @@ describe("Zigbee2MQTT", () => {
 			}),
 		);
 		expect(byName("Bedroom radiator").state).toMatchObject({ target: null });
-		broker.flush();
+		plugin.flush(context);
 		expect(byName("Bedroom radiator").state).toMatchObject({
 			target: 21,
 			temperature: 19.5,
@@ -225,59 +246,55 @@ describe("Zigbee2MQTT", () => {
 			["zigbee2mqtt/Dryer/set", "{}"],
 			["zigbee2mqtt/Nobody", "{}"],
 			["zigbee2mqtt/Dryer", "not json"],
-			["elsewhere/Dryer", "{}"],
 			["zigbee2mqtt/Dryer", "[1]"],
 		] as const) {
-			await broker.handle(config, ignored[0], ignored[1]);
+			handle(ignored[0], ignored[1]);
 		}
-		broker.flush();
+		plugin.flush(context);
 		expect(byName("Dryer").state).toMatchObject({ power: 2100 });
-		await broker.handle(config, "zigbee2mqtt/bridge/devices", "{}");
+		handle("zigbee2mqtt/bridge/devices", "{}");
 	});
 
 	test("commands go out on the worker's connection, or a short one, and refuse other devices", async () => {
-		const config = settings();
-		await broker.handle(
-			config,
-			"zigbee2mqtt/bridge/devices",
-			JSON.stringify(bridge),
-		);
-		await broker.handle(
-			config,
+		handle("zigbee2mqtt/bridge/devices", JSON.stringify(bridge));
+		handle(
 			"zigbee2mqtt/Bedroom radiator",
 			JSON.stringify({ occupied_heating_setpoint: 21 }),
 		);
-		await broker.handle(
-			config,
-			"zigbee2mqtt/Dryer",
-			JSON.stringify({ state: "OFF" }),
-		);
-		broker.flush();
-		expect(devices.valve(byName("Dryer"), 20)).rejects.toThrow(
-			"not a radiator valve",
-		);
-		expect(devices.switchPower(byName("Linky"), true)).rejects.toThrow(
-			"not a switch",
-		);
-		expect(devices.valve(byName("Bedroom radiator"), 20)).rejects.toThrow(
-			"Connect the MQTT broker first.",
-		);
-		setSetting("mqtt", config);
-		await devices.valve(byName("Bedroom radiator"), 50);
+		handle("zigbee2mqtt/Dryer", JSON.stringify({ state: "OFF" }));
+		plugin.flush(context);
+		expect(
+			devices.command(byName("Dryer"), { type: "valve", target: 20 }),
+		).rejects.toThrow("not a radiator valve");
+		expect(
+			devices.command(byName("Linky"), { type: "switch", on: true }),
+		).rejects.toThrow("not a switch");
+		expect(
+			devices.command(byName("Bedroom radiator"), {
+				type: "valve",
+				target: 20,
+			}),
+		).rejects.toThrow("Connect the MQTT broker first.");
+		setSetting("mqtt", settings());
+		await devices.command(byName("Bedroom radiator"), {
+			type: "valve",
+			target: 50,
+		});
 		expect(published.at(-1)).toEqual({
 			topic: "zigbee2mqtt/Bedroom radiator/set",
 			payload: JSON.stringify({ occupied_heating_setpoint: 35 }),
 		});
 		expect(byName("Bedroom radiator").state).toMatchObject({ target: 35 });
+		await jobHandlers["plugins.restart"]({ pluginId: "zigbee" });
 		await jobHandlers["broker.connect"]({});
 		await Bun.sleep(5);
-		expect(subscribed).toEqual([
-			["zigbee2mqtt/#", "+/status/+", "frigate/events"],
-		]);
-		await devices.switchPower(byName("Dryer"), true);
+		expect(subscribed).toEqual([["zigbee2mqtt/#"]]);
+		await devices.command(byName("Dryer"), { type: "switch", on: true });
 		expect(published.at(-1)?.payload).toBe(JSON.stringify({ state: "ON" }));
 		expect(byName("Dryer").state).toMatchObject({ on: true });
 		await devices.refresh(byName("Dryer"));
+		await plugins.stop("zigbee");
+		expect(subscribed.at(-1)).toBe("-zigbee2mqtt/#");
 		broker.stop();
 	});
 
@@ -292,5 +309,43 @@ describe("Zigbee2MQTT", () => {
 		setSetting("mqtt", null);
 		broker.restart();
 		expect(getSetting("mqtt")).toBeNull();
+		expect(broker.publish("a/b", "x")).rejects.toThrow(
+			"Connect the MQTT broker first.",
+		);
+	});
+
+	test("matches MQTT wildcards and hands a message only to matching subscribers", async () => {
+		expect(broker.matches("a/+/c", "a/b/c")).toBe(true);
+		expect(broker.matches("a/#", "a/b/c")).toBe(true);
+		expect(broker.matches("a/+", "a/b/c")).toBe(false);
+		expect(broker.matches("a/b", "a")).toBe(false);
+		const heard: string[] = [];
+		broker.subscribe("test", "x/+", (topic) => {
+			heard.push(topic);
+		});
+		broker.subscribe("test", "x/fail", () => {
+			throw new Error("boom");
+		});
+		broker.dispatch("x/1", Buffer.from(""));
+		broker.dispatch("y/1", Buffer.from(""));
+		broker.dispatch("x/fail", Buffer.from(""));
+		await Bun.sleep(1);
+		expect(heard).toEqual(["x/1", "x/fail"]);
+		broker.unsubscribeAll("test");
+		broker.dispatch("x/2", Buffer.from(""));
+		await Bun.sleep(1);
+		expect(heard).toHaveLength(2);
+	});
+
+	test("the plugin refuses to connect without a broker and starts only once connected", async () => {
+		setSetting("mqtt", null);
+		expect(plugin.connect?.({}, context)).rejects.toThrow(
+			"Connect the MQTT broker first.",
+		);
+		setSetting("mqtt", settings());
+		await plugin.connect?.({}, context);
+		setPluginSettings("zigbee", null);
+		await plugins.restart("zigbee");
+		expect(subscribed).toEqual([]);
 	});
 });

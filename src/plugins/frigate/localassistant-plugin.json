@@ -1,0 +1,41 @@
+{
+	"id": "frigate",
+	"name": "Frigate",
+	"description": "Frigate NVR's cameras, events, clips and detection alerts.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "cctv",
+	"needs": [],
+	"connection": {
+		"description": "Frigate's internal address (port 5000). Its cameras come in as devices; with the MQTT broker connected, new detections push a notification.",
+		"connected": "Its cameras, events and clips show up here; detections come through the MQTT broker.",
+		"find": "Find new cameras",
+		"fields": [
+			{
+				"name": "url",
+				"label": "Address",
+				"type": "text",
+				"placeholder": "http://192.168.1.10:5000",
+				"keyboard": "url",
+				"pattern": "^https?://[A-Za-z0-9.-]+(:\\d{1,5})?/?$",
+				"message": "Type Frigate's address, like http://192.168.1.10:5000."
+			},
+			{
+				"name": "notifyLabels",
+				"label": "Notify for",
+				"type": "text",
+				"default": "person",
+				"description": "Comma-separated Frigate labels, like person, car, dog."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "frigate-camera",
+			"label": "Frigate camera",
+			"card": "camera",
+			"icon": "cctv",
+			"order": -1
+		}
+	]
+}

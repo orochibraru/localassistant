@@ -1,12 +1,26 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 import { DeviceDTO } from "#lib/dto/device.js";
-import { secrets } from "#lib/server/core/secrets.js";
 import { devices } from "#lib/server/devices/devices.js";
-import { espHome } from "#lib/server/devices/esphome.js";
-import { espHomeSchema } from "#lib/server/validation/device.js";
+import { addDeviceSchema } from "#lib/server/validation/plugins.js";
 
-import { homeId, resetDatabase } from "../../database.js";
+import { resetDatabase } from "../database.js";
+import { addDevice, hosted, pluginOf, seen } from "./support.js";
+
+const plugin = pluginOf<{
+	state(entity: Record<string, unknown>): {
+		power: boolean;
+		mode: string | null;
+	};
+}>("esphome");
+const context = hosted("esphome").context;
+const espHome = {
+	state: (entity: Record<string, unknown>) => plugin.state(entity),
+	read: (device: DeviceDTO) => plugin.read?.(seen(device), context),
+};
+const espHomeSchema = addDeviceSchema(
+	hosted("esphome").manifest.device?.fields ?? [],
+);
 
 const calls: { url: string; method: string; authorization: string | null }[] =
 	[];
@@ -14,16 +28,17 @@ let entity: Record<string, unknown> = {};
 let status = 200;
 
 function unit(withPassword = false) {
-	return DeviceDTO.upsert({
+	return addDevice({
 		kind: "esphome-climate",
-		homeId: homeId(),
 		name: "Living room",
 		externalId: "192.0.2.70/living_room",
 		host: "192.0.2.70",
-		options: { objectId: "living_room" },
-		encryptedLocalKey: withPassword
-			? secrets.encrypt("admin:secret")
-			: undefined,
+		fields: {
+			host: "192.0.2.70",
+			objectId: "living_room",
+			...(withPassword ? { username: "admin" } : {}),
+		},
+		secrets: withPassword ? { password: "secret" } : undefined,
 	});
 }
 
@@ -97,7 +112,10 @@ describe("ESPHome CN105", () => {
 
 	test("sets the mode, power and target, then reads back", async () => {
 		const device = unit();
-		await devices.climate(device, { targetTemperature: 22.5 });
+		await devices.command(device, {
+			type: "climate",
+			change: { targetTemperature: 22.5 },
+		});
 		expect(calls[1]?.url).toBe(
 			"http://192.0.2.70/climate/living_room/set?mode=heat&target_temperature=22.5",
 		);
@@ -105,9 +123,25 @@ describe("ESPHome CN105", () => {
 		expect(DeviceDTO.find(device.id)?.state).toMatchObject({
 			targetTemperature: 22.5,
 		});
-		await devices.climate(device, { power: false });
+		await devices.command(device, {
+			type: "climate",
+			change: { power: false },
+		});
 		expect(calls.at(-2)?.url).toEndWith("/set?mode=off");
-		await devices.climate(device, { power: true, mode: "cool" });
+		await devices.command(device, {
+			type: "climate",
+			change: { power: true, mode: "cool" },
+		});
+		expect(
+			plugin.add?.({ host: "192.0.2.72", objectId: "office" }, context),
+		).toEqual({
+			kind: "esphome-climate",
+			externalId: "192.0.2.72/office",
+			host: "192.0.2.72",
+		});
+		expect(
+			plugin.command?.(seen(device), { type: "switch", on: true }, context),
+		).rejects.toThrow("only takes climate changes");
 		expect(calls.at(-2)?.url).toEndWith("/set?mode=cool");
 	});
 
@@ -127,19 +161,27 @@ describe("ESPHome CN105", () => {
 			}
 		).mockRejectedValue(new Error("offline"));
 		expect(espHome.read(device)).rejects.toThrow("can't be reached");
-		const bare = DeviceDTO.upsert({
+		const bare = addDevice({
 			kind: "esphome-climate",
-			homeId: homeId(),
 			name: "Bare",
 			externalId: "bare",
 		});
 		expect(espHome.read(bare)).rejects.toThrow("no address or climate id");
 		expect(
 			espHomeSchema.safeParse({
+				plugin: "esphome",
 				name: "Office",
-				host: "192.0.2.71",
-				objectId: "Office Unit",
+				"value:host": "192.0.2.71",
+				"value:objectId": "Office Unit",
 			}).success,
 		).toBe(false);
+		expect(
+			espHomeSchema.parse({
+				plugin: "esphome",
+				name: "Office",
+				"value:host": "192.0.2.71",
+				"value:objectId": "office",
+			}).values,
+		).toEqual({ host: "192.0.2.71", objectId: "office" });
 	});
 });

@@ -6,16 +6,23 @@ import {
 	type PrinterStage,
 	type PrinterState,
 } from "#lib/devices.js";
-import type { DeviceDTO } from "#lib/dto/device.js";
-import { Logger } from "#lib/server/core/logger.js";
-import { secrets } from "#lib/server/core/secrets.js";
+import {
+	definePlugin,
+	type DeviceCommand,
+	type FoundDevice,
+	type Plugin,
+	type PluginContext,
+	type PluginDevice,
+} from "#lib/plugin-sdk.js";
+import type { PluginValues } from "#lib/plugins.js";
 
-const logger = new Logger("Bambu");
+import { bambuCamera } from "./camera.js";
 
 const port = 8883;
 const firstReportTimeoutMs = 10_000;
 const commandReplyTimeoutMs = 5_000;
 const saveEveryMs = 5000;
+const pruneEveryMs = 60_000;
 
 const stages: Record<string, PrinterStage> = {
 	IDLE: "idle",
@@ -41,18 +48,32 @@ interface Watch {
 /**
  * Bambu Lab printers over their LAN MQTT broker. The worker keeps one connection per printer, asks for the full state
  * once on connect and merges the changes the printer pushes after that; commands go out on a short connection of
- * their own.
+ * their own, and the camera is one picture per request.
  */
-class BambuPrinters {
+class BambuPrinters implements Plugin {
 	#watches = new Map<string, Watch>();
 
+	/** The printer the form describes, known by its serial number. */
+	add(values: PluginValues): FoundDevice {
+		return {
+			kind: "bambu-printer",
+			externalId: String(values.serial).toUpperCase(),
+			host: String(values.host),
+		};
+	}
+
 	/**
-	 * The printer's current state, connecting and asking for it the first time.
+	 * The printer's current state, connecting and asking for it the first time; drops the connections of printers that
+	 * were removed.
 	 *
 	 * @throws When the printer can't be reached, refuses the access code or never reports.
 	 */
-	async read(device: DeviceDTO): Promise<PrinterState> {
-		const watch = this.#watch(device);
+	async read(
+		device: PluginDevice,
+		context: PluginContext,
+	): Promise<PrinterState> {
+		this.prune(context);
+		const watch = this.#watch(device, context);
 		const deadline = Date.now() + firstReportTimeoutMs;
 		while (!watch.print && !watch.error && Date.now() < deadline) {
 			await Bun.sleep(100);
@@ -75,13 +96,78 @@ class BambuPrinters {
 		}
 	}
 
+	/** Closes the connections of removed printers every minute. */
+	start(context: PluginContext): void {
+		context.every(pruneEveryMs, () => this.prune(context));
+	}
+
+	/** Closes the connection of every printer that was removed. */
+	prune(context: PluginContext): void {
+		this.forgetExcept(new Set(context.devices().map((entry) => entry.id)));
+	}
+
+	/** Closes every printer connection, for the worker's shutdown. */
+	stop(): void {
+		this.forgetExcept(new Set());
+	}
+
+	/**
+	 * Pauses, resumes or stops a print, turns the chamber light on or off, or sets the print speed.
+	 *
+	 * @throws When the printer can't be reached or refuses the command.
+	 */
+	async command(device: PluginDevice, command: DeviceCommand): Promise<void> {
+		if (command.type !== "printer") {
+			throw new Error("A printer only takes printer commands.");
+		}
+		const change = command.change;
+		if (change.command) {
+			await this.send(device, {
+				print: { command: change.command, param: "" },
+			});
+		}
+		if (change.light !== undefined) {
+			await this.send(device, {
+				system: {
+					command: "ledctrl",
+					led_node: "chamber_light",
+					led_mode: change.light ? "on" : "off",
+					led_on_time: 500,
+					led_off_time: 500,
+					loop_times: 1,
+					interval_time: 1000,
+				},
+			});
+		}
+		if (change.speed) {
+			await this.send(device, {
+				print: { command: "print_speed", param: String(change.speed) },
+			});
+		}
+	}
+
+	/**
+	 * One picture from the printer's camera, at `camera.jpg`.
+	 *
+	 * @throws When the path isn't the camera or the camera can't be reached.
+	 */
+	async serve(device: PluginDevice, path: string): Promise<Response> {
+		if (path !== "camera.jpg") {
+			return new Response("Not found", { status: 404 });
+		}
+		const jpeg = await bambuCamera.snapshot(device);
+		return new Response(new Uint8Array(jpeg), {
+			headers: { "Content-Type": "image/jpeg", "Cache-Control": "no-store" },
+		});
+	}
+
 	/**
 	 * Sends one request to the printer and waits for its answer when it gives one.
 	 *
 	 * @throws When the printer can't be reached, refuses the access code, or refuses the command (no Developer Mode).
 	 */
 	async send(
-		device: DeviceDTO,
+		device: PluginDevice,
 		request: Record<string, Report>,
 	): Promise<void> {
 		const client = this.#connect(device, 0);
@@ -149,11 +235,12 @@ class BambuPrinters {
 			speed: printerSpeeds.includes(speed as PrinterSpeed)
 				? (speed as PrinterSpeed)
 				: null,
+			camera: "camera.jpg",
 		};
 	}
 
-	#watch(device: DeviceDTO): Watch {
-		const key = `${device.host}|${device.externalId}|${device.encryptedLocalKey()}`;
+	#watch(device: PluginDevice, context: PluginContext): Watch {
+		const key = `${device.host}|${device.externalId}|${device.secret("accessCode")}`;
 		const existing = this.#watches.get(device.id);
 		if (existing?.key === key) {
 			return existing;
@@ -171,7 +258,7 @@ class BambuPrinters {
 			timer: setInterval(() => {
 				if (watch.dirty && watch.print) {
 					watch.dirty = false;
-					device.saveState(this.state(watch.print));
+					context.saveState(device, this.state(watch.print));
 				}
 			}, saveEveryMs),
 		};
@@ -199,7 +286,11 @@ class BambuPrinters {
 		});
 		client.on("error", (error) => {
 			watch.error = this.#explain(error);
-			logger.debug("Printer connection error", { device: device.id }, error);
+			context.logger.debug(
+				"Printer connection error",
+				{ device: device.id },
+				error,
+			);
 		});
 		client.on("offline", () => {
 			watch.error ??= new Error("The printer is off or unreachable.");
@@ -208,14 +299,14 @@ class BambuPrinters {
 		return watch;
 	}
 
-	#connect(device: DeviceDTO, reconnectPeriod: number): MqttClient {
-		const encrypted = device.encryptedLocalKey();
-		if (!device.host || !encrypted) {
+	#connect(device: PluginDevice, reconnectPeriod: number): MqttClient {
+		const accessCode = device.secret("accessCode");
+		if (!device.host || !accessCode) {
 			throw new Error("This printer has no address or access code.");
 		}
 		return mqtt.connect(`mqtts://${device.host}:${port}`, {
 			username: "bblp",
-			password: secrets.decrypt(encrypted),
+			password: accessCode,
 			rejectUnauthorized: false,
 			connectTimeout: 10_000,
 			reconnectPeriod,
@@ -252,7 +343,7 @@ class BambuPrinters {
 		this.#watches.delete(deviceId);
 	}
 
-	#topic(device: DeviceDTO, direction: "report" | "request"): string {
+	#topic(device: PluginDevice, direction: "report" | "request"): string {
 		return `device/${device.externalId}/${direction}`;
 	}
 
@@ -275,4 +366,4 @@ class BambuPrinters {
 	}
 }
 
-export const bambuPrinters = new BambuPrinters();
+export default definePlugin(new BambuPrinters());

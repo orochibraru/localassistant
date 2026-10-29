@@ -4,24 +4,39 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { devices } from "#lib/server/devices/devices.js";
-import { linky } from "#lib/server/devices/linky.js";
 import { energy } from "#lib/server/house/energy.js";
-import { editLinkySchema, linkySchema } from "#lib/server/validation/device.js";
+import { pluginSetup } from "#lib/server/plugins/setup.js";
+import {
+	addDeviceSchema,
+	editDeviceSchema,
+} from "#lib/server/validation/plugins.js";
 
-import { homeId, resetDatabase } from "../../database.js";
+import { homeId, resetDatabase } from "../database.js";
+import { addDevice, hosted, seen } from "./support.js";
+
+const plugin = hosted("linky");
+const linky = {
+	read: (device: DeviceDTO, now?: Date) =>
+		(
+			plugin.plugin as {
+				read(device: unknown, context: unknown, now?: Date): Promise<unknown>;
+			}
+		).read(seen(device), plugin.context, now),
+};
+const fields = plugin.manifest.device?.fields ?? [];
+const linkySchema = addDeviceSchema(fields);
+const editLinkySchema = editDeviceSchema(fields);
 
 let answer: () => Response | Promise<Response>;
 const urls: string[] = [];
 
 function addLinky(withToken = true) {
-	return DeviceDTO.upsert({
+	return addDevice({
 		kind: "linky",
-		homeId: homeId(),
 		name: "Linky",
 		externalId: "12345678901234",
-		encryptedLocalKey: withToken
-			? secrets.encrypt("token-0123456789abcdef")
-			: undefined,
+		fields: { prm: "12345678901234" },
+		secrets: withToken ? { token: "token-0123456789abcdef" } : undefined,
 	});
 }
 
@@ -145,14 +160,15 @@ describe("Linky online", () => {
 		expect(linky.read(addLinky(false))).rejects.toThrow("no token");
 	});
 
-	test("another PRM or token reads the meter again at once, an empty token keeps the old one", () => {
+	test("another PRM or token reads the meter again at once, an empty token keeps the old one", async () => {
 		const meter = addLinky();
 		meter.saveState({ type: "linky", day: "2026-10-27", kilowattHours: 12 });
-		meter.relink({
-			name: "Meter",
-			roomId: null,
-			externalId: "99999999999999",
-		});
+		await pluginSetup.editDevice(
+			plugin,
+			meter,
+			{ name: "Meter", roomId: null },
+			{ prm: "99999999999999" },
+		);
 		const relinked = DeviceDTO.find(meter.id);
 		expect(relinked?.toJSON()).toMatchObject({
 			name: "Meter",
@@ -160,21 +176,24 @@ describe("Linky online", () => {
 			state: null,
 			stateAt: null,
 		});
-		expect(relinked?.encryptedLocalKey()).not.toBeNull();
+		expect(secrets.decrypt(relinked?.encryptedSecrets().token ?? "")).toBe(
+			"token-0123456789abcdef",
+		);
+		expect(relinked?.toJSON().fields).toEqual({ prm: "99999999999999" });
 		expect(
 			editLinkySchema.parse({
 				id: meter.id,
 				name: "Meter",
-				externalId: "99999999999999",
-				token: "",
-			}).token,
+				"value:prm": "99999999999999",
+				"value:token": "",
+			}).values.token,
 		).toBeUndefined();
 		expect(
 			editLinkySchema.safeParse({
 				id: meter.id,
 				name: "Meter",
-				externalId: "99999999999999",
-				token: "short",
+				"value:prm": "99999999999999",
+				"value:token": "short",
 			}).success,
 		).toBe(false);
 	});
@@ -182,13 +201,19 @@ describe("Linky online", () => {
 	test("the form wants a 14-digit PRM and a token", () => {
 		expect(
 			linkySchema.safeParse({
-				externalId: "12345678901234",
-				token: "t".repeat(30),
+				plugin: "linky",
+				name: "Linky",
+				"value:prm": "12345678901234",
+				"value:token": "t".repeat(30),
 			}).success,
 		).toBe(true);
 		expect(
-			linkySchema.safeParse({ externalId: "1234", token: "t".repeat(30) })
-				.success,
+			linkySchema.safeParse({
+				plugin: "linky",
+				name: "Linky",
+				"value:prm": "1234",
+				"value:token": "t".repeat(30),
+			}).success,
 		).toBe(false);
 	});
 });

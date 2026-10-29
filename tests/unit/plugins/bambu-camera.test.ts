@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 
-import { DeviceDTO } from "#lib/dto/device.js";
-import { secrets } from "#lib/server/core/secrets.js";
-import { bambuCamera } from "#lib/server/devices/bambu-camera.js";
+import { bambuCamera } from "#plugins/bambu/camera.js";
 
-import { homeId, resetDatabase } from "../../database.js";
+import { resetDatabase } from "../database.js";
+import { addDevice, hosted, seen } from "./support.js";
 
 const jpeg = Buffer.from([0xff, 0xd8, 0x01, 0x02, 0xff, 0xd9]);
 
@@ -15,14 +14,15 @@ function framed(payload: Buffer): Buffer {
 }
 
 function printer(withCode = true) {
-	return DeviceDTO.upsert({
-		kind: "bambu-printer",
-		homeId: homeId(),
-		name: "P1S",
-		externalId: "01P00A000000000",
-		host: "192.0.2.50",
-		encryptedLocalKey: withCode ? secrets.encrypt("12345678") : undefined,
-	});
+	return seen(
+		addDevice({
+			kind: "bambu-printer",
+			name: "P1S",
+			externalId: "01P00A000000000",
+			host: "192.0.2.50",
+			secrets: withCode ? { accessCode: "12345678" } : undefined,
+		}),
+	);
 }
 
 interface Handlers {
@@ -60,6 +60,13 @@ describe("Bambu camera", () => {
 		expect([...(await bambuCamera.snapshot(printer()))]).toEqual([...jpeg]);
 		expect(written[0]?.length).toBe(80);
 		expect(ended).toBe(true);
+		const served = await hosted("bambu").plugin.serve?.(
+			printer(),
+			"camera.jpg",
+			new Request("http://localhost"),
+			hosted("bambu").context,
+		);
+		expect(served?.headers.get("Content-Type")).toBe("image/jpeg");
 
 		connect.mockImplementation((async (options: { socket: Handlers }) => {
 			queueMicrotask(() => options.socket.close());

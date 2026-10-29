@@ -2,7 +2,6 @@ import { createCipheriv } from "node:crypto";
 
 import {
 	type DockStatus,
-	type DreameRegion,
 	type VacuumChange,
 	type VacuumCommand,
 	type VacuumMode,
@@ -11,11 +10,20 @@ import {
 	type VacuumState,
 	vacuumSuctions,
 } from "#lib/devices.js";
-import type { DeviceDTO } from "#lib/dto/device.js";
-import { getSetting } from "#lib/dto/setting.js";
-import { secrets } from "#lib/server/core/secrets.js";
+import {
+	definePlugin,
+	type DeviceCommand,
+	type FoundDevice,
+	type Plugin,
+	type PluginContext,
+	type PluginDevice,
+} from "#lib/plugin-sdk.js";
+import type { PluginValues } from "#lib/plugins.js";
+
+type DreameRegion = "eu" | "us" | "cn" | "sg" | "ru";
 
 const requestTimeoutMs = 15_000;
+const settleMs = 30_000;
 const appAuthorization = "Basic ZHJlYW1lX2FwcHYxOkFQXmR2QHpAU1FZVnhOODg=";
 const passwordSalt = "RAylYC%fmSKp7%Tq";
 const clientKey = "EETjszu*XI5znHsI";
@@ -91,13 +99,7 @@ const stages: Record<number, VacuumStage> = {
 	13: "docked",
 };
 
-export class DreameError extends Error {}
-
-export interface DreameVacuum {
-	did: string;
-	name: string;
-	bindDomain: string;
-}
+class DreameError extends Error {}
 
 interface Session {
 	email: string;
@@ -124,14 +126,47 @@ interface PropertyResult {
  * Dreame robot vacuums through the Dreamehome cloud, signing in as its app does over standard TLS. Dreame may refuse
  * clients other than its app; the error then says so plainly.
  */
-class DreameCloud {
+class DreameCloud implements Plugin {
 	#session: Session | undefined;
 	#requestId = 1;
 	readonly #visitor = this.#md5(crypto.randomUUID());
 
-	/** Whether an admin connected a Dreamehome account. */
-	configured(): boolean {
-		return getSetting("dreame") !== null;
+	/**
+	 * Checks the account by signing in with it.
+	 *
+	 * @throws DreameError when Dreame refuses the account or the client, or can't be reached.
+	 */
+	async connect(values: PluginValues): Promise<void> {
+		await this.signIn(
+			String(values.email),
+			String(values.password),
+			String(values.region ?? "eu") as DreameRegion,
+		);
+	}
+
+	/**
+	 * Applies a robot vacuum's cleaning settings, resets a replaced part's wear, then starts, pauses, stops or docks it,
+	 * and has the worker read where it's at.
+	 *
+	 * @throws DreameError when Dreame can't be reached or the robot refuses.
+	 */
+	async command(
+		device: PluginDevice,
+		command: DeviceCommand,
+		context: PluginContext,
+	): Promise<void> {
+		if (command.type !== "vacuum") {
+			throw new DreameError("A robot vacuum only takes vacuum commands.");
+		}
+		const change = command.change;
+		await this.configure(device, change, context);
+		if (change.reset) {
+			await this.resetPart(device, change.reset, context);
+		}
+		if (change.command) {
+			await this.#act(device, change.command, context);
+		}
+		context.refreshLater(device, settleMs);
 	}
 
 	/**
@@ -191,7 +226,7 @@ class DreameCloud {
 	 *
 	 * @throws DreameError when no account is connected or Dreame can't be reached.
 	 */
-	async devices(): Promise<DreameVacuum[]> {
+	async discover(context: PluginContext): Promise<FoundDevice[]> {
 		const data = await this.#call<{
 			page?: {
 				records?: {
@@ -202,17 +237,18 @@ class DreameCloud {
 					deviceInfo?: { displayName?: string };
 				}[];
 			};
-		}>("/dreame-user-iot/iotuserbind/device/listV2");
+		}>(context, "/dreame-user-iot/iotuserbind/device/listV2");
 		return (data.page?.records ?? [])
 			.filter((record) => record.model?.includes(".vacuum."))
 			.map((record) => ({
-				did: String(record.did),
+				kind: "dreame-vacuum",
+				externalId: String(record.did),
 				name:
 					record.customName ||
 					record.deviceInfo?.displayName ||
 					record.model ||
 					"Robot vacuum",
-				bindDomain: record.bindDomain ?? "",
+				host: record.bindDomain ?? "",
 			}));
 	}
 
@@ -221,9 +257,13 @@ class DreameCloud {
 	 *
 	 * @throws DreameError when Dreame can't be reached or the robot is offline.
 	 */
-	async read(device: DeviceDTO): Promise<VacuumState> {
+	async read(
+		device: PluginDevice,
+		context: PluginContext,
+	): Promise<VacuumState> {
 		const values = await this.#get(
 			device,
+			context,
 			Object.keys(properties) as PropertyName[],
 		);
 		return {
@@ -269,13 +309,17 @@ class DreameCloud {
 	 *
 	 * @throws DreameError when Dreame can't be reached or the robot refuses a setting.
 	 */
-	async configure(device: DeviceDTO, change: VacuumChange): Promise<void> {
+	async configure(
+		device: PluginDevice,
+		change: VacuumChange,
+		context: PluginContext,
+	): Promise<void> {
 		const updates: { siid: number; piid: number; value: number | string }[] =
 			[];
 		if (change.mode) {
 			updates.push({
 				...properties.mode,
-				value: await this.#modeValue(device, change.mode),
+				value: await this.#modeValue(device, change.mode, context),
 			});
 		}
 		if (change.suction) {
@@ -301,6 +345,7 @@ class DreameCloud {
 		}
 		const results = await this.#send<PropertyResult[]>(
 			device,
+			context,
 			"set_properties",
 			updates.map((update) => ({ did: device.externalId, ...update })),
 		);
@@ -317,8 +362,12 @@ class DreameCloud {
 	 *
 	 * @throws DreameError when Dreame can't be reached or the robot refuses.
 	 */
-	async command(device: DeviceDTO, command: VacuumCommand): Promise<void> {
-		await this.#send(device, "action", {
+	async #act(
+		device: PluginDevice,
+		command: VacuumCommand,
+		context: PluginContext,
+	): Promise<void> {
+		await this.#send(device, context, "action", {
 			did: device.externalId,
 			...commands[command],
 			in: [],
@@ -326,9 +375,14 @@ class DreameCloud {
 	}
 
 	/** The numeric values the robot answered for `names`, leaving out the ones it doesn't have. */
-	async #get(device: DeviceDTO, names: PropertyName[]): Promise<Readings> {
+	async #get(
+		device: PluginDevice,
+		context: PluginContext,
+		names: PropertyName[],
+	): Promise<Readings> {
 		const results = await this.#send<PropertyResult[]>(
 			device,
+			context,
 			"get_properties",
 			names.map((name) => ({ did: device.externalId, ...properties[name] })),
 		);
@@ -354,8 +408,12 @@ class DreameCloud {
 	 *
 	 * @throws DreameError when the robot has no cleaning modes or can't be reached.
 	 */
-	async #modeValue(device: DeviceDTO, mode: VacuumMode): Promise<number> {
-		const values = await this.#get(device, [
+	async #modeValue(
+		device: PluginDevice,
+		mode: VacuumMode,
+		context: PluginContext,
+	): Promise<number> {
+		const values = await this.#get(device, context, [
 			"mode",
 			"selfWashBase",
 			"dustCollection",
@@ -394,8 +452,12 @@ class DreameCloud {
 	 *
 	 * @throws DreameError when Dreame can't be reached or the robot refuses.
 	 */
-	async resetPart(device: DeviceDTO, part: VacuumPart): Promise<void> {
-		await this.#send(device, "action", {
+	async resetPart(
+		device: PluginDevice,
+		part: VacuumPart,
+		context: PluginContext,
+	): Promise<void> {
+		await this.#send(device, context, "action", {
 			did: device.externalId,
 			siid: partResets[part],
 			aiid: 1,
@@ -413,13 +475,15 @@ class DreameCloud {
 	}
 
 	async #send<Result>(
-		device: DeviceDTO,
+		device: PluginDevice,
+		context: PluginContext,
 		method: string,
 		params: unknown,
 	): Promise<Result> {
 		const id = this.#requestId++;
-		const host = (device.toJSON().host ?? "").split(".")[0] || "10000";
+		const host = (device.host ?? "").split(".")[0] || "10000";
 		const data = await this.#call<{ result?: Result }>(
+			context,
 			`/dreame-iot-com-${host}/device/sendCommand`,
 			{
 				did: device.externalId,
@@ -434,26 +498,25 @@ class DreameCloud {
 	}
 
 	async #call<Data>(
+		context: PluginContext,
 		path: string,
 		payload?: Record<string, unknown>,
 	): Promise<Data> {
-		const account = getSetting("dreame");
+		const account = context.settings();
 		if (!account) {
 			throw new DreameError("No Dreamehome account is connected.");
 		}
+		const email = String(account.email);
+		const region = String(account.region ?? "eu") as DreameRegion;
 		if (
-			this.#session?.email !== account.email ||
+			this.#session?.email !== email ||
 			this.#session.expiresAt < Date.now()
 		) {
-			await this.signIn(
-				account.email,
-				secrets.decrypt(account.encryptedPassword),
-				account.region,
-			);
+			await this.signIn(email, String(account.password), region);
 		}
-		const response = await this.#fetch(account.region, path, {
+		const response = await this.#fetch(region, path, {
 			headers: {
-				...this.#headers(account.email, this.#session),
+				...this.#headers(email, this.#session),
 				"content-type": "application/json",
 				"dreame-auth": this.#session?.accessToken ?? "",
 			},
@@ -558,4 +621,4 @@ class DreameCloud {
 	}
 }
 
-export const dreameCloud = new DreameCloud();
+export default definePlugin(new DreameCloud());

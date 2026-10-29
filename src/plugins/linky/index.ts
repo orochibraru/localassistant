@@ -1,7 +1,12 @@
 import type { LinkyState } from "#lib/devices.js";
-import type { DeviceDTO } from "#lib/dto/device.js";
-import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
-import { secrets } from "#lib/server/core/secrets.js";
+import {
+	definePlugin,
+	type FoundDevice,
+	type Plugin,
+	type PluginContext,
+	type PluginDevice,
+} from "#lib/plugin-sdk.js";
+import type { PluginValues } from "#lib/plugins.js";
 
 const apiUrl = "https://conso.boris.sh/api/consommation_quotidienne";
 const requestTimeoutMs = 20_000;
@@ -22,15 +27,24 @@ interface ErrorAnswer {
  * A Linky meter read online: Enedis's daily consumption through conso.boris.sh, with the PRM and the token its site
  * hands out. No hardware; the data is a day behind.
  */
-class Linky {
+class Linky implements Plugin {
+	/** The meter the form describes, known by its PRM. */
+	add(values: PluginValues): FoundDevice {
+		return { kind: "linky", externalId: String(values.prm) };
+	}
+
 	/**
 	 * Fetches the last year of daily use, stores it as the meter's counter, and returns yesterday's; reuses the last
 	 * reading for six hours, Enedis only publishes once a day.
 	 *
 	 * @throws When the token is refused or the service can't be reached.
 	 */
-	async read(device: DeviceDTO, now = new Date()): Promise<LinkyState> {
-		const { state, stateAt } = device.toJSON();
+	async read(
+		device: PluginDevice,
+		context: PluginContext,
+		now = new Date(),
+	): Promise<LinkyState> {
+		const { state, stateAt } = device;
 		if (
 			state?.type === "linky" &&
 			stateAt &&
@@ -43,14 +57,14 @@ class Linky {
 		if (!start) {
 			return { type: "linky", day: null, kilowattHours: null };
 		}
-		const before = EnergyReadingDTO.since([device.id], new Date(0))
-			.map((reading) => reading.toJSON())
+		const before = context.energy
+			.readings(device)
 			.filter((reading) => reading.hour < this.#hourOf(start.date));
 		let total = before.at(-1)?.total ?? 0;
 		for (const day of days) {
 			total += day.kilowattHours;
-			EnergyReadingDTO.record(
-				device.id,
+			context.energy.record(
+				device,
 				this.#hourOf(day.date),
 				Math.round(total * 1000) / 1000,
 			);
@@ -67,7 +81,6 @@ class Linky {
 		return new Date(`${date}T12:00:00Z`);
 	}
 
-	/** Why conso.boris.sh or Enedis behind it refused, in words a person can act on. */
 	async #refusal(response: Response): Promise<string> {
 		const body = (await response.json().catch(() => ({}))) as ErrorAnswer;
 		if (body.error?.error === "ADAM-DC-0007") {
@@ -80,11 +93,11 @@ class Linky {
 	}
 
 	async #fetch(
-		device: DeviceDTO,
+		device: PluginDevice,
 		now: Date,
 	): Promise<{ date: string; kilowattHours: number }[]> {
-		const encrypted = device.encryptedLocalKey();
-		if (!encrypted) {
+		const token = device.secret("token");
+		if (!token) {
 			throw new Error("This Linky has no token.");
 		}
 		const day = (offset: number) =>
@@ -98,7 +111,7 @@ class Linky {
 		try {
 			response = await fetch(`${apiUrl}?${query}`, {
 				headers: {
-					Authorization: `Bearer ${secrets.decrypt(encrypted)}`,
+					Authorization: `Bearer ${token}`,
 					Accept: "application/json",
 					"User-Agent": "LocalAssistant",
 				},
@@ -134,4 +147,4 @@ class Linky {
 	}
 }
 
-export const linky = new Linky();
+export default definePlugin(new Linky());

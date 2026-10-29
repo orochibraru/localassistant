@@ -1,12 +1,37 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 
+import type { VacuumChange } from "#lib/devices.js";
 import { DeviceDTO } from "#lib/dto/device.js";
-import { setSetting } from "#lib/dto/setting.js";
+import { setPluginSettings } from "#lib/dto/setting.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { devices } from "#lib/server/devices/devices.js";
-import { dreameCloud, DreameError } from "#lib/server/devices/dreame.js";
 
-import { homeId, resetDatabase } from "../../database.js";
+import { homeId, resetDatabase } from "../database.js";
+import { hosted, pluginOf, seen } from "./support.js";
+
+const plugin = pluginOf<{
+	signIn(email: string, password: string, region: string): Promise<void>;
+	configure(
+		device: unknown,
+		change: VacuumChange,
+		context: unknown,
+	): Promise<void>;
+}>("dreame");
+const context = hosted("dreame").context;
+const dreameCloud = {
+	signIn: (email: string, password: string, region: string) =>
+		plugin.signIn(email, password, region),
+	discover: () => plugin.discover?.(context),
+	read: (device: DeviceDTO) => plugin.read?.(seen(device), context),
+	configure: (device: DeviceDTO, change: VacuumChange) =>
+		plugin.configure(seen(device), change, context),
+	command: (device: DeviceDTO, command: "dock") =>
+		plugin.command?.(
+			seen(device),
+			{ type: "vacuum", change: { command } },
+			context,
+		),
+};
 
 interface Call {
 	url: string;
@@ -22,10 +47,10 @@ function json(body: unknown, status = 200): Response {
 }
 
 function connect() {
-	setSetting("dreame", {
-		email: "ada@example.com",
-		region: "eu",
-		encryptedPassword: secrets.encrypt("hunter2"),
+	setPluginSettings("dreame", {
+		homeId: null,
+		values: { email: "ada@example.com", region: "eu" },
+		secrets: { password: secrets.encrypt("hunter2") },
 	});
 }
 
@@ -119,7 +144,6 @@ describe("Dreame cloud", () => {
 
 	test("lists only the robot vacuums on the account", async () => {
 		connect();
-		expect(dreameCloud.configured()).toBe(true);
 		answers["/dreame-user-iot/iotuserbind/device/listV2"] = () =>
 			json({
 				code: 0,
@@ -138,11 +162,12 @@ describe("Dreame cloud", () => {
 					},
 				},
 			});
-		expect(await dreameCloud.devices()).toEqual([
+		expect(await dreameCloud.discover()).toEqual([
 			{
-				did: "123456",
+				kind: "dreame-vacuum",
+				externalId: "123456",
 				name: "X30 Ultra",
-				bindDomain: "10001.mt.eu.iot.dreame.tech:19973",
+				host: "10001.mt.eu.iot.dreame.tech:19973",
 			},
 		]);
 		expect(calls.at(-1)?.headers["dreame-auth"]).toBe("token");
@@ -200,20 +225,23 @@ describe("Dreame cloud", () => {
 				)
 				.digest("hex"),
 		);
-		await devices.vacuum(robot, { command: "start" });
+		await devices.command(robot, {
+			type: "vacuum",
+			change: { command: "start" },
+		});
 		expect(JSON.parse(calls.at(-1)?.body ?? "{}").data).toMatchObject({
 			method: "action",
 			params: { did: "123456", siid: 2, aiid: 1, in: [] },
 		});
 		expect(
-			devices.vacuum(
+			devices.command(
 				DeviceDTO.upsert({
 					kind: "app",
 					homeId: homeId(),
 					name: "Phone",
 					externalId: "browser",
 				}),
-				{ command: "start" },
+				{ type: "vacuum", change: { command: "start" } },
 			),
 		).rejects.toThrow("That device is not a robot vacuum.");
 	});
@@ -307,10 +335,13 @@ describe("Dreame cloud", () => {
 				detergent: null,
 			},
 		});
-		await devices.vacuum(robot, {
-			mode: "vacuum",
-			suction: "max",
-			wetness: 20,
+		await devices.command(robot, {
+			type: "vacuum",
+			change: {
+				mode: "vacuum",
+				suction: "max",
+				wetness: 20,
+			},
 		});
 		expect(lastWrite()).toEqual([
 			{ did: "123456", siid: 4, piid: 23, value: 5122 },
@@ -326,7 +357,10 @@ describe("Dreame cloud", () => {
 			{ did: "123456", siid: 4, piid: 23, value: 0 },
 		]);
 
-		await devices.vacuum(robot, { reset: "filter" });
+		await devices.command(robot, {
+			type: "vacuum",
+			change: { reset: "filter" },
+		});
 		expect(JSON.parse(calls.at(-1)?.body ?? "{}").data).toMatchObject({
 			method: "action",
 			params: { did: "123456", siid: 11, aiid: 1, in: [] },
@@ -379,8 +413,9 @@ describe("Dreame cloud", () => {
 			"Dreame refused the request (device offline).",
 		);
 		answers["/dreame-iot-com-10001/device/sendCommand"] = () => json({}, 401);
-		expect(dreameCloud.command(robot, "dock")).rejects.toBeInstanceOf(
-			DreameError,
-		);
+		expect(dreameCloud.command(robot, "dock")).rejects.toBeInstanceOf(Error);
+		expect(
+			plugin.command?.(seen(robot), { type: "switch", on: true }, context),
+		).rejects.toThrow("only takes vacuum commands");
 	});
 });

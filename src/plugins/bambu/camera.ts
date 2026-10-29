@@ -1,5 +1,4 @@
-import type { DeviceDTO } from "#lib/dto/device.js";
-import { secrets } from "#lib/server/core/secrets.js";
+import type { PluginDevice } from "#lib/plugin-sdk.js";
 
 const port = 6000;
 const timeoutMs = 10_000;
@@ -38,12 +37,11 @@ class BambuCamera {
 	 *
 	 * @throws When the printer can't be reached, refuses the access code or sends no picture in time.
 	 */
-	async snapshot(device: DeviceDTO): Promise<Buffer> {
-		const encrypted = device.encryptedLocalKey();
-		if (device.kind !== "bambu-printer" || !device.host || !encrypted) {
-			throw new Error("That device is not a printer with an access code.");
+	async snapshot(device: PluginDevice): Promise<Buffer> {
+		const accessCode = device.secret("accessCode");
+		if (!device.host || !accessCode) {
+			throw new Error("That printer has no address or access code.");
 		}
-		const accessCode = secrets.decrypt(encrypted);
 		const { promise, resolve, reject } = Promise.withResolvers<Buffer>();
 		let received = Buffer.alloc(0);
 		const timer = setTimeout(

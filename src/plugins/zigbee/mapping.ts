@@ -5,7 +5,6 @@ import type {
 	SwitchState,
 	ValveState,
 } from "#lib/devices.js";
-import type { DeviceKind } from "#lib/dto/device.js";
 
 type Payload = Record<string, unknown>;
 
@@ -25,7 +24,7 @@ export interface BridgeDevice {
 }
 
 export interface ZigbeeDevice {
-	kind: Extract<DeviceKind, `zigbee-${string}`>;
+	kind: "zigbee-contact" | "zigbee-valve" | "zigbee-switch" | "zigbee-meter";
 	ieeeAddress: string;
 	friendlyName: string;
 	name: string;
