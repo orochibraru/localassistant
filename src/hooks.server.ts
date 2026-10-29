@@ -15,6 +15,7 @@ import { logo } from "#lib/server/core/logo.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { csrfHandler } from "#lib/server/http/csrf.js";
 import { securityHeaders } from "#lib/server/http/security-headers.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 import { WorkerSupervisor } from "#lib/server/worker/supervisor.js";
 
 const logger = new Logger("Server");
@@ -32,7 +33,7 @@ function shutDown(reason: string): void {
 	process.exit(0);
 }
 
-export const init: ServerInit = () => {
+export const init: ServerInit = async () => {
 	try {
 		databaseConnection.migrate();
 	} catch (error) {
@@ -40,6 +41,7 @@ export const init: ServerInit = () => {
 		throw error;
 	}
 	logger.info("Database migrated");
+	await plugins.loadInstalled();
 
 	if (globalForWorker.__localassistantWorker) {
 		return;

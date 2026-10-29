@@ -12,12 +12,13 @@ import { eq } from "drizzle-orm";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
-import { getSetting, setSetting } from "#lib/dto/setting.js";
+import { getPluginSettings, setPluginSettings } from "#lib/dto/setting.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { device, job, user } from "#lib/server/db/schema.js";
 
 import { createUser, homeId, resetDatabase } from "../../database.js";
+import { addDevice, hosted, pluginOf } from "../../plugins/support.js";
 
 const tuya = {
 	options: [] as Record<string, unknown>[],
@@ -59,8 +60,10 @@ mock.module("tuyapi", () => ({
 }));
 
 const { devices } = await import("#lib/server/devices/devices.js");
-const { melCloud, MelCloudError } =
-	await import("#lib/server/devices/melcloud.js");
+const melCloud = pluginOf<{
+	signIn(email: string, password: string): Promise<string>;
+}>("melcloud");
+const melCloudContext = hosted("melcloud").context;
 const { jobHandlers } = await import("#lib/server/jobs/handlers.js");
 
 interface Call {
@@ -185,24 +188,31 @@ function fakeMelCloud(input: string | URL | Request, init?: RequestInit) {
 }
 
 function addCover(inverted = false) {
-	return DeviceDTO.upsert({
-		homeId: homeId(),
+	return addDevice({
 		kind: "tuya-cover",
 		name: "Bedroom",
 		externalId: "bfabcdabcdabcdabcdgh",
 		host: "192.168.1.40",
-		protocolVersion: "3.4",
-		encryptedLocalKey: secrets.encrypt("abcdabcdabcdabcd"),
-		inverted,
+		fields: { protocolVersion: "3.4", inverted },
+		secrets: { localKey: "abcdabcdabcdabcd" },
 	});
 }
 
 function connectMelCloud() {
-	setSetting("melcloud", {
-		email: "ada@example.com",
-		encryptedPassword: secrets.encrypt("hunter2"),
+	setPluginSettings("melcloud", {
+		homeId: null,
+		values: { email: "ada@example.com" },
+		secrets: { password: secrets.encrypt("hunter2") },
 	});
 }
+
+const coverSettings = {
+	name: "Bedroom",
+	roomId: null,
+	externalId: "bfabcdabcdabcdabcdgh",
+	host: "192.168.1.40",
+	encryptedSecrets: {},
+};
 
 beforeEach(async () => {
 	resetDatabase();
@@ -225,7 +235,7 @@ afterEach(() => {
 });
 
 describe("DeviceDTO", () => {
-	test("upserts on kind and external id, keeps the local key off toJSON", () => {
+	test("upserts on kind and external id, keeps the secrets off toJSON", () => {
 		const first = addCover();
 		const again = DeviceDTO.upsert({
 			homeId: homeId(),
@@ -237,8 +247,8 @@ describe("DeviceDTO", () => {
 		expect(DeviceDTO.all().map((device) => device.toJSON().name)).toEqual([
 			"Bedroom blind",
 		]);
-		expect(JSON.stringify(again.toJSON())).not.toContain("local");
-		expect(secrets.decrypt(again.encryptedLocalKey() ?? "")).toBe(
+		expect(JSON.stringify(again.toJSON())).not.toContain("localKey");
+		expect(secrets.decrypt(again.encryptedSecrets().localKey ?? "")).toBe(
 			"abcdabcdabcdabcd",
 		);
 	});
@@ -252,42 +262,35 @@ describe("DeviceDTO", () => {
 		expect(stored?.stateError).toBe("unreachable");
 		cover.rename("Office", null);
 		expect(DeviceDTO.find(cover.id)?.toJSON().name).toBe("Office");
-		cover.reconfigure({
+		cover.configure({
+			...coverSettings,
 			name: "Office blind",
-			roomId: null,
 			host: "192.168.1.41",
-			protocolVersion: "3.5",
-			inverted: true,
-			controlDp: 101,
-			positionDp: 102,
-			positionStateDp: 103,
+			fields: { protocolVersion: "3.5", inverted: true, controlDp: 101 },
+			encryptedSecrets: cover.encryptedSecrets(),
 		});
 		expect(DeviceDTO.find(cover.id)?.toJSON()).toMatchObject({
 			name: "Office blind",
 			host: "192.168.1.41",
-			protocolVersion: "3.5",
-			inverted: true,
-			controlDp: 101,
-			positionDp: 102,
-			positionStateDp: 103,
+			fields: { protocolVersion: "3.5", inverted: true, controlDp: 101 },
 		});
-		expect(secrets.decrypt(cover.encryptedLocalKey() ?? "")).toBe(
+		expect(DeviceDTO.find(cover.id)?.state).toEqual({
+			type: "cover",
+			position: 30,
+		});
+		expect(secrets.decrypt(cover.encryptedSecrets().localKey ?? "")).toBe(
 			"abcdabcdabcdabcd",
 		);
-		cover.reconfigure({
-			name: "Office blind",
-			roomId: null,
-			host: "192.168.1.41",
-			protocolVersion: "3.5",
-			inverted: true,
-			controlDp: 1,
-			positionDp: 2,
-			positionStateDp: 3,
-			encryptedLocalKey: secrets.encrypt("dcbadcbadcbadcba"),
+		cover.configure({
+			...coverSettings,
+			externalId: "bfnewnewnewnewnewnew",
+			fields: {},
+			encryptedSecrets: { localKey: secrets.encrypt("dcbadcbadcbadcba") },
 		});
-		expect(secrets.decrypt(cover.encryptedLocalKey() ?? "")).toBe(
+		expect(secrets.decrypt(cover.encryptedSecrets().localKey ?? "")).toBe(
 			"dcbadcbadcbadcba",
 		);
+		expect(DeviceDTO.find(cover.id)?.state).toBeNull();
 		DeviceDTO.upsert({
 			homeId: homeId(),
 			kind: "melcloud-ata",
@@ -332,10 +335,19 @@ describe("Tuya covers", () => {
 		});
 	});
 
+	test("the form's blind is known by its device ID", () => {
+		expect(
+			hosted("tuya").plugin.add?.(
+				{ deviceId: "bf1", host: "192.168.1.9" },
+				hosted("tuya").context,
+			),
+		).toEqual({ kind: "tuya-cover", externalId: "bf1", host: "192.168.1.9" });
+	});
+
 	test("commands go out and a refresh is queued for when it stops", async () => {
 		const cover = addCover(true);
-		await devices.coverAction(cover, "open");
-		await devices.coverPosition(cover, 25);
+		await devices.command(cover, { type: "cover", move: { action: "open" } });
+		await devices.command(cover, { type: "cover", move: { position: 25 } });
 		expect(tuya.sets).toEqual([
 			{ dps: 1, set: "open" },
 			{ dps: 2, set: 75 },
@@ -345,15 +357,16 @@ describe("Tuya covers", () => {
 
 	test("a cover with other data points is read and driven on those", async () => {
 		const cover = addCover();
-		cover.reconfigure({
-			name: "Bedroom",
-			roomId: null,
-			host: "192.168.1.40",
-			protocolVersion: "3.4",
-			inverted: false,
-			controlDp: 101,
-			positionDp: 102,
-			positionStateDp: 103,
+		cover.configure({
+			...coverSettings,
+			fields: {
+				protocolVersion: "3.4",
+				inverted: false,
+				controlDp: 101,
+				positionDp: 102,
+				positionStateDp: 103,
+			},
+			encryptedSecrets: cover.encryptedSecrets(),
 		});
 		tuya.dps = { "101": "stop", "103": 55 };
 		await devices.refresh(cover);
@@ -361,8 +374,8 @@ describe("Tuya covers", () => {
 			type: "cover",
 			position: 55,
 		});
-		await devices.coverAction(cover, "close");
-		await devices.coverPosition(cover, 20);
+		await devices.command(cover, { type: "cover", move: { action: "close" } });
+		await devices.command(cover, { type: "cover", move: { position: 20 } });
 		expect(tuya.sets).toEqual([
 			{ dps: 101, set: "close" },
 			{ dps: 102, set: 20 },
@@ -417,9 +430,9 @@ describe("Tuya covers", () => {
 			"connection timed out",
 		);
 		expect(tuya.disconnected).toBe(1);
-		await expect(devices.coverAction(cover, "stop")).rejects.toThrow(
-			"connection timed out",
-		);
+		await expect(
+			devices.command(cover, { type: "cover", move: { action: "stop" } }),
+		).rejects.toThrow("connection timed out");
 	});
 
 	test("refuses a cover with no key and a heat pump given cover commands", async () => {
@@ -429,21 +442,21 @@ describe("Tuya covers", () => {
 			name: "Bare",
 			externalId: "bf9999999999abcdefgh",
 		});
-		await expect(devices.coverAction(bare, "open")).rejects.toThrow(
-			"no address or local key",
-		);
+		await expect(
+			devices.command(bare, { type: "cover", move: { action: "open" } }),
+		).rejects.toThrow("no address or local key");
 		const heater = DeviceDTO.upsert({
 			homeId: homeId(),
 			kind: "melcloud-ata",
 			name: "Heat",
 			externalId: "77",
 		});
-		await expect(devices.coverPosition(heater, 10)).rejects.toThrow(
-			"not a cover",
-		);
-		await expect(devices.climate(bare, { power: true })).rejects.toThrow(
-			"not a heat pump",
-		);
+		await expect(
+			devices.command(heater, { type: "cover", move: { position: 10 } }),
+		).rejects.toThrow("not a cover");
+		await expect(
+			devices.command(bare, { type: "climate", change: { power: true } }),
+		).rejects.toThrow("not a heat pump");
 	});
 });
 
@@ -451,19 +464,18 @@ describe("MELCloud", () => {
 	test("lists air-to-air and air-to-water units from every part of a building", async () => {
 		spyOn(globalThis, "fetch").mockImplementation(fakeMelCloud as typeof fetch);
 		connectMelCloud();
-		expect(melCloud.configured()).toBe(true);
-		expect(await melCloud.devices()).toEqual([
+		expect(await melCloud.discover?.(melCloudContext)).toEqual([
 			{
-				deviceId: 77,
-				buildingId: 5,
-				name: "Living room",
 				kind: "melcloud-ata",
+				externalId: "77",
+				name: "Living room",
+				fields: { buildingId: 5 },
 			},
 			{
-				deviceId: 78,
-				buildingId: 5,
-				name: "Hot water",
 				kind: "melcloud-atw",
+				externalId: "78",
+				name: "Hot water",
+				fields: { buildingId: 5 },
 			},
 		]);
 		expect(calls[0]?.body).toMatchObject({
@@ -481,7 +493,7 @@ describe("MELCloud", () => {
 			kind: "melcloud-ata",
 			name: "Living room",
 			externalId: "77",
-			buildingId: 5,
+			fields: { buildingId: 5 },
 		});
 		await devices.refresh(unit);
 		expect(DeviceDTO.find(unit.id)?.state).toEqual({
@@ -496,10 +508,9 @@ describe("MELCloud", () => {
 			offline: false,
 			hotWater: null,
 		});
-		await devices.climate(unit, {
-			power: false,
-			mode: "cool",
-			targetTemperature: 21.3,
+		await devices.command(unit, {
+			type: "climate",
+			change: { power: false, mode: "cool", targetTemperature: 21.3 },
 		});
 		const set = calls.find((call) => call.url.endsWith("/Device/SetAta"));
 		expect(set?.body).toMatchObject({
@@ -524,13 +535,16 @@ describe("MELCloud", () => {
 			kind: "melcloud-atw",
 			name: "Heat pump",
 			externalId: "78",
-			buildingId: 5,
+			fields: { buildingId: 5 },
 		});
 		await devices.refresh(unit);
 		expect(DeviceDTO.find(unit.id)?.state).toMatchObject({
 			hotWater: { boost: false, temperature: 48, target: 50 },
 		});
-		await devices.climate(unit, { hotWaterBoost: true });
+		await devices.command(unit, {
+			type: "climate",
+			change: { hotWaterBoost: true },
+		});
 		const set = calls.find((call) => call.url.endsWith("/Device/SetAtw"));
 		expect(set?.body).toMatchObject({
 			ForcedHotWaterMode: true,
@@ -544,7 +558,7 @@ describe("MELCloud", () => {
 			kind: "melcloud-atw",
 			name: "Floor heating",
 			externalId: "80",
-			buildingId: 5,
+			fields: { buildingId: 5 },
 		});
 		await devices.refresh(tankless);
 		expect(DeviceDTO.find(tankless.id)?.state).toMatchObject({
@@ -560,9 +574,12 @@ describe("MELCloud", () => {
 			kind: "melcloud-atw",
 			name: "Floor heating",
 			externalId: "78",
-			buildingId: 5,
+			fields: { buildingId: 5 },
 		});
-		await devices.climate(unit, { targetTemperature: 22, mode: "cool" });
+		await devices.command(unit, {
+			type: "climate",
+			change: { targetTemperature: 22, mode: "cool" },
+		});
 		const set = calls.find((call) => call.url.endsWith("/Device/SetAtw"));
 		expect(set?.body).toMatchObject({
 			SetTemperatureZone1: 22,
@@ -578,10 +595,10 @@ describe("MELCloud", () => {
 	test("signs in again once when the session expired", async () => {
 		spyOn(globalThis, "fetch").mockImplementation(fakeMelCloud as typeof fetch);
 		connectMelCloud();
-		await melCloud.devices();
+		await melCloud.discover?.(melCloudContext);
 		calls = [];
 		expiredOnce = true;
-		await melCloud.devices();
+		await melCloud.discover?.(melCloudContext);
 		expect(calls.map((call) => call.url.split("/").pop())).toEqual([
 			"ListDevices",
 			"ClientLogin",
@@ -601,8 +618,10 @@ describe("MELCloud", () => {
 		await expect(melCloud.signIn("ada@example.com", "x")).rejects.toThrow(
 			"error 6",
 		);
-		expect(getSetting("melcloud")).toBeNull();
-		await expect(melCloud.devices()).rejects.toThrow("No MELCloud account");
+		expect(getPluginSettings("melcloud")).toBeNull();
+		await expect(melCloud.discover?.(melCloudContext)).rejects.toThrow(
+			"No MELCloud account",
+		);
 		connectMelCloud();
 		loginError = null;
 		fetchMock.mockImplementation((() =>
@@ -620,7 +639,7 @@ describe("MELCloud", () => {
 		const failure = await melCloud
 			.signIn("ada@example.com", "x")
 			.catch((error: unknown) => error);
-		expect(failure).toBeInstanceOf(MelCloudError);
+		expect(failure).toBeInstanceOf(Error);
 		expect(devices.message(failure)).toBe(
 			"MELCloud can't be reached right now.",
 		);

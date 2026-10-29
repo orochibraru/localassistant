@@ -12,7 +12,9 @@ export interface JobPayloads {
 	"automation.run": { automationId: string };
 	"broker.connect": Record<string, never>;
 	"energy.record": Record<string, never>;
-	"cameras.sync": Record<string, never>;
+	"plugins.reload": Record<string, never>;
+	"plugins.restart": { pluginId: string };
+	"plugins.check": Record<string, never>;
 }
 
 export type JobType = keyof JobPayloads;
