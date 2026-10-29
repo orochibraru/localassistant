@@ -49,3 +49,25 @@ test("the Integrations tab lists the official plugins and explains a bad link", 
 		page.getByText(/isn't a link to a repository or a folder/),
 	).toBeVisible();
 });
+
+test("a dashboard is made with a heading and the weather, then shows on Home", async ({
+	page,
+}) => {
+	await page.goto("/dashboards");
+	await expect(page.getByText("No dashboard yet")).toBeVisible();
+	await page.getByRole("button", { name: "New dashboard" }).first().click();
+	const sheet = page.getByRole("dialog").last();
+	await sheet.getByLabel("Name").fill("Evening");
+	await sheet.getByRole("button", { name: "Take it out" }).click();
+	await sheet.getByRole("button", { name: "Add", exact: true }).click();
+	await page.getByRole("menuitem", { name: "Heading" }).click();
+	await sheet.getByLabel("Heading").fill("Living room");
+	await sheet.getByRole("button", { name: "Add", exact: true }).click();
+	await page.getByRole("menuitem", { name: "Weather" }).click();
+	await sheet.getByRole("button", { name: "Save" }).click();
+	await expect(page.getByText("Evening saved.")).toBeVisible();
+	await page.getByRole("link", { name: /Evening/ }).click();
+	await expect(page.getByText("Living room")).toBeVisible();
+	await page.goto("/");
+	await expect(page.getByRole("link", { name: "Evening" })).toBeVisible();
+});

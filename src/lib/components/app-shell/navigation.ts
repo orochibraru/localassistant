@@ -2,6 +2,7 @@ import { resolve } from "$app/paths";
 import GaugeIcon from "@lucide/svelte/icons/gauge";
 import HouseIcon from "@lucide/svelte/icons/house";
 import LayersIcon from "@lucide/svelte/icons/layers";
+import LayoutDashboardIcon from "@lucide/svelte/icons/layout-dashboard";
 import MapIcon from "@lucide/svelte/icons/map";
 import PlugIcon from "@lucide/svelte/icons/plug";
 import ScrollTextIcon from "@lucide/svelte/icons/scroll-text";
@@ -30,6 +31,11 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 			icon: WorkflowIcon,
 		},
 		{ href: resolve("/(protected)/energy"), label: "Energy", icon: GaugeIcon },
+		{
+			href: resolve("/(protected)/dashboards"),
+			label: "Dashboards",
+			icon: LayoutDashboardIcon,
+		},
 		{
 			href: resolve("/(protected)/logbook"),
 			label: "Logbook",

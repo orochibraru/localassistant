@@ -427,6 +427,23 @@ export const logbookEntry = sqliteTable(
 	],
 );
 
+export const dashboard = sqliteTable(
+	"dashboard",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		sections: text("sections", { mode: "json" }).notNull(),
+		createdAt: createdAt(),
+		updatedAt: updatedAt(),
+	},
+	(table) => [index("dashboard_user_idx").on(table.userId)],
+);
+
 export const presence = sqliteTable("presence", {
 	userId: text("user_id")
 		.primaryKey()

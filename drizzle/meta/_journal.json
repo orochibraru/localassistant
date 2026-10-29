@@ -190,6 +190,13 @@
       "when": 1793317188449,
       "tag": "0026_history",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1793317675370,
+      "tag": "0027_dashboards",
+      "breakpoints": true
     }
   ]
 }
