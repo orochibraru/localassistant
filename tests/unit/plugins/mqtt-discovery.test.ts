@@ -103,7 +103,24 @@ describe("Home Assistant's discovery format", () => {
 	test("knows which components it can show", () => {
 		const entity = (component: string, config: Record<string, unknown>) =>
 			discovery.entity(component, "node/object", config)?.kind ?? null;
-		expect(entity("light", { cmd_t: "a" })).toBe("mqtt-discovery-switch");
+		expect(entity("light", { cmd_t: "a" })).toBe("mqtt-discovery-light");
+		expect(entity("lock", { cmd_t: "a" })).toBe("mqtt-discovery-lock");
+		expect(entity("fan", { cmd_t: "a" })).toBe("mqtt-discovery-fan");
+		expect(entity("button", { cmd_t: "a" })).toBe("mqtt-discovery-button");
+		expect(entity("sensor", { dev_cla: "humidity", stat_t: "a" })).toBe(
+			"mqtt-discovery-sensor",
+		);
+		expect(entity("binary_sensor", { dev_cla: "motion", stat_t: "a" })).toBe(
+			"mqtt-discovery-sensor",
+		);
+		expect(entity("sensor", { stat_t: "a" })).toBeNull();
+		expect(
+			entity("sensor", {
+				unit_of_meas: "dBm",
+				stat_t: "a",
+				ent_cat: "diagnostic",
+			}),
+		).toBeNull();
 		expect(entity("switch", {})).toBeNull();
 		expect(entity("cover", { set_pos_t: "a" })).toBe("mqtt-discovery-cover");
 		expect(entity("binary_sensor", { dev_cla: "window" })).toBe(
@@ -135,9 +152,10 @@ describe("MQTT discovery", () => {
 		announce("switch/kettle/relay", tasmotaPlug);
 		announce("switch/kettle/broken", "not json");
 		announce("switch/kettle/array", [1]);
-		announce("sensor/kettle/temperature", {
-			dev_cla: "temperature",
+		announce("sensor/kettle/signal", {
+			unit_of_meas: "dBm",
 			stat_t: "t",
+			ent_cat: "diagnostic",
 		});
 		expect(DeviceDTO.inHome(homeId())).toHaveLength(1);
 		const plug = named("Kettle Plug");
@@ -244,7 +262,7 @@ describe("MQTT discovery", () => {
 		report("office/target", "21.5");
 		report("office/current", "23");
 		plugin.flush(context);
-		expect(named("Lamp").state).toMatchObject({ on: true });
+		expect(named("Lamp").state).toMatchObject({ on: true, brightness: 16 });
 		expect(named("Power").state).toMatchObject({ power: 1500 });
 		expect(named("Energy").state).toMatchObject({ energy: 2.5 });
 		expect(named("Blind").state).toEqual({ type: "cover", position: 20 });
@@ -264,7 +282,10 @@ describe("MQTT discovery", () => {
 		expect(named("Office").state).toMatchObject({ power: false, mode: "cool" });
 
 		const publish = spyOn(broker, "publish").mockResolvedValue();
-		await devices.command(named("Lamp"), { type: "switch", on: false });
+		await devices.command(named("Lamp"), {
+			type: "light",
+			change: { on: false },
+		});
 		expect(publish).toHaveBeenLastCalledWith("zigbee2mqtt/desk/set", {
 			state: "OFF",
 		});
@@ -327,6 +348,222 @@ describe("MQTT discovery", () => {
 				{},
 			),
 		).toEqual({ type: "linky", day: null, kilowattHours: null });
+	});
+
+	test("drives lights, locks, fans and buttons, and reads other sensors", async () => {
+		announce("light/hall/bulb", {
+			name: "Bulb",
+			stat_t: "hall/bulb",
+			cmd_t: "hall/bulb/set",
+			bri_stat_t: "hall/bulb/brightness",
+			bri_cmd_t: "hall/bulb/brightness/set",
+			bri_scl: 100,
+			clr_temp_stat_t: "hall/bulb/ct",
+			clr_temp_cmd_t: "hall/bulb/ct/set",
+			hs_stat_t: "hall/bulb/hs",
+			hs_cmd_t: "hall/bulb/hs/set",
+			min_mirs: 200,
+			max_mirs: 400,
+			uniq_id: "hall_bulb",
+		});
+		announce("light/desk/strip", {
+			name: "Strip",
+			schema: "json",
+			brightness: true,
+			sup_clrm: ["color_temp", "hs"],
+			stat_t: "desk/strip",
+			cmd_t: "desk/strip/set",
+			uniq_id: "desk_strip",
+		});
+		announce("lock/front/lock", {
+			name: "Front lock",
+			stat_t: "front/lock",
+			cmd_t: "front/lock/set",
+			uniq_id: "front_lock",
+		});
+		announce("fan/bedroom/fan", {
+			name: "Fan",
+			stat_t: "bedroom/fan",
+			cmd_t: "bedroom/fan/set",
+			pct_stat_t: "bedroom/fan/speed",
+			pct_cmd_t: "bedroom/fan/speed/set",
+			spd_rng_min: 1,
+			spd_rng_max: 3,
+			osc_stat_t: "bedroom/fan/osc",
+			osc_cmd_t: "bedroom/fan/osc/set",
+			uniq_id: "bedroom_fan",
+		});
+		announce("sensor/office/humidity", {
+			name: "Humidity",
+			dev_cla: "humidity",
+			unit_of_meas: "%",
+			stat_t: "office/humidity",
+			uniq_id: "office_humidity",
+		});
+		announce("binary_sensor/hall/motion", {
+			name: "Motion",
+			dev_cla: "motion",
+			stat_t: "hall/motion",
+			uniq_id: "hall_motion",
+		});
+		announce("button/garage/door", {
+			name: "Garage button",
+			cmd_t: "garage/press",
+			uniq_id: "garage_button",
+		});
+		expect(named("Bulb").state).toMatchObject({
+			type: "light",
+			minTemperature: 2500,
+			maxTemperature: 5000,
+			features: ["brightness", "temperature", "color"],
+		});
+		expect(named("Strip").state).toMatchObject({
+			features: ["brightness", "temperature", "color"],
+		});
+		expect(named("Fan").state).toMatchObject({ type: "fan", speedSteps: 3 });
+
+		report("hall/bulb", "ON");
+		report("hall/bulb/brightness", "50");
+		report("hall/bulb/ct", "250");
+		report("hall/bulb/hs", "120,80");
+		report("desk/strip", "not json");
+		report(
+			"desk/strip",
+			JSON.stringify({
+				state: "OFF",
+				brightness: 255,
+				color_temp: 500,
+				color: { h: 10, s: 20 },
+			}),
+		);
+		report("front/lock", "LOCKED");
+		report("bedroom/fan", "ON");
+		report("bedroom/fan/speed", "2");
+		report("bedroom/fan/osc", "oscillate_on");
+		report("office/humidity", "41.5");
+		report("hall/motion", "ON");
+		plugin.flush(context);
+		expect(named("Bulb").state).toMatchObject({
+			on: true,
+			brightness: 50,
+			temperature: 4000,
+			color: { hue: 120, saturation: 80 },
+		});
+		expect(named("Strip").state).toMatchObject({
+			on: false,
+			brightness: 100,
+			temperature: 2000,
+			color: { hue: 10, saturation: 20 },
+		});
+		expect(named("Front lock").state).toMatchObject({ locked: true });
+		expect(named("Fan").state).toMatchObject({
+			on: true,
+			speed: 67,
+			oscillating: true,
+		});
+		expect(named("Humidity").state).toEqual({
+			type: "sensor",
+			readings: [{ name: "humidity", value: 41.5, unit: "%" }],
+		});
+		expect(named("Motion").state).toEqual({
+			type: "sensor",
+			readings: [{ name: "motion", value: true, unit: null }],
+		});
+		report("front/lock", "JAMMED");
+		report("bedroom/fan/speed", "0");
+		report("bedroom/fan/speed", "fast");
+		report("office/humidity", "dry");
+		plugin.flush(context);
+		expect(named("Front lock").state).toMatchObject({ jammed: true });
+		expect(named("Fan").state).toMatchObject({ speed: 0 });
+		expect(named("Humidity").state).toMatchObject({
+			readings: [{ value: "dry" }],
+		});
+
+		const publish = spyOn(broker, "publish").mockResolvedValue();
+		await devices.command(named("Bulb"), {
+			type: "light",
+			change: {
+				on: true,
+				brightness: 30,
+				temperature: 3000,
+				color: { hue: 200, saturation: 50 },
+			},
+		});
+		expect(publish.mock.calls.slice(-4)).toEqual([
+			["hall/bulb/set", "ON"],
+			["hall/bulb/brightness/set", "30"],
+			["hall/bulb/ct/set", "333"],
+			["hall/bulb/hs/set", "200,50"],
+		]);
+		await devices.command(named("Bulb"), {
+			type: "light",
+			change: { brightness: 0 },
+		});
+		expect(publish).toHaveBeenLastCalledWith("hall/bulb/set", "OFF");
+		expect(named("Bulb").state).toMatchObject({ on: false });
+		await devices.command(named("Strip"), {
+			type: "light",
+			change: {
+				brightness: 50,
+				temperature: 2500,
+				color: { hue: 1, saturation: 2 },
+			},
+		});
+		expect(publish).toHaveBeenLastCalledWith("desk/strip/set", {
+			state: "ON",
+			brightness: 128,
+			color_temp: 400,
+			color: { h: 1, s: 2 },
+		});
+		await devices.command(named("Front lock"), { type: "lock", locked: false });
+		expect(publish).toHaveBeenLastCalledWith("front/lock/set", "UNLOCK");
+		expect(named("Front lock").state).toMatchObject({
+			locked: false,
+			jammed: false,
+		});
+		await devices.command(named("Fan"), {
+			type: "fan",
+			change: { on: true, speed: 100, oscillating: false },
+		});
+		expect(publish.mock.calls.slice(-3)).toEqual([
+			["bedroom/fan/set", "ON"],
+			["bedroom/fan/speed/set", "3"],
+			["bedroom/fan/osc/set", "oscillate_off"],
+		]);
+		await devices.command(named("Fan"), { type: "fan", change: { speed: 0 } });
+		expect(publish).toHaveBeenLastCalledWith("bedroom/fan/speed/set", "0");
+		expect(named("Fan").state).toMatchObject({ on: false, speed: 0 });
+		await devices.command(named("Garage button"), { type: "button" });
+		expect(publish).toHaveBeenLastCalledWith("garage/press", "PRESS");
+		expect(
+			(named("Garage button").state as { pressedAt: string | null }).pressedAt,
+		).not.toBeNull();
+		await expect(
+			devices.command(named("Humidity"), { type: "button" }),
+		).rejects.toThrow("not a button");
+		publish.mockRestore();
+	});
+
+	test("keeps a light it already shows as a switch", () => {
+		DeviceDTO.upsert({
+			kind: "mqtt-discovery-switch",
+			homeId: homeId(),
+			name: "Old lamp",
+			roomId: null,
+			externalId: "old_lamp",
+			host: null,
+			fields: {},
+		});
+		announce("light/old/lamp", {
+			name: "Lamp",
+			stat_t: "old/lamp",
+			cmd_t: "old/lamp/set",
+			uniq_id: "old_lamp",
+		});
+		expect(DeviceDTO.all().map((device) => device.kind)).toEqual([
+			"mqtt-discovery-switch",
+		]);
 	});
 
 	test("starts on the broker, refuses to connect without one and follows known devices again", async () => {

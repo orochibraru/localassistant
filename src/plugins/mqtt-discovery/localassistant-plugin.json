@@ -3,12 +3,12 @@
 	"name": "MQTT discovery",
 	"description": "Tasmota, ESPHome, Shelly and other devices that announce themselves for Home Assistant, without Home Assistant.",
 	"author": "LocalAssistant",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"icon": "zap",
 	"needs": ["mqtt"],
 	"connection": {
 		"description": "Devices that support Home Assistant's MQTT discovery publish their description on the MQTT broker. Turn discovery on in each device (Tasmota: SetOption19 off and the Home Assistant integration on; ESPHome: the mqtt component), and they show up here on their own.",
-		"connected": "Switches, lights, covers, door and window sensors, power and energy sensors and thermostats show up here on their own.",
+		"connected": "Switches, lights, locks, fans, buttons, covers, door and window sensors, other sensors and thermostats show up here on their own.",
 		"find": "Find new devices",
 		"fields": [
 			{
@@ -24,9 +24,9 @@
 	"kinds": [
 		{
 			"id": "mqtt-discovery-switch",
-			"label": "Switch or light",
+			"label": "Switch",
 			"card": "switch",
-			"icon": "lightbulb",
+			"icon": "plug",
 			"order": 3
 		},
 		{
@@ -63,6 +63,43 @@
 			"card": "climate",
 			"icon": "thermometer",
 			"order": 0
+		},
+		{
+			"id": "mqtt-discovery-light",
+			"label": "Light",
+			"card": "light",
+			"icon": "lightbulb",
+			"order": 3
+		},
+		{
+			"id": "mqtt-discovery-lock",
+			"label": "Lock",
+			"card": "lock",
+			"icon": "lock",
+			"order": 1
+		},
+		{
+			"id": "mqtt-discovery-fan",
+			"label": "Fan",
+			"card": "fan",
+			"icon": "fan",
+			"order": 3
+		},
+		{
+			"id": "mqtt-discovery-sensor",
+			"label": "Sensor",
+			"card": "sensor",
+			"icon": "gauge",
+			"size": "small",
+			"order": 5
+		},
+		{
+			"id": "mqtt-discovery-button",
+			"label": "Button",
+			"card": "button",
+			"icon": "mouse-pointer-click",
+			"size": "small",
+			"order": 6
 		}
 	]
 }

@@ -12,6 +12,7 @@ import {
 	type PluginDevice,
 } from "#lib/plugin-sdk.js";
 
+import { controls } from "./controls.js";
 import {
 	discovery,
 	type DiscoveryConfig,
@@ -92,6 +93,18 @@ class MqttDiscovery implements Plugin {
 		);
 		if (!entity) {
 			return;
+		}
+		if (
+			entity.kind === "mqtt-discovery-light" &&
+			context
+				.devices()
+				.some(
+					(entry) =>
+						entry.kind === "mqtt-discovery-switch" &&
+						entry.externalId === entity.externalId,
+				)
+		) {
+			entity.kind = "mqtt-discovery-switch";
 		}
 		context.found([
 			{
@@ -185,10 +198,10 @@ class MqttDiscovery implements Plugin {
 		if (previous.type === "cover") {
 			return this.#cover(previous, role, text, known, config);
 		}
-		if (previous.type === "climate") {
-			return this.#climate(previous, role, text, known);
+		if (previous.type !== "climate") {
+			return controls.apply(previous, role, value, config);
 		}
-		return previous;
+		return this.#climate(previous, role, text, known);
 	}
 
 	/**
@@ -222,6 +235,14 @@ class MqttDiscovery implements Plugin {
 		}
 		if (command.type === "climate" && state?.type === "climate") {
 			return this.#adjust(context, config, state, command.change);
+		}
+		const next = state
+			? await controls.command(state, command, config, (topic, payload) =>
+					context.mqtt.publish(topic, payload),
+				)
+			: null;
+		if (next) {
+			return next;
 		}
 		throw new Error("That device doesn't take that command.");
 	}
@@ -276,6 +297,10 @@ class MqttDiscovery implements Plugin {
 	}
 
 	#initial(kind: string, config: DiscoveryConfig): DeviceState {
+		const control = controls.initial(kind, config);
+		if (control) {
+			return control;
+		}
 		if (kind === "mqtt-discovery-cover") {
 			return { type: "cover", position: null };
 		}

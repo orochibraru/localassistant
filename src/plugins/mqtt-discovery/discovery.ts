@@ -11,7 +11,16 @@ export type Role =
 	| "energy"
 	| "climate-mode"
 	| "climate-target"
-	| "climate-current";
+	| "climate-current"
+	| "light"
+	| "light-brightness"
+	| "light-temperature"
+	| "light-color"
+	| "lock"
+	| "fan"
+	| "fan-speed"
+	| "fan-oscillation"
+	| "reading";
 
 export interface Subscription {
 	topic: string;
@@ -28,33 +37,63 @@ export interface DiscoveredEntity {
 
 const abbreviations: Record<string, string> = {
 	avty_t: "availability_topic",
+	bri_cmd_t: "brightness_command_topic",
+	bri_scl: "brightness_scale",
+	bri_stat_t: "brightness_state_topic",
+	bri_val_tpl: "brightness_value_template",
+	clr_temp_cmd_t: "color_temp_command_topic",
+	clr_temp_stat_t: "color_temp_state_topic",
+	clr_temp_val_tpl: "color_temp_value_template",
 	cmd_t: "command_topic",
 	curr_temp_t: "current_temperature_topic",
 	curr_temp_tpl: "current_temperature_template",
 	dev: "device",
 	dev_cla: "device_class",
+	ent_cat: "entity_category",
+	hs_cmd_t: "hs_command_topic",
+	hs_stat_t: "hs_state_topic",
+	hs_val_tpl: "hs_value_template",
+	max_mirs: "max_mireds",
 	max_temp: "max_temp",
+	min_mirs: "min_mireds",
 	min_temp: "min_temp",
 	mode_cmd_t: "mode_command_topic",
 	mode_stat_t: "mode_state_topic",
 	mode_stat_tpl: "mode_state_template",
 	obj_id: "object_id",
+	osc_cmd_t: "oscillation_command_topic",
+	osc_stat_t: "oscillation_state_topic",
+	osc_val_tpl: "oscillation_value_template",
+	pct_cmd_t: "percentage_command_topic",
+	pct_stat_t: "percentage_state_topic",
+	pct_val_tpl: "percentage_value_template",
 	pl_cls: "payload_close",
+	pl_lock: "payload_lock",
 	pl_off: "payload_off",
 	pl_on: "payload_on",
 	pl_open: "payload_open",
+	pl_osc_off: "payload_oscillation_off",
+	pl_osc_on: "payload_oscillation_on",
+	pl_prs: "payload_press",
 	pl_stop: "payload_stop",
+	pl_unlk: "payload_unlock",
 	pos_clsd: "position_closed",
 	pos_open: "position_open",
 	pos_t: "position_topic",
 	pos_tpl: "position_template",
 	set_pos_t: "set_position_topic",
+	spd_rng_max: "speed_range_max",
+	spd_rng_min: "speed_range_min",
 	stat_clsd: "state_closed",
+	stat_jam: "state_jammed",
+	stat_locked: "state_locked",
 	stat_off: "state_off",
 	stat_on: "state_on",
 	stat_open: "state_open",
 	stat_t: "state_topic",
+	stat_unlocked: "state_unlocked",
 	stat_val_tpl: "state_value_template",
+	sup_clrm: "supported_color_modes",
 	temp_cmd_t: "temperature_command_topic",
 	temp_stat_t: "temperature_state_topic",
 	temp_stat_tpl: "temperature_state_template",
@@ -98,8 +137,8 @@ class Discovery {
 	}
 
 	/**
-	 * The device a discovery message announces, or `null` for one LocalAssistant can't show: switches and lights,
-	 * covers, door and window sensors, power and energy sensors, and thermostats.
+	 * The device a discovery message announces, or `null` for one LocalAssistant can't show: switches, lights, locks,
+	 * fans, buttons, covers, door and window sensors, power, energy and other sensors, and thermostats.
 	 */
 	entity(
 		component: string,
@@ -155,6 +194,49 @@ class Discovery {
 						template("position_template"),
 					],
 				],
+				"mqtt-discovery-light": [
+					[
+						topic("state_topic"),
+						"light",
+						config.schema === "json"
+							? null
+							: (template("state_value_template") ?? value),
+					],
+					[
+						topic("brightness_state_topic"),
+						"light-brightness",
+						template("brightness_value_template"),
+					],
+					[
+						topic("color_temp_state_topic"),
+						"light-temperature",
+						template("color_temp_value_template"),
+					],
+					[
+						topic("hs_state_topic"),
+						"light-color",
+						template("hs_value_template"),
+					],
+				],
+				"mqtt-discovery-lock": [[topic("state_topic"), "lock", value]],
+				"mqtt-discovery-fan": [
+					[
+						topic("state_topic"),
+						"fan",
+						template("state_value_template") ?? value,
+					],
+					[
+						topic("percentage_state_topic"),
+						"fan-speed",
+						template("percentage_value_template"),
+					],
+					[
+						topic("oscillation_state_topic"),
+						"fan-oscillation",
+						template("oscillation_value_template"),
+					],
+				],
+				"mqtt-discovery-sensor": [[topic("state_topic"), "reading", value]],
 				"mqtt-discovery-climate": [
 					[
 						topic("mode_state_topic"),
@@ -235,11 +317,21 @@ class Discovery {
 			typeof config.unit_of_measurement === "string"
 				? config.unit_of_measurement
 				: "";
-		if (
-			(component === "switch" || component === "light") &&
-			config.command_topic
-		) {
+		const commanded = typeof config.command_topic === "string";
+		if (component === "switch" && commanded) {
 			return "mqtt-discovery-switch";
+		}
+		if (component === "light" && commanded) {
+			return "mqtt-discovery-light";
+		}
+		if (component === "lock" && commanded) {
+			return "mqtt-discovery-lock";
+		}
+		if (component === "fan" && commanded) {
+			return "mqtt-discovery-fan";
+		}
+		if (component === "button" && commanded) {
+			return "mqtt-discovery-button";
 		}
 		if (
 			component === "cover" &&
@@ -261,6 +353,15 @@ class Discovery {
 			(deviceClass === "energy" || unit === "kWh" || unit === "Wh")
 		) {
 			return "mqtt-discovery-energy";
+		}
+		if (
+			(component === "sensor" || component === "binary_sensor") &&
+			typeof config.state_topic === "string" &&
+			(deviceClass || unit) &&
+			config.entity_category !== "diagnostic" &&
+			config.entity_category !== "config"
+		) {
+			return "mqtt-discovery-sensor";
 		}
 		return component === "climate" ? "mqtt-discovery-climate" : null;
 	}
