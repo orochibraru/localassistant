@@ -169,6 +169,13 @@
       "when": 1793314332390,
       "tag": "0023_ha_light_fan_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1793315132116,
+      "tag": "0024_routines",
+      "breakpoints": true
     }
   ]
 }

@@ -66,6 +66,7 @@ function make(home: HomeDTO, definition: Partial<AutomationDefinition>) {
 		name: "Test",
 		trigger: { type: "sun", event: "sunset", offsetMinutes: 0 },
 		period: { type: "always" },
+		conditions: [],
 		actions: [{ type: "blinds", roomId: null, move: "close", position: null }],
 		...definition,
 	});
@@ -152,11 +153,12 @@ describe("automation helpers", () => {
 		expect(
 			describeAction(
 				{
-					type: "climate",
+					type: "device",
 					deviceId: "pump",
-					power: true,
-					mode: "heat",
-					targetTemperature: 20,
+					command: {
+						type: "climate",
+						change: { power: true, mode: "heat", targetTemperature: 20 },
+					},
 				},
 				names,
 			),
@@ -164,21 +166,35 @@ describe("automation helpers", () => {
 		expect(
 			describeAction(
 				{
-					type: "climate",
+					type: "device",
 					deviceId: "gone",
-					power: false,
-					mode: null,
-					targetTemperature: null,
+					command: { type: "climate", change: { power: false } },
 				},
 				names,
 			),
 		).toBe("Turn a removed device off");
 		expect(
 			describeAction(
-				{ type: "vacuum", deviceId: "pump", command: "dock" },
+				{
+					type: "device",
+					deviceId: "pump",
+					command: { type: "vacuum", change: { command: "dock" } },
+				},
 				names,
 			),
 		).toBe("Dock Living room");
+		expect(describeAction({ type: "delay", minutes: 5 }, names)).toBe(
+			"Wait 5 min",
+		);
+		expect(describeAction({ type: "scene", sceneId: "x" }, names)).toBe(
+			"Set the scene that was removed",
+		);
+		expect(
+			describeAction(
+				{ type: "scene", sceneId: "x" },
+				{ ...names, scenes: new Map([["x", "Movie night"]]) },
+			),
+		).toBe("Set the scene Movie night");
 	});
 });
 
@@ -351,14 +367,23 @@ describe("automations", () => {
 				},
 				{ type: "blinds", roomId: null, move: "close", position: null },
 				{
-					type: "climate",
+					type: "device",
 					deviceId: pump.id,
-					power: true,
-					mode: "heat",
-					targetTemperature: 19,
+					command: {
+						type: "climate",
+						change: { power: true, mode: "heat", targetTemperature: 19 },
+					},
 				},
-				{ type: "vacuum", deviceId: "gone", command: "start" },
-				{ type: "printer", deviceId: pump.id, command: "pause" },
+				{
+					type: "device",
+					deviceId: "gone",
+					command: { type: "vacuum", change: { command: "start" } },
+				},
+				{
+					type: "device",
+					deviceId: pump.id,
+					command: { type: "printer", change: { command: "pause" } },
+				},
 			],
 		});
 		make(home, {
@@ -408,6 +433,7 @@ describe("automations", () => {
 			name: "Renamed",
 			trigger: { type: "sun", event: "sunrise", offsetMinutes: 0 },
 			period: { type: "always" },
+			conditions: [],
 			actions: automation.actions,
 		});
 		expect(AutomationDTO.inHome(home.id)[0]?.name).toBe("Renamed");

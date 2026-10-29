@@ -10,6 +10,13 @@ export interface JobPayloads {
 	"weather.refresh": { homeId?: string };
 	"automations.tick": Record<string, never>;
 	"automation.run": { automationId: string };
+	"automation.resume": {
+		automationId: string;
+		runId: string;
+		step: number;
+		roomId: string | null;
+		by: string | null;
+	};
 	"broker.connect": Record<string, never>;
 	"energy.record": Record<string, never>;
 	"plugins.reload": Record<string, never>;

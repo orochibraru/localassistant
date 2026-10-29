@@ -363,11 +363,48 @@ export const automation = sqliteTable("automation", {
 	enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
 	trigger: text("trigger", { mode: "json" }).notNull(),
 	period: text("period", { mode: "json" }).notNull(),
+	conditions: text("conditions", { mode: "json" }).notNull().default([]),
 	actions: text("actions", { mode: "json" }).notNull(),
 	memory: text("memory", { mode: "json" }),
 	checkedAt: integer("checked_at", { mode: "timestamp_ms" }),
 	ranAt: integer("ran_at", { mode: "timestamp_ms" }),
 	runError: text("run_error"),
+	createdAt: createdAt(),
+	updatedAt: updatedAt(),
+});
+
+export const automationRun = sqliteTable(
+	"automation_run",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		automationId: text("automation_id")
+			.notNull()
+			.references(() => automation.id, { onDelete: "cascade" }),
+		cause: text("cause").notNull(),
+		status: text("status").notNull(),
+		error: text("error"),
+		startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+		finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+	},
+	(table) => [
+		index("automation_run_automation_idx").on(
+			table.automationId,
+			table.startedAt,
+		),
+	],
+);
+
+export const scene = sqliteTable("scene", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	homeId: text("home_id")
+		.notNull()
+		.references(() => home.id, { onDelete: "cascade" }),
+	name: text("name").notNull(),
+	members: text("members", { mode: "json" }).notNull(),
 	createdAt: createdAt(),
 	updatedAt: updatedAt(),
 });

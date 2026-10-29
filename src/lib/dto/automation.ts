@@ -1,6 +1,11 @@
 import { and, asc, eq } from "drizzle-orm";
 
-import type { AutomationAction, Period, Trigger } from "#lib/automations.js";
+import type {
+	AutomationAction,
+	Condition,
+	Period,
+	Trigger,
+} from "#lib/automations.js";
 import { BaseDTO } from "#lib/dto/base-dto.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { automation } from "#lib/server/db/schema.js";
@@ -9,6 +14,7 @@ export interface AutomationDefinition {
 	name: string;
 	trigger: Trigger;
 	period: Period;
+	conditions: Condition[];
 	actions: AutomationAction[];
 }
 
@@ -29,6 +35,7 @@ const columns = {
 	enabled: automation.enabled,
 	trigger: automation.trigger,
 	period: automation.period,
+	conditions: automation.conditions,
 	actions: automation.actions,
 	memory: automation.memory,
 	checkedAt: automation.checkedAt,
@@ -38,8 +45,14 @@ const columns = {
 
 type SelectedRow = Omit<
 	AutomationRow,
-	"trigger" | "period" | "actions" | "memory"
-> & { trigger: unknown; period: unknown; actions: unknown; memory: unknown };
+	"trigger" | "period" | "conditions" | "actions" | "memory"
+> & {
+	trigger: unknown;
+	period: unknown;
+	conditions: unknown;
+	actions: unknown;
+	memory: unknown;
+};
 
 export class AutomationDTO extends BaseDTO<AutomationRow> {
 	/** Every automation of every home, for the worker. */
@@ -98,6 +111,7 @@ export class AutomationDTO extends BaseDTO<AutomationRow> {
 			...row,
 			trigger: row.trigger as Trigger,
 			period: row.period as Period,
+			conditions: row.conditions as Condition[],
 			actions: row.actions as AutomationAction[],
 			memory: row.memory as Record<string, unknown> | null,
 		});
@@ -125,6 +139,10 @@ export class AutomationDTO extends BaseDTO<AutomationRow> {
 
 	get period(): Period {
 		return this.row.period;
+	}
+
+	get conditions(): Condition[] {
+		return this.row.conditions;
 	}
 
 	get actions(): AutomationAction[] {
@@ -159,7 +177,7 @@ export class AutomationDTO extends BaseDTO<AutomationRow> {
 		this.#update({ memory });
 	}
 
-	/** Records a run, with what failed or `null`. */
+	/** Records the outcome of the latest run, with what failed or `null`. */
 	recordRun(runError: string | null): void {
 		this.#update({ ranAt: new Date(), runError });
 	}

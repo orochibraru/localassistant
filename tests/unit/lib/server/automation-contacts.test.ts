@@ -149,6 +149,7 @@ describe("door and window automations", () => {
 			name: "Winter windows",
 			trigger: { type: "contact", deviceIds: [sensor.id] },
 			period: { type: "dates", from: "02-30", to: "02-30" },
+			conditions: [],
 			actions: [{ type: "valves", deviceIds: [valve.id] }],
 		});
 		expect(await automations.tick([automation])).toBe(0);
@@ -158,7 +159,7 @@ describe("door and window automations", () => {
 			battery: 90,
 		});
 		expect(publish).not.toHaveBeenCalled();
-		await automations.run(automation);
+		await automations.run(automation, "Run by hand");
 		expect(DeviceDTO.find(valve.id)?.state).toMatchObject({
 			target: 5,
 			heldBy: "Winter windows",

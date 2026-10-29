@@ -17,6 +17,9 @@ const parentPid = process.ppid;
 const shutdownDeadlineMs = 30_000;
 
 deviceEvents.onContact((device, next) => automations.onContact(device, next));
+deviceEvents.onChange((device, previous, next) =>
+	automations.onChange(device, previous, next),
+);
 
 const requeued = JobDTO.requeueStale();
 if (requeued > 0) {

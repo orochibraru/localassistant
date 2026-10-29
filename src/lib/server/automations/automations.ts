@@ -1,15 +1,27 @@
 import {
 	type AutomationAction,
+	type Condition,
+	describeCondition,
+	describeTest,
+	describeTrigger,
 	inPeriod,
+	testFires,
+	testHolds,
 	type Trigger,
+	withinTimes,
 } from "#lib/automations.js";
 import type { DeviceState } from "#lib/devices.js";
+import { AutomationRunDTO } from "#lib/dto/automation-run.js";
 import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
+import { JobDTO } from "#lib/dto/job.js";
+import { SceneDTO } from "#lib/dto/scene.js";
 import { kindInfo } from "#lib/plugins.js";
+import { scenes } from "#lib/server/automations/scenes.js";
 import { Logger } from "#lib/server/core/logger.js";
 import { devices } from "#lib/server/devices/devices.js";
+import type { JobPayloads } from "#lib/server/jobs/types.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 
 const logger = new Logger("Automations");
@@ -27,6 +39,11 @@ interface LocalDate {
 export interface Check {
 	due: boolean;
 	memory: Record<string, unknown> | null;
+}
+
+interface Opened {
+	roomId: string | null;
+	by: string;
 }
 
 /** Runs each home's automations: the worker checks them every minute and acts on the devices when one is due. */
@@ -48,8 +65,7 @@ class Automations {
 			);
 			const check = this.check(automation, home, since, now);
 			automation.recordCheck(now, check.memory);
-			if (check.due) {
-				await this.run(automation);
+			if (check.due && (await this.trigger(automation, home, now))) {
 				ran += 1;
 			}
 		}
@@ -94,7 +110,10 @@ class Automations {
 			}
 			if (next.open) {
 				if (inPeriod(automation.period, monthDay)) {
-					await this.run(automation, { roomId, by: name });
+					await this.trigger(automation, home, new Date(), {
+						roomId,
+						by: name,
+					});
 				}
 				continue;
 			}
@@ -124,34 +143,191 @@ class Automations {
 		}
 	}
 
+	/** Runs the routines a change of `device` sets off: the ones watching it for a state it just reached. Never throws. */
+	async onChange(
+		device: DeviceDTO,
+		previous: DeviceState | null,
+		next: DeviceState,
+	): Promise<void> {
+		const homeId = device.toJSON().homeId;
+		const home = homeId ? HomeDTO.find(homeId) : undefined;
+		if (!home) {
+			return;
+		}
+		const now = new Date();
+		const monthDay = this.#monthDay(now, this.timeZoneOf(home));
+		for (const automation of AutomationDTO.inHome(home.id)) {
+			const trigger = automation.trigger;
+			if (
+				automation.enabled &&
+				trigger.type === "device" &&
+				trigger.test.deviceId === device.id &&
+				testFires(trigger.test, previous, next) &&
+				inPeriod(automation.period, monthDay)
+			) {
+				await this.trigger(automation, home, now);
+			}
+		}
+	}
+
 	/**
-	 * Runs every action of `automation` one after the other, recording what failed; radiator valves close in the room of
-	 * the sensor that `opened`, or everywhere when run by hand. Never throws.
+	 * Runs `automation` when its conditions hold at `now`, recording a skipped run with the first one that doesn't
+	 * otherwise; returns whether it ran. Never throws.
+	 */
+	async trigger(
+		automation: AutomationDTO,
+		home: HomeDTO,
+		now: Date,
+		opened?: Opened,
+	): Promise<boolean> {
+		const cause = this.#cause(automation, opened);
+		const unmet = automation.conditions.find(
+			(condition) => !this.holds(condition, home, now),
+		);
+		if (unmet) {
+			AutomationRunDTO.skipped(
+				automation.id,
+				cause,
+				`${describeCondition(unmet, (deviceId) => this.#deviceName(deviceId))}: not now.`,
+			);
+			return false;
+		}
+		await this.run(automation, cause, opened);
+		return true;
+	}
+
+	/** Whether `condition` holds in `home` at `now`; the sun's never does before the home has a location. */
+	holds(condition: Condition, home: HomeDTO, now: Date): boolean {
+		const timeZone = this.timeZoneOf(home);
+		if (condition.type === "device") {
+			return testHolds(
+				condition.test,
+				DeviceDTO.find(condition.test.deviceId, home.id)?.state ?? null,
+			);
+		}
+		if (condition.type === "time") {
+			const parts = this.#parts(now, timeZone);
+			const time = `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
+			return withinTimes(time, condition.from, condition.to);
+		}
+		if (condition.type === "weekdays") {
+			return condition.weekdays.includes(this.localDate(now, timeZone).weekday);
+		}
+		const days = home.weather?.days ?? [];
+		if (days.length === 0) {
+			return false;
+		}
+		const daytime = days.some(
+			(day) =>
+				now.getTime() >= Date.parse(day.sunrise) &&
+				now.getTime() < Date.parse(day.sunset),
+		);
+		return condition.when === "day" ? daytime : !daytime;
+	}
+
+	/**
+	 * Runs the steps of `automation` from `fromStep` one after the other, recording the run and what failed; a delay
+	 * stops here and has the worker carry on after it. Radiator valves close in the room of the sensor that `opened`, or
+	 * everywhere when run by hand. Never throws.
 	 */
 	async run(
 		automation: AutomationDTO,
-		opened?: { roomId: string | null; by: string },
+		cause: string,
+		opened?: Opened,
+		fromStep = 0,
+		record = AutomationRunDTO.start(automation.id, cause),
 	): Promise<void> {
 		const failures: string[] = [];
-		for (const action of automation.actions) {
-			const scope = () =>
-				this.#around(automation.homeId, opened?.roomId ?? null).filter(
-					(device) =>
-						"deviceIds" in action && action.deviceIds.includes(device.id),
+		for (const [index, action] of automation.actions.entries()) {
+			if (index < fromStep) {
+				continue;
+			}
+			if (action.type === "delay") {
+				record.wait();
+				JobDTO.enqueue(
+					"automation.resume",
+					{
+						automationId: automation.id,
+						runId: record.id,
+						step: index + 1,
+						roomId: opened?.roomId ?? null,
+						by: opened?.by ?? null,
+					},
+					{
+						runAt: new Date(Date.now() + action.minutes * 60_000),
+						maxAttempts: 1,
+					},
 				);
-			const failed =
-				action.type === "valves"
-					? await this.#hold(scope(), opened?.by ?? automation.name)
-					: action.type === "heating"
-						? await this.#lower(automation, scope(), action.degrees)
-						: await this.#act(automation.homeId, action);
-			failures.push(...failed);
+				if (failures.length > 0) {
+					automation.recordRun(failures.join(" "));
+				}
+				return;
+			}
+			failures.push(...(await this.#step(automation, action, opened)));
 		}
-		automation.recordRun(failures.length > 0 ? failures.join(" ") : null);
+		const error = failures.length > 0 ? failures.join(" ") : null;
+		record.finish(error);
+		automation.recordRun(error);
 		logger.info("Automation ran", {
 			automation: automation.id,
 			failures: failures.length,
 		});
+	}
+
+	/** Carries on a run after one of its delays, unless the routine changed, was turned off or is gone. Never throws. */
+	async resume(payload: JobPayloads["automation.resume"]): Promise<void> {
+		const automation = AutomationDTO.find(payload.automationId);
+		const record = AutomationRunDTO.find(payload.runId);
+		if (!automation?.enabled || record?.status !== "waiting") {
+			return;
+		}
+		record.resume();
+		await this.run(
+			automation,
+			"",
+			payload.by === null
+				? undefined
+				: { roomId: payload.roomId, by: payload.by },
+			payload.step,
+			record,
+		);
+	}
+
+	async #step(
+		automation: AutomationDTO,
+		action: Exclude<AutomationAction, { type: "delay" }>,
+		opened: Opened | undefined,
+	): Promise<string[]> {
+		const scope = () =>
+			this.#around(automation.homeId, opened?.roomId ?? null).filter(
+				(device) =>
+					"deviceIds" in action && action.deviceIds.includes(device.id),
+			);
+		if (action.type === "valves") {
+			return this.#hold(scope(), opened?.by ?? automation.name);
+		}
+		if (action.type === "heating") {
+			return this.#lower(automation, scope(), action.degrees);
+		}
+		if (action.type === "scene") {
+			const scene = SceneDTO.find(action.sceneId, automation.homeId);
+			return scene ? scenes.activate(scene) : ["A scene it sets is gone."];
+		}
+		return this.#act(automation.homeId, action);
+	}
+
+	#cause(automation: AutomationDTO, opened: Opened | undefined): string {
+		if (opened) {
+			return `${opened.by} opened`;
+		}
+		const trigger = automation.trigger;
+		return trigger.type === "device"
+			? describeTest(trigger.test, (deviceId) => this.#deviceName(deviceId))
+			: describeTrigger(trigger);
+	}
+
+	#deviceName(deviceId: string): string {
+		return DeviceDTO.find(deviceId)?.toJSON().name ?? "A removed device";
 	}
 
 	/** The time zone the home's clock follows: its location's, or the server's before one is set. */
@@ -193,7 +369,7 @@ class Automations {
 		{ since, now, timeZone }: { since: Date; now: Date; timeZone: string },
 	): Check {
 		const trigger: Trigger = automation.trigger;
-		if (trigger.type === "contact") {
+		if (trigger.type === "contact" || trigger.type === "device") {
 			return { due: false, memory: null };
 		}
 		const within = (instant: number) =>
@@ -362,7 +538,7 @@ class Automations {
 
 	async #act(
 		homeId: string,
-		action: Exclude<AutomationAction, { type: "valves" | "heating" }>,
+		action: Extract<AutomationAction, { type: "blinds" | "device" }>,
 	): Promise<string[]> {
 		const targets =
 			action.type === "blinds"
@@ -385,48 +561,23 @@ class Automations {
 		const failures: string[] = [];
 		for (const device of targets) {
 			try {
-				await this.#apply(device, action);
+				await devices.command(
+					device,
+					action.type === "device"
+						? action.command
+						: {
+								type: "cover",
+								move:
+									action.move === "position"
+										? { position: action.position ?? 50 }
+										: { action: action.move },
+							},
+				);
 			} catch (error) {
 				failures.push(`${device.toJSON().name}: ${devices.message(error)}`);
 			}
 		}
 		return failures;
-	}
-
-	#apply(
-		device: DeviceDTO,
-		action: Exclude<AutomationAction, { type: "valves" | "heating" }>,
-	): Promise<void> {
-		if (action.type === "blinds") {
-			return devices.command(device, {
-				type: "cover",
-				move:
-					action.move === "position"
-						? { position: action.position ?? 50 }
-						: { action: action.move },
-			});
-		}
-		if (action.type === "climate") {
-			return devices.command(device, {
-				type: "climate",
-				change: {
-					power: action.power,
-					...(action.mode ? { mode: action.mode } : {}),
-					...(action.targetTemperature === null
-						? {}
-						: { targetTemperature: action.targetTemperature }),
-				},
-			});
-		}
-		return action.type === "printer"
-			? devices.command(device, {
-					type: "printer",
-					change: { command: action.command },
-				})
-			: devices.command(device, {
-					type: "vacuum",
-					change: { command: action.command },
-				});
 	}
 
 	#parts(instant: Date, timeZone: string) {

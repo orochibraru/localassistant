@@ -1,3 +1,4 @@
+import { AutomationRunDTO } from "#lib/dto/automation-run.js";
 import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
@@ -22,6 +23,7 @@ const refreshIntervalMs = 2 * 60 * 1000;
 const weatherIntervalMs = 15 * 60 * 1000;
 const energyIntervalMs = 15 * 60 * 1000;
 const energyKeptDays = 800;
+const runsKeptDays = 30;
 
 export type JobHandlers = {
 	[Type in JobType]: (payload: JobPayloads[Type]) => void | Promise<void>;
@@ -84,8 +86,11 @@ export const jobHandlers: JobHandlers = {
 	"automation.run": async ({ automationId }) => {
 		const automation = AutomationDTO.find(automationId);
 		if (automation) {
-			await automations.run(automation);
+			await automations.run(automation, "Run by hand");
 		}
+	},
+	"automation.resume": async (payload) => {
+		await automations.resume(payload);
 	},
 	"broker.connect": () => {
 		broker.restart();
@@ -122,7 +127,10 @@ export const jobHandlers: JobHandlers = {
 		const readings = EnergyReadingDTO.pruneBefore(
 			new Date(Date.now() - energyKeptDays * dayMs),
 		);
-		logger.info("Pruned finished jobs", { removed, readings });
+		const runs = AutomationRunDTO.prune(
+			new Date(Date.now() - runsKeptDays * dayMs),
+		);
+		logger.info("Pruned finished jobs", { removed, readings, runs });
 		JobDTO.enqueue(
 			"jobs.prune",
 			{ olderThanDays },
