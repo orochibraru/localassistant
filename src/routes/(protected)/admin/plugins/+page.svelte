@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
+	import KeyRoundIcon from "@lucide/svelte/icons/key-round";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import StarIcon from "@lucide/svelte/icons/star";
+	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 
 	import HealthBadge from "#lib/components/plugins/health-badge.svelte";
 	import PluginPreview from "#lib/components/plugins/plugin-preview.svelte";
@@ -28,6 +30,7 @@
 	let listings = $state<PluginListing[] | null>(null);
 	let browsing = $state(false);
 	let browseError = $state<string | null>(null);
+	let tokenErrors = $state<Record<string, string[]>>({});
 
 	async function lookUp(target: string) {
 		looking = target;
@@ -155,6 +158,74 @@
 				</ul>
 			{/if}
 		</section>
+
+		<form
+			method="POST"
+			action="?/saveToken"
+			class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6"
+			use:enhance={enhanceToast({
+				loading: "Checking the token with GitHub",
+				success: "Token saved. Private integrations can be added now.",
+				reset: true,
+				onFailure: (result) => {
+					tokenErrors = (result?.errors as Record<string, string[]>) ?? {};
+				},
+				onSuccess: () => {
+					tokenErrors = {};
+				},
+			})}
+		>
+			<div>
+				<h2 class="font-semibold">GitHub access</h2>
+				<p class="text-muted-foreground mt-1 text-sm">
+					{data.hasGitHubToken
+						? "A token is saved: private integrations it may read can be added, and GitHub allows more checks an hour."
+						: "Only for integrations in a private repository: a read-only GitHub token lets LocalAssistant download them."}
+				</p>
+			</div>
+			<Field.Field>
+				<Field.Label for="github-token">Token</Field.Label>
+				<Input
+					id="github-token"
+					name="token"
+					type="password"
+					autocomplete="off"
+					placeholder={data.hasGitHubToken ? "Saved" : "github_pat_..."}
+					required
+					class="h-11"
+				/>
+				<Field.Description
+					>Stored encrypted.{data.hasGitHubToken
+						? " Paste a new one to replace it."
+						: ""}</Field.Description
+				>
+				<Field.Error
+					errors={tokenErrors.token?.map((message) => ({ message }))}
+				/>
+			</Field.Field>
+			<Button type="submit" class="h-11 self-start rounded-xl px-5"
+				><KeyRoundIcon />Save the token</Button
+			>
+		</form>
+		{#if data.hasGitHubToken}
+			<form
+				method="POST"
+				action="?/removeToken"
+				class="-mt-3 px-4 md:px-6"
+				use:enhance={enhanceToast({
+					loading: "Removing the token",
+					success:
+						"Token removed. Installed private integrations stop updating.",
+				})}
+			>
+				<Button
+					type="submit"
+					variant="ghost"
+					class="text-destructive h-11 rounded-xl px-5"
+					><Trash2Icon />Remove the token</Button
+				>
+			</form>
+		{/if}
 	</div>
 
 	<section class="flex flex-col gap-4" aria-labelledby="installed-heading">

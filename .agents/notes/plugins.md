@@ -20,9 +20,13 @@ the decisions behind it.
   GitHub release, else the default branch.
 - No sandbox. A plugin runs with the server's rights; the install preview says
   so. Trust comes from the maintenance badge and the admin's judgement.
+- GitHub is anonymous unless an admin saves a token (`githubToken` setting,
+  encrypted, checked against `/user` first). With one, every API call carries it
+  and files download through the contents API instead of
+  raw.githubusercontent.com, so private repositories work.
 - Maintenance comes from GitHub's repository data, checked daily
-  (`plugins.check` job) without a token: archived, else pushed within six months
-  (maintained), a year (little activity), or older (not maintained).
+  (`plugins.check` job): archived, else pushed within six months (maintained), a
+  year (little activity), or older (not maintained).
 - Kinds are namespaced by plugin id (`<id>` or `<id>-*`), and the registry
   refuses an install whose id or kinds clash, so existing device rows keep their
   kind across versions.

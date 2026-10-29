@@ -38,6 +38,10 @@ export interface PluginSettings {
 	secrets: Record<string, string>;
 }
 
+export interface GitHubToken {
+	encryptedToken: string;
+}
+
 export interface VapidKeys {
 	publicKey: string;
 	encryptedPrivateKey: string;
@@ -52,6 +56,7 @@ export interface SettingValues {
 	smtp: SmtpSettings | null;
 	mqtt: MqttBroker | null;
 	disabledPlugins: string[];
+	githubToken: GitHubToken | null;
 	multipleHomes: boolean;
 	passwordSignIn: boolean;
 	passkeySignIn: boolean;
@@ -69,6 +74,7 @@ const defaults: SettingValues = {
 	smtp: null,
 	mqtt: null,
 	disabledPlugins: [],
+	githubToken: null,
 	multipleHomes: false,
 	passwordSignIn: true,
 	passkeySignIn: true,
@@ -101,6 +107,7 @@ export function allSettings(): SettingValues {
 		smtp: getSetting("smtp"),
 		mqtt: getSetting("mqtt"),
 		disabledPlugins: getSetting("disabledPlugins"),
+		githubToken: getSetting("githubToken"),
 		multipleHomes: getSetting("multipleHomes"),
 		passwordSignIn: getSetting("passwordSignIn"),
 		passkeySignIn: getSetting("passkeySignIn"),

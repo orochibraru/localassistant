@@ -3,11 +3,6 @@
 The only backlog. Each entry is a `- [ ]` checkbox: put `**[WIP]**` after the
 box while it's being worked on, and delete the entry once it's done.
 
-## Small
-
-- [ ] GitHub calls for plugins go out unauthenticated (60 an hour per IP): an
-      optional token setting would lift the limit for busy instances.
-
 ## Medium
 
 - [ ] Python plugins only get the standard library in the image: support a

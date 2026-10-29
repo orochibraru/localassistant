@@ -326,3 +326,13 @@ export const brokerSchema = z.object({
 		.optional()
 		.transform((value) => value || undefined),
 });
+
+export const gitHubTokenSchema = z.object({
+	token: z
+		.string()
+		.trim()
+		.regex(
+			/^(github_pat_|gh[pousr]_)[A-Za-z0-9_]{20,250}$/,
+			"Paste a GitHub token: it starts with github_pat_ or ghp_.",
+		),
+});

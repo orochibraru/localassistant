@@ -28,6 +28,7 @@ describe("settings", () => {
 			smtp: null,
 			mqtt: null,
 			disabledPlugins: [],
+			githubToken: null,
 			multipleHomes: false,
 			passwordSignIn: true,
 			passkeySignIn: true,

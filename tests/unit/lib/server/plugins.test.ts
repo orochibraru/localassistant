@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { PluginDTO } from "#lib/dto/plugin.js";
-import { getPluginSettings, getSetting } from "#lib/dto/setting.js";
+import { getPluginSettings, getSetting, setSetting } from "#lib/dto/setting.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { deviceEvents } from "#lib/server/devices/device-events.js";
@@ -27,6 +27,7 @@ import { plugins } from "#lib/server/plugins/registry.js";
 import { pluginSetup } from "#lib/server/plugins/setup.js";
 import {
 	connectionSchema,
+	gitHubTokenSchema,
 	parseManifest,
 } from "#lib/server/validation/plugins.js";
 
@@ -647,5 +648,117 @@ describe("the registry", () => {
 			audience: "admins",
 		});
 		expect(JobDTO.isQueued("push.send")).toBe(true);
+	});
+});
+
+describe("private integrations", () => {
+	const privateRepository = "someone/private-lamps";
+	const sha = "d".repeat(40);
+	const token = `github_pat_${"x".repeat(30)}`;
+
+	function fakePrivateGitHub(
+		input: string | URL | Request,
+		init?: RequestInit,
+	) {
+		const url = String(input);
+		const authorized =
+			new Headers(init?.headers).get("authorization") === `Bearer ${token}`;
+		const api = `https://api.github.com/repos/${privateRepository}`;
+		if (url === "https://api.github.com/user") {
+			return Promise.resolve(
+				authorized
+					? Response.json({ login: "someone" })
+					: new Response("{}", { status: 401 }),
+			);
+		}
+		if (new Headers(init?.headers).has("authorization") && !authorized) {
+			return Promise.resolve(new Response("{}", { status: 401 }));
+		}
+		if (!url.startsWith(api) || !authorized) {
+			return Promise.resolve(new Response("{}", { status: 404 }));
+		}
+		if (url === api) {
+			return Promise.resolve(
+				Response.json({
+					full_name: privateRepository,
+					description: "Private lamps",
+					html_url: `https://github.com/${privateRepository}`,
+					stargazers_count: 0,
+					archived: false,
+					pushed_at: new Date().toISOString(),
+					default_branch: "main",
+				}),
+			);
+		}
+		if (url === `${api}/releases/latest`) {
+			return Promise.resolve(new Response("{}", { status: 404 }));
+		}
+		if (url === `${api}/commits/main`) {
+			return Promise.resolve(new Response(sha));
+		}
+		const accept = new Headers(init?.headers).get("accept");
+		if (
+			url === `${api}/contents/localassistant-plugin.json?ref=${sha}` &&
+			accept === "application/vnd.github.raw"
+		) {
+			return Promise.resolve(
+				Response.json(
+					manifest("1.0.0", {
+						id: "private",
+						kinds: [
+							{
+								id: "private-lamp",
+								label: "Lamp",
+								card: "switch",
+								icon: "lightbulb",
+							},
+						],
+					}),
+				),
+			);
+		}
+		if (url === `${api}/contents/dist/index.js?ref=${sha}`) {
+			return Promise.resolve(new Response(code));
+		}
+		return Promise.resolve(new Response("{}", { status: 404 }));
+	}
+
+	test("a saved token reaches a private repository, and without it the link explains why it fails", async () => {
+		spyOn(globalThis, "fetch").mockImplementation(
+			fakePrivateGitHub as typeof fetch,
+		);
+		await expect(pluginManager.preview(privateRepository)).rejects.toThrow(
+			"for a private one, save a GitHub token first",
+		);
+		await expect(gitHub.checkToken("github_pat_wrong")).rejects.toThrow(
+			"GitHub refused that token",
+		);
+		await gitHub.checkToken(token);
+		setSetting("githubToken", { encryptedToken: secrets.encrypt(token) });
+		const preview = await pluginManager.preview(privateRepository);
+		expect(preview).toMatchObject({ ref: sha, manifest: { id: "private" } });
+		await pluginManager.install(privateRepository);
+		expect(plugins.get("private")?.ref).toBe(sha);
+		await expect(pluginManager.preview("someone/elsewhere")).rejects.toThrow(
+			"no repository at that link the token can read",
+		);
+		await pluginManager.remove("private");
+		setSetting("githubToken", {
+			encryptedToken: secrets.encrypt("github_pat_revoked"),
+		});
+		await expect(pluginManager.preview(privateRepository)).rejects.toThrow(
+			"GitHub refused the saved token",
+		);
+		setSetting("githubToken", null);
+	});
+
+	test("the token form wants something shaped like a GitHub token", () => {
+		expect(gitHubTokenSchema.safeParse({ token }).success).toBe(true);
+		expect(
+			gitHubTokenSchema.safeParse({ token: `ghp_${"a".repeat(36)}` }).success,
+		).toBe(true);
+		expect(gitHubTokenSchema.safeParse({ token: "hunter2" }).success).toBe(
+			false,
+		);
 	});
 });

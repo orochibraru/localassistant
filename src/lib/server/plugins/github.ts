@@ -1,4 +1,6 @@
+import { getSetting } from "#lib/dto/setting.js";
 import type { PluginHealth } from "#lib/plugins.js";
+import { secrets } from "#lib/server/core/secrets.js";
 
 const apiUrl = "https://api.github.com";
 const rawUrl = "https://raw.githubusercontent.com";
@@ -39,7 +41,10 @@ interface RawRepository {
 	default_branch: string;
 }
 
-/** GitHub's public API and raw files, without a token: where plugins are found, checked and downloaded. */
+/**
+ * GitHub's API and raw files: where plugins are found, checked and downloaded. Anonymous by default; with the token an
+ * admin saved, private repositories are reachable and the hourly limit is GitHub's signed-in one.
+ */
 class GitHub {
 	/**
 	 * The repository, folder and branch or tag a link points at; takes `owner/repo`, a github.com page link in any form,
@@ -84,7 +89,9 @@ class GitHub {
 		const response = await this.#api(`/repos/${repository}`);
 		if (response.status === 404) {
 			throw new Error(
-				"GitHub has no public repository at that link. Check it for typos.",
+				this.#token()
+					? "GitHub has no repository at that link the token can read. Check the link, and that the token may read that repository."
+					: "GitHub has no public repository at that link. Check it for typos; for a private one, save a GitHub token first.",
 			);
 		}
 		return this.#info((await response.json()) as RawRepository);
@@ -151,10 +158,13 @@ class GitHub {
 		sha: string,
 		path: string,
 	): Promise<Uint8Array | null> {
-		const response = await this.#fetch(
-			`${rawUrl}/${repository}/${sha}/${path.split("/").map(encodeURIComponent).join("/")}`,
-			{},
-		);
+		const encoded = path.split("/").map(encodeURIComponent).join("/");
+		const response = this.#token()
+			? await this.#api(
+					`/repos/${repository}/contents/${encoded}?ref=${sha}`,
+					"application/vnd.github.raw",
+				)
+			: await this.#fetch(`${rawUrl}/${repository}/${sha}/${encoded}`, {});
 		if (response.status === 404) {
 			return null;
 		}
@@ -215,14 +225,46 @@ class GitHub {
 		};
 	}
 
+	/**
+	 * Checks `token` signs in to GitHub.
+	 *
+	 * @throws When GitHub refuses it or can't be reached.
+	 */
+	async checkToken(token: string): Promise<void> {
+		const response = await this.#fetch(`${apiUrl}/user`, {
+			Accept: "application/vnd.github+json",
+			Authorization: `Bearer ${token}`,
+		});
+		if (response.status === 401) {
+			throw new Error(
+				"GitHub refused that token. Check it wasn't revoked or expired.",
+			);
+		}
+		if (!response.ok) {
+			throw new Error(`GitHub answered ${response.status}.`);
+		}
+	}
+
+	#token(): string | null {
+		const saved = getSetting("githubToken");
+		return saved ? secrets.decrypt(saved.encryptedToken) : null;
+	}
+
 	async #api(
 		path: string,
 		accept = "application/vnd.github+json",
 	): Promise<Response> {
+		const token = this.#token();
 		const response = await this.#fetch(`${apiUrl}${path}`, {
 			Accept: accept,
 			"X-GitHub-Api-Version": "2022-11-28",
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
 		});
+		if (response.status === 401 && token) {
+			throw new Error(
+				"GitHub refused the saved token: it was revoked or expired. Save a new one in Admin, Integrations.",
+			);
+		}
 		if (
 			response.status === 429 ||
 			(response.status === 403 &&
