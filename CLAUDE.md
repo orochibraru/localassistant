@@ -24,6 +24,13 @@ shadcn-svelte, `bun lint`, `bun fmt`, prek hooks, mise.
   manual step is fine: say so and move on. The conventions still apply.
 - End every turn that edited files with a suggested one-line conventional commit
   message in a code block. Suggest, never commit.
+- When asked to ship a change, never push to `main`: a branch named
+  `<type>/<what-it-does>` with a Conventional Commit type and a meaningful
+  kebab-case summary (`fix/e2e-routines-rename`, not `fix/ci-stuff`), then a PR
+  whose title is a Conventional Commit (squash merges make it the commit
+  releaser reads) and whose body fills `.github/pull_request_template.md`. No
+  Claude session URL or Claude Code link in the PR body. Watch its CI until
+  green and fix what fails.
 - `TODO.md` is the only backlog, one `- [ ]` checkbox per entry. Pick from it
   when there's no specific ask, mark an item `**[WIP]**` before starting and
   delete it when done, add a line for anything found out of scope.
