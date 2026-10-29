@@ -7,9 +7,10 @@ import type { DeviceState } from "#lib/devices.js";
 import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
+import { kindInfo } from "#lib/plugins.js";
 import { Logger } from "#lib/server/core/logger.js";
-import { broker } from "#lib/server/devices/broker.js";
 import { devices } from "#lib/server/devices/devices.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
 const logger = new Logger("Automations");
 
@@ -251,7 +252,7 @@ class Automations {
 				continue;
 			}
 			try {
-				await broker.publish(valve, { [state.setpoint]: state.min });
+				await devices.command(valve, { type: "valve", target: state.min });
 				valve.saveState({
 					...state,
 					heldBy: by,
@@ -273,8 +274,7 @@ class Automations {
 			}
 			const target = state.heldTarget ?? state.target ?? state.min;
 			try {
-				await broker.publish(valve, { [state.setpoint]: target });
-				valve.saveState({ ...state, heldBy: null, heldTarget: null, target });
+				await devices.command(valve, { type: "valve", target });
 			} catch (error) {
 				logger.warn("Valve didn't go back", { valve: valve.id }, error);
 			}
@@ -291,12 +291,20 @@ class Automations {
 	async #setTarget(device: DeviceDTO, target: number): Promise<void> {
 		const state = device.state;
 		if (state?.type === "climate") {
-			await devices.climate(device, { targetTemperature: target });
+			await devices.command(device, {
+				type: "climate",
+				change: { targetTemperature: target },
+			});
 			return;
 		}
 		if (state?.type === "valve") {
-			await broker.publish(device, { [state.setpoint]: target });
-			device.saveState({ ...state, target });
+			await devices.command(device, { type: "valve", target });
+			device.saveState({
+				...state,
+				target,
+				heldBy: state.heldBy,
+				heldTarget: state.heldTarget,
+			});
 		}
 	}
 
@@ -360,7 +368,7 @@ class Automations {
 			action.type === "blinds"
 				? DeviceDTO.inHome(homeId).filter(
 						(device) =>
-							device.kind === "tuya-cover" &&
+							kindInfo(plugins.catalog(), device.kind).card === "cover" &&
 							(action.roomId === null ||
 								device.toJSON().roomId === action.roomId),
 					)
@@ -390,22 +398,35 @@ class Automations {
 		action: Exclude<AutomationAction, { type: "valves" | "heating" }>,
 	): Promise<void> {
 		if (action.type === "blinds") {
-			return action.move === "position"
-				? devices.coverPosition(device, action.position ?? 50)
-				: devices.coverAction(device, action.move);
+			return devices.command(device, {
+				type: "cover",
+				move:
+					action.move === "position"
+						? { position: action.position ?? 50 }
+						: { action: action.move },
+			});
 		}
 		if (action.type === "climate") {
-			return devices.climate(device, {
-				power: action.power,
-				...(action.mode ? { mode: action.mode } : {}),
-				...(action.targetTemperature === null
-					? {}
-					: { targetTemperature: action.targetTemperature }),
+			return devices.command(device, {
+				type: "climate",
+				change: {
+					power: action.power,
+					...(action.mode ? { mode: action.mode } : {}),
+					...(action.targetTemperature === null
+						? {}
+						: { targetTemperature: action.targetTemperature }),
+				},
 			});
 		}
 		return action.type === "printer"
-			? devices.printer(device, { command: action.command })
-			: devices.vacuum(device, { command: action.command });
+			? devices.command(device, {
+					type: "printer",
+					change: { command: action.command },
+				})
+			: devices.command(device, {
+					type: "vacuum",
+					change: { command: action.command },
+				});
 	}
 
 	#parts(instant: Date, timeZone: string) {

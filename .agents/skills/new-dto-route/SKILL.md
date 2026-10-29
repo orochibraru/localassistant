@@ -32,7 +32,8 @@ that row.
   account reads and drives every device; adding, renaming or removing one, and
   the integrations' credentials, are admin actions re-checked with
   `access.adminFrom(locals)`. Personal data (sessions, preferences) is scoped by
-  `userId`. Secrets (a Tuya local key) never leave the DTO through `toJSON()`.
+  `userId`. Secrets (a plugin device's `secrets`, like a Tuya local key) never
+  leave the DTO through `toJSON()`.
 - Instance methods: `update(fields)`, `delete()` and whatever mutations the
   entity needs. No static method taking an id that duplicates an instance
   method: once you have the row via `get`, operate on the instance.

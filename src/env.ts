@@ -66,7 +66,8 @@ export const variables = defineEnvVars({
 	},
 	LOG_FORMAT: {
 		schema: z.enum(["console", "json"]).default("console"),
-		description: "Coloured lines for a terminal, or one JSON object per line.",
+		description:
+			"Coloured lines for a terminal by default; json opts in to one JSON object per line for a log shipper.",
 	},
 	WORKER_CONCURRENCY: {
 		schema: integer(2, 1, 32),

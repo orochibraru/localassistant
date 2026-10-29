@@ -116,20 +116,21 @@ describe("setting up and using it", () => {
 	});
 
 	test("an admin adds a blind, its key stays encrypted and the worker reads it", async () => {
-		const added = await client().action("/devices", "addTuya", {
+		const added = await client().action("/devices", "add", {
+			plugin: "tuya",
 			name: "Bedroom blind",
-			host: "127.0.0.1",
-			externalId: "bfabcdabcdabcdabcdgh",
-			localKey: "abcdabcdabcdabcd",
-			protocolVersion: "3.3",
+			"value:host": "127.0.0.1",
+			"value:deviceId": "bfabcdabcdabcdabcdgh",
+			"value:localKey": "abcdabcdabcdabcd",
+			"value:protocolVersion": "3.3",
 		});
 		expect(added.type).toBe("success");
-		const stored = row<{ local_key: string }>(
-			"select local_key from device where name = ?",
+		const stored = row<{ secrets: string }>(
+			"select secrets from device where name = ?",
 			"Bedroom blind",
 		);
-		expect(stored?.local_key).toBeTruthy();
-		expect(stored?.local_key).not.toContain("abcdabcdabcdabcd");
+		expect(stored?.secrets).toContain("localKey");
+		expect(stored?.secrets).not.toContain("abcdabcdabcdabcd");
 		expect(await (await client().get("/")).text()).toContain("Bedroom blind");
 		let read: { state_at: number | null } | undefined;
 		for (let attempt = 0; attempt < 40 && !read?.state_at; attempt += 1) {
@@ -140,58 +141,58 @@ describe("setting up and using it", () => {
 			);
 		}
 		expect(read?.state_at).toBeTruthy();
-		const blind = row<{ id: string; local_key: string }>(
-			"select id, local_key from device where name = ?",
+		const blind = row<{ id: string; secrets: string }>(
+			"select id, secrets from device where name = ?",
 			"Bedroom blind",
 		);
-		const edited = await client().action("/devices", "editTuya", {
+		const edited = await client().action("/devices", "edit", {
 			id: blind?.id ?? "",
 			name: "Office blind",
-			host: "127.0.0.2",
-			protocolVersion: "3.4",
-			inverted: "true",
-			localKey: "",
+			"value:host": "127.0.0.2",
+			"value:deviceId": "bfabcdabcdabcdabcdgh",
+			"value:protocolVersion": "3.4",
+			"value:inverted": "true",
+			"value:localKey": "",
 		});
 		expect(edited.type).toBe("success");
-		expect(
-			row<{ host: string; inverted: number; local_key: string }>(
-				"select host, inverted, local_key from device where id = ?",
-				blind?.id ?? "",
-			),
-		).toEqual({
-			host: "127.0.0.2",
-			inverted: 1,
-			local_key: blind?.local_key ?? "",
-		});
+		const after = row<{ host: string; fields: string; secrets: string }>(
+			"select host, fields, secrets from device where id = ?",
+			blind?.id ?? "",
+		);
+		expect(after?.host).toBe("127.0.0.2");
+		expect(JSON.parse(after?.fields ?? "{}")).toMatchObject({ inverted: true });
+		expect(after?.secrets).toBe(blind?.secrets ?? "");
 	});
 
 	test("an admin adds a printer and its access code stays encrypted", async () => {
-		const added = await client().action("/devices", "addBambu", {
+		const added = await client().action("/devices", "add", {
+			plugin: "bambu",
 			name: "P1S",
-			host: "127.0.0.1",
-			externalId: "01P00A000000000",
-			accessCode: "12345678",
+			"value:host": "127.0.0.1",
+			"value:serial": "01P00A000000000",
+			"value:accessCode": "12345678",
 		});
 		expect(added.type).toBe("success");
-		const stored = row<{ id: string; local_key: string }>(
-			"select id, local_key from device where kind = 'bambu-printer'",
+		const stored = row<{ id: string; secrets: string }>(
+			"select id, secrets from device where kind = 'bambu-printer'",
 		);
-		expect(stored?.local_key).toBeTruthy();
-		expect(stored?.local_key).not.toContain("12345678");
+		expect(stored?.secrets).toContain("accessCode");
+		expect(stored?.secrets).not.toContain("12345678");
 		expect(await (await client().get("/")).text()).toContain("P1S");
-		const edited = await client().action("/devices", "editBambu", {
+		const edited = await client().action("/devices", "edit", {
 			id: stored?.id ?? "",
 			name: "Workshop printer",
-			host: "127.0.0.2",
-			accessCode: "",
+			"value:host": "127.0.0.2",
+			"value:serial": "01P00A000000000",
+			"value:accessCode": "",
 		});
 		expect(edited.type).toBe("success");
 		expect(
-			row<{ name: string; local_key: string }>(
-				"select name, local_key from device where id = ?",
+			row<{ name: string; secrets: string }>(
+				"select name, secrets from device where id = ?",
 				stored?.id ?? "",
 			),
-		).toEqual({ name: "Workshop printer", local_key: stored?.local_key ?? "" });
+		).toEqual({ name: "Workshop printer", secrets: stored?.secrets ?? "" });
 	});
 
 	test("rooms group devices, and removing one hands its devices to the whole house", async () => {
@@ -210,16 +211,20 @@ describe("setting up and using it", () => {
 		const blind = row<{ id: string; name: string }>(
 			"select id, name from device where kind = 'tuya-cover'",
 		);
-		const moved = await client().action("/devices", "rename", {
+		const moved = await client().action("/devices", "edit", {
 			id: blind?.id ?? "",
 			name: blind?.name ?? "",
 			roomId: room?.id ?? "",
+			"value:host": "127.0.0.2",
+			"value:deviceId": "bfabcdabcdabcdabcdgh",
 		});
 		expect(moved.type).toBe("success");
-		const refused = await client().action("/devices", "rename", {
+		const refused = await client().action("/devices", "edit", {
 			id: blind?.id ?? "",
 			name: blind?.name ?? "",
 			roomId: "not-a-room",
+			"value:host": "127.0.0.2",
+			"value:deviceId": "bfabcdabcdabcdabcdgh",
 		});
 		expect(refused.type).toBe("failure");
 		const roomPage = await client().get(`/rooms/${room?.id}`);
@@ -382,18 +387,18 @@ describe("setting up and using it", () => {
 		expect(plain.headers.get("content-disposition")).toContain("attachment");
 		const config = (await plain.json()) as {
 			format: string;
-			devices: { secret?: string }[];
+			devices: { secrets?: Record<string, string> }[];
 		};
 		expect(config.format).toBe("localassistant-house");
-		expect(config.devices.every((device) => device.secret === undefined)).toBe(
+		expect(config.devices.every((device) => device.secrets === undefined)).toBe(
 			true,
 		);
 		const full = (await (
 			await client().get("/admin/configuration/export?secrets=true")
-		).json()) as { devices: { secret?: string }[] };
-		expect(full.devices.some((device) => device.secret !== undefined)).toBe(
-			true,
-		);
+		).json()) as { devices: { secrets?: Record<string, string> }[] };
+		expect(
+			full.devices.some((device) => device.secrets?.localKey !== undefined),
+		).toBe(true);
 		expect(
 			(await new Client(app.origin).get("/admin/configuration/export")).status,
 		).toBe(404);
@@ -409,11 +414,12 @@ describe("setting up and using it", () => {
 		const outsider = new Client(app.origin);
 		const response = await outsider.get("/devices");
 		expect(response.headers.get("location")).toContain("/auth/sign-in");
-		const refused = await outsider.action("/devices", "addTuya", {
+		const refused = await outsider.action("/devices", "add", {
+			plugin: "tuya",
 			name: "Sneaky",
-			host: "127.0.0.1",
-			externalId: "bf9999999999abcdefgh",
-			localKey: "abcdabcdabcdabcd",
+			"value:host": "127.0.0.1",
+			"value:deviceId": "bf9999999999abcdefgh",
+			"value:localKey": "abcdabcdabcdabcd",
 		});
 		expect(refused.type).not.toBe("success");
 	});

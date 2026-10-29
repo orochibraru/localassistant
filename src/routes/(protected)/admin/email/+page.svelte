@@ -146,8 +146,8 @@
 				method="POST"
 				action="?/test"
 				use:enhance={enhanceToast({
-					loading: "Queuing a test email",
-					success: "Test email queued. Check your inbox.",
+					loading: "Sending a test email",
+					success: "Test email sent. Check your inbox.",
 				})}
 			>
 				<Button

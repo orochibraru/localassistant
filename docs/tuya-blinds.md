@@ -20,9 +20,10 @@ Re-pairing a blind in the app gives it a new local key: copy it again.
 
 ## Add it
 
-**Devices, Add a blind**: a name, the blind's IP address (reserve it in your
-router), the device ID, the local key, and the protocol version. Most blinds
-speak 3.3; newer ones 3.4 or 3.5, shown as `version` in the device details.
+**Devices**, **Tuya blinds** under **Integrations**, then **Add the blind**: a
+name, the blind's IP address (reserve it in your router), the device ID, the
+local key, and the protocol version. Most blinds speak 3.3; newer ones 3.4 or
+3.5, shown as `version` in the device details.
 
 A blind's **Edit** changes its address, protocol version or local key later. If
 the position reads backwards (closed shows as open), check **It reports 100%

@@ -43,7 +43,9 @@ export const controlCover = command(
 	async ({ deviceId, action }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.coverAction(device, action));
+		await attempt(() =>
+			devices.command(device, { type: "cover", move: { action } }),
+		);
 	},
 );
 
@@ -52,7 +54,9 @@ export const moveCover = command(
 	async ({ deviceId, position }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.coverPosition(device, position));
+		await attempt(() =>
+			devices.command(device, { type: "cover", move: { position } }),
+		);
 	},
 );
 
@@ -61,7 +65,7 @@ export const controlClimate = command(
 	async ({ deviceId, ...change }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.climate(device, change));
+		await attempt(() => devices.command(device, { type: "climate", change }));
 	},
 );
 
@@ -70,7 +74,7 @@ export const controlPrinter = command(
 	async ({ deviceId, ...change }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.printer(device, change));
+		await attempt(() => devices.command(device, { type: "printer", change }));
 	},
 );
 
@@ -91,7 +95,7 @@ export const controlVacuum = command(
 	async ({ deviceId, ...change }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.vacuum(device, change));
+		await attempt(() => devices.command(device, { type: "vacuum", change }));
 	},
 );
 
@@ -100,7 +104,7 @@ export const controlValve = command(
 	async ({ deviceId, target }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.valve(device, target));
+		await attempt(() => devices.command(device, { type: "valve", target }));
 	},
 );
 
@@ -109,7 +113,7 @@ export const controlSwitch = command(
 	async ({ deviceId, on }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.switchPower(device, on));
+		await attempt(() => devices.command(device, { type: "switch", on }));
 	},
 );
 

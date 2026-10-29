@@ -6,13 +6,14 @@ import { JobDTO } from "#lib/dto/job.js";
 import { automations } from "#lib/server/automations/automations.js";
 import { Logger } from "#lib/server/core/logger.js";
 import { broker } from "#lib/server/devices/broker.js";
-import { cameras } from "#lib/server/devices/cameras.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { energy } from "#lib/server/house/energy.js";
 import { weatherService } from "#lib/server/house/weather.js";
 import type { JobPayloads, JobType } from "#lib/server/jobs/types.js";
 import { mailer } from "#lib/server/notifications/mailer.js";
 import { pushNotifications } from "#lib/server/notifications/push.js";
+import { pluginManager } from "#lib/server/plugins/manager.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
 const logger = new Logger("Jobs");
 
@@ -89,13 +90,22 @@ export const jobHandlers: JobHandlers = {
 	"broker.connect": () => {
 		broker.restart();
 	},
-	"cameras.sync": async () => {
+	"plugins.reload": async () => {
+		await plugins.loadInstalled();
+		await plugins.startAll();
+	},
+	"plugins.restart": async ({ pluginId }) => {
+		await plugins.restart(pluginId);
+	},
+	"plugins.check": async () => {
 		JobDTO.enqueue(
-			"cameras.sync",
+			"plugins.check",
 			{},
-			{ runAt: new Date(Date.now() + 30_000), maxAttempts: 1 },
+			{ runAt: new Date(Date.now() + dayMs), maxAttempts: 1 },
 		);
-		await cameras.sync();
+		logger.info("Checked plugins on GitHub", {
+			checked: await pluginManager.check(),
+		});
 	},
 	"energy.record": () => {
 		JobDTO.enqueue(

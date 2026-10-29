@@ -5,12 +5,8 @@
 	import { flip } from "svelte/animate";
 
 	import DeviceCard from "#lib/components/devices/device-card.svelte";
-	import {
-		type CardSize,
-		cardSizeOf,
-		moveCard,
-		sortCards,
-	} from "#lib/devices.js";
+	import { type CardSize, moveCard } from "#lib/devices.js";
+	import { cardSizeOf, sortCards } from "#lib/plugins.js";
 
 	type Device = ComponentProps<typeof DeviceCard>["device"];
 
@@ -33,7 +29,11 @@
 	let dragging = $state<string | null>(null);
 
 	const sorted = $derived(
-		sortCards(devices, order ?? page.data.cardLayout?.order ?? []),
+		sortCards(
+			devices,
+			order ?? page.data.cardLayout?.order ?? [],
+			page.data.kinds,
+		),
 	);
 	const ids = $derived(sorted.map((device) => device.id));
 
@@ -77,7 +77,7 @@
 		class="grid gap-3 @min-[25rem]:grid-cols-2 @min-[40rem]:grid-cols-4 @min-[62rem]:grid-cols-6 @min-[84rem]:grid-cols-8 md:gap-4"
 	>
 		{#each sorted as device (device.id)}
-			{@const size = cardSizeOf(page.data.cardSizes, device)}
+			{@const size = cardSizeOf(page.data.cardSizes, device, page.data.kinds)}
 			<li
 				class="relative {spans[size]}"
 				data-card-id={device.id}

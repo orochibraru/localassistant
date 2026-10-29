@@ -1,0 +1,19 @@
+{
+	"id": "shelly",
+	"name": "Shelly meters",
+	"description": "Power and energy of Shelly Gen2 and later plugs, relays and meters over the MQTT broker.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "gauge",
+	"needs": ["mqtt"],
+	"automatic": "Turn on MQTT in each Shelly's settings, pointed at the same broker: every channel shows up here on its own as a meter.",
+	"kinds": [
+		{
+			"id": "shelly-meter",
+			"label": "Shelly meter",
+			"card": "meter",
+			"icon": "gauge",
+			"order": 4
+		}
+	]
+}

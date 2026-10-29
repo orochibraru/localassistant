@@ -1,0 +1,45 @@
+{
+	"id": "linky",
+	"name": "Linky online",
+	"description": "The whole house's daily use from Enedis, whoever your supplier is, no hardware.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "gauge",
+	"needs": [],
+	"device": {
+		"title": "Linky (Enedis online)",
+		"description": "No hardware: Enedis's daily use, a day behind, through conso.boris.sh. Sign in there with your Enedis account (Enedis holds every Linky's readings, whoever your supplier is), allow it, and copy the token. For live power, use a ZLinky_TIC Zigbee reader instead.",
+		"submit": "Add the Linky",
+		"fields": [
+			{
+				"name": "prm",
+				"label": "PRM",
+				"type": "text",
+				"placeholder": "14 digits",
+				"keyboard": "decimal",
+				"description": "On your bill, or on the meter: press + until it shows the PRM.",
+				"pattern": "^\\d{14}$",
+				"message": "Type the 14-digit PRM from your bill or the meter."
+			},
+			{
+				"name": "token",
+				"label": "Token",
+				"type": "secret",
+				"description": "Stored encrypted, never shown again. A new one comes from conso.boris.sh.",
+				"pattern": "^.{20,2000}$",
+				"message": "Paste the token conso.boris.sh gave you."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "linky",
+			"label": "Linky (Enedis online)",
+			"card": "linky",
+			"icon": "gauge",
+			"order": 4,
+			"houseMeter": true,
+			"polled": true
+		}
+	]
+}

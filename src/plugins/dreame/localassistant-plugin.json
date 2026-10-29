@@ -1,0 +1,49 @@
+{
+	"id": "dreame",
+	"name": "Dreame robot vacuums",
+	"description": "Every robot vacuum on your Dreamehome account.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "bot",
+	"needs": [],
+	"connection": {
+		"description": "Sign in with the account the Dreamehome app uses. The password is stored encrypted. Dreame may refuse anything but its own app.",
+		"connected": "Robots are read every two minutes.",
+		"find": "Find new robots",
+		"fields": [
+			{
+				"name": "email",
+				"label": "Email",
+				"type": "text",
+				"keyboard": "email",
+				"pattern": "^[^@\\s]+@[^@\\s]+$",
+				"message": "Type your Dreamehome email."
+			},
+			{ "name": "password", "label": "Password", "type": "secret" },
+			{
+				"name": "region",
+				"label": "Region",
+				"type": "choice",
+				"default": "eu",
+				"choices": [
+					{ "value": "eu", "label": "Europe" },
+					{ "value": "us", "label": "Americas" },
+					{ "value": "sg", "label": "Asia" },
+					{ "value": "cn", "label": "China" },
+					{ "value": "ru", "label": "Russia" }
+				]
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "dreame-vacuum",
+			"label": "Dreame robot vacuum",
+			"card": "vacuum",
+			"icon": "bot",
+			"size": "large",
+			"order": 3,
+			"polled": true
+		}
+	]
+}

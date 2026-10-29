@@ -86,7 +86,8 @@
 	},
 	"imports": {
 		"#lib": "./src/lib/index.js",
-		"#lib/*": "./src/lib/*"
+		"#lib/*": "./src/lib/*",
+		"#plugins/*": "./src/plugins/*"
 	},
 	"packageManager": "bun@1.4.4",
 	"trustedDependencies": [

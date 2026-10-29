@@ -10,7 +10,7 @@ Environment variables cover what the server needs at boot. Everything else
 | `AUTH_SECRET` | Signs sessions and encrypts stored secrets; 32 characters or up |
 
 Generate it with `openssl rand -base64 32`. Changing it signs everyone out and
-makes the stored Tuya keys and MELCloud password unreadable: add them again.
+makes the stored device keys, passwords and tokens unreadable: add them again.
 
 ## Origin
 

@@ -1,0 +1,92 @@
+{
+	"id": "tuya",
+	"name": "Tuya blinds",
+	"description": "Tuya blinds, curtains and shutters driven over your network with their local key, no cloud.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "blinds",
+	"needs": [],
+	"device": {
+		"title": "Add a Tuya blind",
+		"description": "Give the blind a fixed IP in your router so it stays reachable. The device ID and local key come from the Tuya developer site or tinytuya.",
+		"submit": "Add the blind",
+		"fields": [
+			{
+				"name": "host",
+				"label": "IP address",
+				"type": "text",
+				"placeholder": "192.168.1.40",
+				"keyboard": "decimal",
+				"pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$|^[A-Za-z0-9.-]+$",
+				"message": "Type the blind's IP address on your network."
+			},
+			{
+				"name": "deviceId",
+				"label": "Device ID",
+				"type": "text",
+				"pattern": "^[A-Za-z0-9]{10,32}$",
+				"message": "Paste the device ID from Tuya."
+			},
+			{
+				"name": "localKey",
+				"label": "Local key",
+				"type": "secret",
+				"description": "Stored encrypted, never shown again.",
+				"pattern": "^.{16,64}$",
+				"message": "Paste the 16-character local key from Tuya."
+			},
+			{
+				"name": "protocolVersion",
+				"label": "Protocol version",
+				"type": "choice",
+				"default": "3.3",
+				"choices": [
+					{ "value": "3.1", "label": "3.1" },
+					{ "value": "3.3", "label": "3.3" },
+					{ "value": "3.4", "label": "3.4" },
+					{ "value": "3.5", "label": "3.5" }
+				]
+			},
+			{
+				"name": "controlDp",
+				"label": "Commands data point",
+				"type": "number",
+				"default": 1,
+				"min": 1,
+				"max": 255,
+				"description": "Most blinds use 1, 2 and 3. Others list theirs in the Tuya device details."
+			},
+			{
+				"name": "positionDp",
+				"label": "Set position data point",
+				"type": "number",
+				"default": 2,
+				"min": 1,
+				"max": 255
+			},
+			{
+				"name": "positionStateDp",
+				"label": "Position data point",
+				"type": "number",
+				"default": 3,
+				"min": 1,
+				"max": 255
+			},
+			{
+				"name": "inverted",
+				"label": "It reports 100% when closed",
+				"type": "boolean"
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "tuya-cover",
+			"label": "Tuya blind",
+			"card": "cover",
+			"icon": "blinds",
+			"order": 1,
+			"polled": true
+		}
+	]
+}

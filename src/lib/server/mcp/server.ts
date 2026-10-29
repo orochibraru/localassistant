@@ -24,9 +24,11 @@ import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { houseGroups } from "#lib/house.js";
+import { kindInfo } from "#lib/plugins.js";
 import { authService } from "#lib/server/auth/auth.js";
 import { configuration } from "#lib/server/core/config.js";
 import { devices } from "#lib/server/devices/devices.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
 const jwksCacheKey = {};
 
@@ -175,9 +177,12 @@ class McpEndpoint {
 			({ deviceId, action, position }) =>
 				this.#withDevice(deviceId, async (device) => {
 					if (action) {
-						await devices.coverAction(device, action);
+						await devices.command(device, { type: "cover", move: { action } });
 					} else if (position !== undefined) {
-						await devices.coverPosition(device, position);
+						await devices.command(device, {
+							type: "cover",
+							move: { position },
+						});
 					} else {
 						throw new Error("Give an action or a position.");
 					}
@@ -207,9 +212,12 @@ class McpEndpoint {
 				const covers = DeviceDTO.inRoom(
 					home.id,
 					roomId === wholeHouse ? null : roomId,
-				).filter((device) => device.kind === "tuya-cover");
+				);
 				const failed = await devices.coverGroup(covers, action);
-				return this.#reply({ blinds: covers.length, failed });
+				const blinds = covers.filter(
+					(device) => kindInfo(plugins.catalog(), device.kind).card === "cover",
+				).length;
+				return this.#reply({ blinds, failed });
 			},
 		);
 	}
@@ -220,7 +228,7 @@ class McpEndpoint {
 			{
 				title: "Control a heat pump",
 				description:
-					"Turns a Mitsubishi heat pump on or off, sets its mode (air-to-air units only) or target temperature in half degrees, or boosts the hot water (air-to-water units with a tank). Returns the state MELCloud reports back.",
+					"Turns a heat pump or air conditioner on or off, sets its mode or target temperature in half degrees, or boosts the hot water (air-to-water units with a tank). Returns the state the unit reports back.",
 				inputSchema: z.object({
 					deviceId: deviceIdField,
 					power: z.boolean().optional(),
@@ -231,7 +239,7 @@ class McpEndpoint {
 			},
 			({ deviceId, ...change }) =>
 				this.#withDevice(deviceId, async (device) => {
-					await devices.climate(device, change);
+					await devices.command(device, { type: "climate", change });
 					return { state: DeviceDTO.find(device.id)?.state ?? null };
 				}),
 		);
@@ -243,7 +251,7 @@ class McpEndpoint {
 			{
 				title: "Control a 3D printer",
 				description:
-					"Pauses, resumes or stops the print on a Bambu Lab printer, turns its chamber light on or off, or sets the print speed (1 silent, 2 standard, 3 sport, 4 ludicrous). Stopping can't be undone: confirm with the person first.",
+					"Pauses, resumes or stops the print on a 3D printer, turns its chamber light on or off, or sets the print speed (1 silent, 2 standard, 3 sport, 4 ludicrous). Stopping can't be undone: confirm with the person first.",
 				inputSchema: z.object({
 					deviceId: deviceIdField,
 					command: z.enum(printerCommands).optional(),
@@ -253,7 +261,7 @@ class McpEndpoint {
 			},
 			({ deviceId, ...change }) =>
 				this.#withDevice(deviceId, async (device) => {
-					await devices.printer(device, change);
+					await devices.command(device, { type: "printer", change });
 					return { done: true };
 				}),
 		);
@@ -265,7 +273,7 @@ class McpEndpoint {
 			{
 				title: "Control a robot vacuum",
 				description:
-					"Starts a full clean, pauses, stops, or sends a Dreame robot vacuum back to its dock.",
+					"Starts a full clean, pauses, stops, or sends a robot vacuum back to its dock.",
 				inputSchema: z.object({
 					deviceId: deviceIdField,
 					command: z.enum(vacuumCommands),
@@ -273,7 +281,10 @@ class McpEndpoint {
 			},
 			({ deviceId, command }) =>
 				this.#withDevice(deviceId, async (device) => {
-					await devices.vacuum(device, { command });
+					await devices.command(device, {
+						type: "vacuum",
+						change: { command },
+					});
 					return { done: true };
 				}),
 		);

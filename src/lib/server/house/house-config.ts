@@ -3,10 +3,11 @@ import { FloorDTO } from "#lib/dto/floor.js";
 import type { HomeDTO } from "#lib/dto/home.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
-import { getSetting, setSetting } from "#lib/dto/setting.js";
+import { getPluginSettings, setPluginSettings } from "#lib/dto/setting.js";
 import { noFloorPlace, outsidePlace, planBaseFloor } from "#lib/house.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 import type { HouseConfig } from "#lib/server/validation/house-config.js";
 
 type RoomReference = NonNullable<HouseConfig["devices"][number]["room"]>;
@@ -17,9 +18,9 @@ export interface ImportCounts {
 	devices: number;
 }
 
-/** A home's floors, rooms with their plan, devices with their pins and MELCloud account as a JSON file, and back. */
+/** A home's floors, rooms with their plan, devices with their pins and plugin connections as a JSON file, and back. */
 class HouseConfiguration {
-	/** The file for `home`; device keys, access codes and the MELCloud password only when `withSecrets`. */
+	/** The file for `home`; device keys, access codes and connection passwords only when `withSecrets`. */
 	export(home: HomeDTO, withSecrets: boolean): HouseConfig {
 		const floors = FloorDTO.inHome(home.id).map((floor) => floor.toJSON());
 		const floorNames = new Map(floors.map((floor) => [floor.id, floor.name]));
@@ -44,10 +45,16 @@ class HouseConfiguration {
 						y: pin.y,
 					}
 				: null;
-		const account = getSetting("melcloud");
+		const decrypt = (encrypted: Record<string, string>) =>
+			Object.fromEntries(
+				Object.entries(encrypted).map(([key, value]) => [
+					key,
+					secrets.decrypt(value),
+				]),
+			);
 		return {
 			format: "localassistant-house",
-			version: 1,
+			version: 2,
 			exportedAt: new Date().toISOString(),
 			home: { name: home.toJSON().name },
 			floors: floors.map(({ id, name, level }) => ({
@@ -65,32 +72,37 @@ class HouseConfiguration {
 				if (row.kind === "app") {
 					return [];
 				}
-				const key = withSecrets ? device.encryptedLocalKey() : null;
 				return {
 					kind: row.kind,
 					name: row.name,
 					externalId: row.externalId,
 					room: reference(row.roomId),
 					host: row.host,
-					protocolVersion:
-						row.protocolVersion as HouseConfig["devices"][number]["protocolVersion"],
-					inverted: row.inverted,
-					buildingId: row.buildingId,
-					controlDp: row.controlDp,
-					positionDp: row.positionDp,
-					positionStateDp: row.positionStateDp,
-					...(key ? { secret: secrets.decrypt(key) } : {}),
+					fields: row.fields,
+					...(withSecrets
+						? { secrets: decrypt(device.encryptedSecrets()) }
+						: {}),
 					pin: pinOf(device.options.pin),
 				};
 			}),
-			melcloud: account
-				? {
-						email: account.email,
-						...(withSecrets
-							? { password: secrets.decrypt(account.encryptedPassword) }
-							: {}),
-					}
-				: null,
+			plugins: Object.fromEntries(
+				plugins.all().flatMap(({ manifest }) => {
+					const stored = getPluginSettings(manifest.id);
+					return stored
+						? [
+								[
+									manifest.id,
+									{
+										values: stored.values,
+										...(withSecrets
+											? { secrets: decrypt(stored.secrets) }
+											: {}),
+									},
+								],
+							]
+						: [];
+				}),
+			),
 		};
 	}
 
@@ -127,6 +139,15 @@ class HouseConfiguration {
 			? outsidePlace
 			: ((pin.floor ? floorIds.get(pin.floor) : undefined) ?? noFloorPlace);
 		device.setOptions({ ...options, pin: { place, x: pin.x, y: pin.y } });
+	}
+
+	#encrypt(values: Record<string, string>): Record<string, string> {
+		return Object.fromEntries(
+			Object.entries(values).map(([key, value]) => [
+				key,
+				secrets.encrypt(value),
+			]),
+		);
 	}
 
 	#merge(home: HomeDTO, config: HouseConfig): ImportCounts {
@@ -183,16 +204,12 @@ class HouseConfiguration {
 			}
 		}
 		for (const entry of config.devices) {
-			const { room, secret, host, protocolVersion, buildingId, pin, ...rest } =
-				entry;
+			const { room, secrets: given, pin, ...rest } = entry;
 			const device = DeviceDTO.upsert({
 				...rest,
 				homeId: home.id,
 				roomId: room ? (findRoom(room)?.toJSON().id ?? null) : null,
-				host: host ?? undefined,
-				protocolVersion: protocolVersion ?? undefined,
-				buildingId: buildingId ?? undefined,
-				encryptedLocalKey: secret ? secrets.encrypt(secret) : undefined,
+				encryptedSecrets: given ? this.#encrypt(given) : undefined,
 			});
 			if (pin !== undefined) {
 				this.#pin(device, pin, floorIds);
@@ -202,10 +219,15 @@ class HouseConfiguration {
 		if (base) {
 			home.setPlanBase(floorIds.get(base.name) ?? null);
 		}
-		if (config.melcloud?.password) {
-			setSetting("melcloud", {
-				email: config.melcloud.email,
-				encryptedPassword: secrets.encrypt(config.melcloud.password),
+		for (const [pluginId, connection] of Object.entries(config.plugins)) {
+			const stored = getPluginSettings(pluginId);
+			setPluginSettings(pluginId, {
+				homeId: stored?.homeId ?? home.id,
+				values: connection.values,
+				secrets: {
+					...stored?.secrets,
+					...(connection.secrets ? this.#encrypt(connection.secrets) : {}),
+				},
 			});
 		}
 		return {

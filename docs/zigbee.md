@@ -7,11 +7,14 @@ pair devices in Zigbee2MQTT, they show up here on their own.
 
 ## Connect the broker
 
-**Devices**, **Zigbee (Zigbee2MQTT)**, **Connect**: the broker's address
-(`mqtt://192.168.1.10:1883`), its username and password if it has them, and
-Zigbee2MQTT's base topic (`zigbee2mqtt` by default). The password is stored
-encrypted. The worker keeps one connection open and saves what devices report: a
-door or window at once, the rest every five seconds.
+**Devices**, **Zigbee (Zigbee2MQTT)** under **Integrations**: if the broker
+isn't connected yet, the sheet asks for its address (`mqtt://192.168.1.10:1883`)
+and its username and password if it has them, stored encrypted. The broker is
+one connection shared by every integration that needs it (Zigbee, Shelly,
+Frigate alerts), so it's asked once. Zigbee2MQTT's base topic (`zigbee2mqtt` by
+default) is the Zigbee integration's own setting. The worker keeps one
+connection open and saves what devices report: a door or window at once, the
+rest every five seconds.
 
 | Zigbee2MQTT exposes                  | Shows as              | Controls          |
 | ------------------------------------ | --------------------- | ----------------- |

@@ -4,7 +4,7 @@ The long-form documentation lives in [`docs/`](docs/). This file is the short
 version: what you need to get a change landed.
 
 - [docs/development.md](docs/development.md): setup, working without hardware,
-  adding an integration
+  adding an integration (a plugin)
 - `CLAUDE.md`: every convention, each one a hard rule, for people and AI agents
   alike
 - `TODO.md`: the backlog
@@ -14,6 +14,8 @@ version: what you need to get a change landed.
 - [mise](https://mise.jdx.dev), which pins Bun, Go and prek. Or
   [Bun](https://bun.sh) alone.
 - Docker, to build the image.
+- Go and Python 3, only to test the plugin SDKs (`sdk/go`, `sdk/python`) and the
+  process-plugin unit tests.
 
 ## Setup
 
@@ -44,6 +46,8 @@ bunx prek run --all-files  # every hook over every file, bun lint included
 bun run format       # bun fmt, Markdown included
 bun run circular     # fails on an import cycle
 bun run test         # unit tests
+(cd sdk/go && go test ./...)         # Go SDK
+(cd sdk/python && python3 -m unittest)  # Python SDK
 bun run test:integration  # HTTP flows against the built server
 bun run test:e2e     # Playwright against the built server
 bun run db:generate  # a migration from the schema

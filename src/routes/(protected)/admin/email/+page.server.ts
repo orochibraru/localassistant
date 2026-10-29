@@ -5,6 +5,7 @@ import { getSetting, setSetting, smtpSecurityModes } from "#lib/dto/setting.js";
 import { access } from "#lib/server/auth/access.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { emails } from "#lib/server/notifications/emails.js";
+import { mailer } from "#lib/server/notifications/mailer.js";
 import { emailSchema } from "#lib/server/validation/auth.js";
 import { parseForm } from "#lib/server/validation/form.js";
 
@@ -56,7 +57,7 @@ export const actions = {
 		setSetting("smtp", { ...rest, encryptedPassword });
 		return { saved: true };
 	},
-	test: ({ locals }) => {
+	test: async ({ locals }) => {
 		const admin = access.adminFrom(locals);
 		if (!("id" in admin)) {
 			return admin;
@@ -64,8 +65,14 @@ export const actions = {
 		if (!getSetting("smtp")) {
 			return fail(400, { error: "Save the SMTP settings first." });
 		}
-		emails.queue(emails.test(admin.email));
-		return { queued: true };
+		try {
+			await mailer.deliver(emails.test(admin.email));
+		} catch (error) {
+			return fail(502, {
+				error: error instanceof Error ? error.message : "Sending failed.",
+			});
+		}
+		return { sent: true };
 	},
 	remove: ({ locals }) => {
 		const admin = access.adminFrom(locals);

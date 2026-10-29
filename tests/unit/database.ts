@@ -7,6 +7,7 @@ import {
 	home,
 	invite,
 	job,
+	plugin,
 	room,
 	setting,
 	user,
@@ -18,6 +19,7 @@ export function resetDatabase(): void {
 	const database = databaseConnection.get();
 	for (const table of [
 		job,
+		plugin,
 		invite,
 		setting,
 		appearance,

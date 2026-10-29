@@ -1,0 +1,49 @@
+{
+	"id": "camera",
+	"name": "Cameras (RTSP)",
+	"description": "Any camera with local RTSP, watched and recorded by this server.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "cctv",
+	"needs": [],
+	"device": {
+		"title": "Add a camera",
+		"description": "Any camera with local RTSP (Tapo with a camera account, Reolink). The server keeps the live view and, if you want, records it. The address is stored encrypted.",
+		"submit": "Add the camera",
+		"fields": [
+			{
+				"name": "url",
+				"label": "RTSP address",
+				"type": "secret",
+				"placeholder": "rtsp://user:password@192.168.1.60:554/stream1",
+				"description": "Tapo: stream1 is full quality, stream2 the small one.",
+				"pattern": "^rtsps?://\\S+$",
+				"message": "Paste the camera's RTSP address, like rtsp://user:password@192.168.1.60:554/stream1."
+			},
+			{
+				"name": "record",
+				"label": "Record on the server, in five-minute files",
+				"type": "boolean",
+				"default": true
+			},
+			{
+				"name": "retentionDays",
+				"label": "Keep recordings for (days)",
+				"type": "number",
+				"default": 7,
+				"min": 1,
+				"max": 365,
+				"description": "Older files are deleted. A 1080p camera fills roughly 20 GB a day."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "camera",
+			"label": "Camera",
+			"card": "camera",
+			"icon": "cctv",
+			"order": -1
+		}
+	]
+}

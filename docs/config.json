@@ -34,6 +34,11 @@
 			"icon": "house",
 			"pages": [
 				{
+					"slug": "integrations",
+					"title": "Integrations",
+					"icon": "puzzle"
+				},
+				{
 					"slug": "tuya-blinds",
 					"title": "Tuya blinds",
 					"icon": "blinds"
@@ -106,6 +111,11 @@
 					"slug": "development",
 					"title": "Development",
 					"icon": "terminal"
+				},
+				{
+					"slug": "plugins",
+					"title": "Writing an integration",
+					"icon": "code"
 				}
 			]
 		}

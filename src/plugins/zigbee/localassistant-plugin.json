@@ -1,0 +1,55 @@
+{
+	"id": "zigbee",
+	"name": "Zigbee (Zigbee2MQTT)",
+	"description": "Door and window sensors, radiator valves, relays and meters paired in Zigbee2MQTT.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "door-open",
+	"needs": ["mqtt"],
+	"connection": {
+		"description": "Zigbee2MQTT's base topic on the MQTT broker. Pair devices in Zigbee2MQTT: they show up here on their own.",
+		"connected": "Pair devices in Zigbee2MQTT: they show up here on their own.",
+		"find": "Find new devices",
+		"fields": [
+			{
+				"name": "topic",
+				"label": "Zigbee2MQTT base topic",
+				"type": "text",
+				"default": "zigbee2mqtt",
+				"pattern": "^[A-Za-z0-9_/-]{1,60}$",
+				"message": "Type Zigbee2MQTT's base topic."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "zigbee-contact",
+			"label": "Door or window sensor",
+			"card": "contact",
+			"icon": "door-open",
+			"order": 1
+		},
+		{
+			"id": "zigbee-valve",
+			"label": "Radiator valve",
+			"card": "valve",
+			"icon": "heater",
+			"order": 0
+		},
+		{
+			"id": "zigbee-switch",
+			"label": "Relay or plug",
+			"card": "switch",
+			"icon": "plug",
+			"order": 3
+		},
+		{
+			"id": "zigbee-meter",
+			"label": "Energy meter",
+			"card": "meter",
+			"icon": "gauge",
+			"order": 4,
+			"houseMeter": true
+		}
+	]
+}

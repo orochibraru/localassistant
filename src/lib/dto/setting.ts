@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import type { DreameRegion } from "#lib/devices.js";
+import type { PluginValues } from "#lib/plugins.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { setting } from "#lib/server/db/schema.js";
 
@@ -16,11 +16,6 @@ export interface SmtpSettings {
 	fromName: string;
 }
 
-export interface MelCloudAccount {
-	email: string;
-	encryptedPassword: string;
-}
-
 export interface SsoProvider {
 	id: string;
 	name: string;
@@ -30,24 +25,17 @@ export interface SsoProvider {
 	enabled: boolean;
 }
 
-export interface DreameAccount {
-	email: string;
-	encryptedPassword: string;
-	region: DreameRegion;
-}
-
 export interface MqttBroker {
 	url: string;
 	username: string | null;
 	encryptedPassword: string | null;
-	zigbeeTopic: string;
 	homeId: string;
 }
 
-export interface FrigateServer {
-	url: string;
-	homeId: string;
-	notifyLabels: string[];
+export interface PluginSettings {
+	homeId: string | null;
+	values: PluginValues;
+	secrets: Record<string, string>;
 }
 
 export interface VapidKeys {
@@ -62,10 +50,8 @@ export interface SettingValues {
 	requirePasskey: boolean;
 	sessionDays: (typeof sessionDayOptions)[number];
 	smtp: SmtpSettings | null;
-	melcloud: MelCloudAccount | null;
-	dreame: DreameAccount | null;
 	mqtt: MqttBroker | null;
-	frigate: FrigateServer | null;
+	disabledPlugins: string[];
 	multipleHomes: boolean;
 	passwordSignIn: boolean;
 	passkeySignIn: boolean;
@@ -81,10 +67,8 @@ const defaults: SettingValues = {
 	requirePasskey: false,
 	sessionDays: 7,
 	smtp: null,
-	melcloud: null,
-	dreame: null,
 	mqtt: null,
-	frigate: null,
+	disabledPlugins: [],
 	multipleHomes: false,
 	passwordSignIn: true,
 	passkeySignIn: true,
@@ -115,10 +99,8 @@ export function allSettings(): SettingValues {
 		requirePasskey: getSetting("requirePasskey"),
 		sessionDays: getSetting("sessionDays"),
 		smtp: getSetting("smtp"),
-		melcloud: getSetting("melcloud"),
-		dreame: getSetting("dreame"),
 		mqtt: getSetting("mqtt"),
-		frigate: getSetting("frigate"),
+		disabledPlugins: getSetting("disabledPlugins"),
 		multipleHomes: getSetting("multipleHomes"),
 		passwordSignIn: getSetting("passwordSignIn"),
 		passkeySignIn: getSetting("passkeySignIn"),
@@ -135,6 +117,38 @@ export function setSetting<Key extends keyof SettingValues>(
 	key: Key,
 	value: SettingValues[Key],
 ): void {
+	if (value === null) {
+		databaseConnection.get().delete(setting).where(eq(setting.key, key)).run();
+		return;
+	}
+	databaseConnection
+		.get()
+		.insert(setting)
+		.values({ key, value })
+		.onConflictDoUpdate({
+			target: setting.key,
+			set: { value, updatedAt: new Date() },
+		})
+		.run();
+}
+
+/** What an admin connected a plugin with, its secrets still encrypted, or `null` when it isn't connected. */
+export function getPluginSettings(pluginId: string): PluginSettings | null {
+	const row = databaseConnection
+		.get()
+		.select({ value: setting.value })
+		.from(setting)
+		.where(eq(setting.key, `plugin:${pluginId}`))
+		.get();
+	return row ? (row.value as PluginSettings) : null;
+}
+
+/** Stores what a plugin is connected with; `null` disconnects it. */
+export function setPluginSettings(
+	pluginId: string,
+	value: PluginSettings | null,
+): void {
+	const key = `plugin:${pluginId}`;
 	if (value === null) {
 		databaseConnection.get().delete(setting).where(eq(setting.key, key)).run();
 		return;

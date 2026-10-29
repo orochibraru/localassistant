@@ -1,0 +1,43 @@
+{
+	"id": "melcloud",
+	"name": "Mitsubishi (MELCloud)",
+	"description": "Every Mitsubishi Electric heat pump on your MELCloud account.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "thermometer",
+	"needs": [],
+	"connection": {
+		"description": "Sign in with the account the MELCloud app uses. The password is stored encrypted.",
+		"connected": "Units are read every two minutes.",
+		"find": "Find new units",
+		"fields": [
+			{
+				"name": "email",
+				"label": "Email",
+				"type": "text",
+				"keyboard": "email",
+				"pattern": "^[^@\\s]+@[^@\\s]+$",
+				"message": "Type your MELCloud email."
+			},
+			{ "name": "password", "label": "Password", "type": "secret" }
+		]
+	},
+	"kinds": [
+		{
+			"id": "melcloud-ata",
+			"label": "Air-to-air heat pump",
+			"card": "climate",
+			"icon": "thermometer",
+			"order": 0,
+			"polled": true
+		},
+		{
+			"id": "melcloud-atw",
+			"label": "Air-to-water heat pump",
+			"card": "climate",
+			"icon": "thermometer",
+			"order": 0,
+			"polled": true
+		}
+	]
+}

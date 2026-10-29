@@ -3,7 +3,7 @@ import type {
 	PrinterCommand,
 	VacuumCommand,
 } from "#lib/devices.js";
-import type { DeviceKind } from "#lib/dto/device.js";
+import type { PluginCard } from "#lib/plugins.js";
 
 export const sunEvents = ["sunrise", "sunset"] as const;
 export type SunEvent = (typeof sunEvents)[number];
@@ -41,7 +41,7 @@ export const presets: Record<
 	{
 		title: string;
 		build: (
-			devices: { id: string; kind: string; roomId?: string | null }[],
+			devices: { id: string; card: PluginCard; roomId?: string | null }[],
 		) => {
 			name: string;
 			trigger: Trigger;
@@ -84,24 +84,22 @@ export const presets: Record<
 	"window-valves": {
 		title: "Radiators off while a window is open",
 		build: (devices) => {
-			const ofKind = (kind: DeviceKind) =>
+			const ofCard = (card: PluginCard) =>
 				devices
-					.filter((device) => device.kind === kind)
+					.filter((device) => device.card === card)
 					.map((device) => device.id);
 			return {
 				name: "Radiators off while a window is open",
-				trigger: { type: "contact", deviceIds: ofKind("zigbee-contact") },
+				trigger: { type: "contact", deviceIds: ofCard("contact") },
 				period: { type: "always" },
-				actions: [{ type: "valves", deviceIds: ofKind("zigbee-valve") }],
+				actions: [{ type: "valves", deviceIds: ofCard("valve") }],
 			};
 		},
 	},
 	"door-heating": {
 		title: "Heating down while the front door is open",
 		build: (devices) => {
-			const sensors = devices.filter(
-				(device) => device.kind === "zigbee-contact",
-			);
+			const sensors = devices.filter((device) => device.card === "contact");
 			const doors = sensors.filter((device) => device.roomId === null);
 			return {
 				name: "Heating down while the front door is open",
@@ -116,13 +114,9 @@ export const presets: Record<
 					{
 						type: "heating",
 						deviceIds: devices
-							.filter((device) =>
-								[
-									"melcloud-ata",
-									"melcloud-atw",
-									"esphome-climate",
-									"zigbee-valve",
-								].includes(device.kind),
+							.filter(
+								(device) =>
+									device.card === "climate" || device.card === "valve",
 							)
 							.map((device) => device.id),
 						degrees: 3,

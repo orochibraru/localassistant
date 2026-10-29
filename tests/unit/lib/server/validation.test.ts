@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { plugins } from "#lib/server/plugins/registry.js";
 import {
 	changePasswordSchema,
 	codeSchema,
@@ -8,21 +9,27 @@ import {
 	signInSchema,
 } from "#lib/server/validation/auth.js";
 import {
-	bambuPrinterSchema,
 	climateChangeSchema,
-	editBambuPrinterSchema,
 	editFloorSchema,
 	editRoomSchema,
-	editTuyaCoverSchema,
 	floorSchema,
 	planChangesSchema,
 	printerChangeSchema,
-	renameDeviceSchema,
 	roomSettingsSchema,
-	tuyaCoverSchema,
 	vacuumChangeSchema,
 } from "#lib/server/validation/device.js";
 import { parseForm } from "#lib/server/validation/form.js";
+import {
+	addDeviceSchema,
+	editDeviceSchema,
+} from "#lib/server/validation/plugins.js";
+
+const fieldsOf = (id: string) => plugins.get(id)?.manifest.device?.fields ?? [];
+const tuyaCoverSchema = addDeviceSchema(fieldsOf("tuya"));
+const editTuyaCoverSchema = editDeviceSchema(fieldsOf("tuya"));
+const bambuPrinterSchema = addDeviceSchema(fieldsOf("bambu"));
+const editBambuPrinterSchema = editDeviceSchema(fieldsOf("bambu"));
+const renameDeviceSchema = editDeviceSchema([]);
 
 function form(fields: Record<string, string>): FormData {
 	const data = new FormData();
@@ -85,32 +92,46 @@ describe("parseForm", () => {
 		const fields = {
 			id: "blind",
 			name: "Office",
-			host: "192.168.1.41",
-			protocolVersion: "3.4" as const,
+			"value:host": "192.168.1.41",
+			"value:deviceId": "bf1234567890abcdefgh",
+			"value:protocolVersion": "3.4",
 		};
 		expect(parseForm(editTuyaCoverSchema, form(fields))).toEqual({
 			success: true,
 			data: {
-				...fields,
+				id: "blind",
+				name: "Office",
 				roomId: null,
-				inverted: false,
-				localKey: undefined,
-				controlDp: 1,
-				positionDp: 2,
-				positionStateDp: 3,
+				values: {
+					host: "192.168.1.41",
+					deviceId: "bf1234567890abcdefgh",
+					protocolVersion: "3.4",
+					controlDp: 1,
+					positionDp: 2,
+					positionStateDp: 3,
+					inverted: false,
+				},
 			},
 		});
 		expect(
-			parseForm(editTuyaCoverSchema, form({ ...fields, localKey: "short" }))
-				.success,
+			parseForm(
+				editTuyaCoverSchema,
+				form({ ...fields, "value:localKey": "short" }),
+			).success,
 		).toBe(false);
 		const custom = parseForm(
 			editTuyaCoverSchema,
-			form({ ...fields, controlDp: "101", positionDp: "0" }),
+			form({ ...fields, "value:controlDp": "101", "value:positionDp": "0" }),
 		);
 		expect(custom.success || Object.keys(custom.errors)).toEqual([
-			"positionDp",
+			"value:positionDp",
 		]);
+		expect(
+			parseForm(
+				editTuyaCoverSchema,
+				form({ ...fields, "value:protocolVersion": "9.9" }),
+			).success,
+		).toBe(false);
 	});
 
 	test("a printer needs its address, serial number and 8-character access code", () => {
@@ -118,35 +139,51 @@ describe("parseForm", () => {
 			parseForm(
 				bambuPrinterSchema,
 				form({
+					plugin: "bambu",
 					name: "P1S",
-					host: "192.168.1.50",
-					externalId: " 01p00a000000000 ",
-					accessCode: "12345678",
+					"value:host": "192.168.1.50",
+					"value:serial": " 01p00a000000000 ",
+					"value:accessCode": "12345678",
 				}),
 			),
 		).toEqual({
 			success: true,
 			data: {
+				plugin: "bambu",
 				name: "P1S",
 				roomId: null,
-				host: "192.168.1.50",
-				externalId: "01P00A000000000",
-				accessCode: "12345678",
+				values: {
+					host: "192.168.1.50",
+					serial: "01p00a000000000",
+					accessCode: "12345678",
+				},
 			},
 		});
 		const parsed = parseForm(
 			bambuPrinterSchema,
-			form({ name: "P1S", host: "", externalId: "x", accessCode: "123" }),
+			form({
+				plugin: "bambu",
+				name: "P1S",
+				"value:host": "",
+				"value:serial": "x",
+				"value:accessCode": "123",
+			}),
 		);
 		expect(parsed.success || Object.keys(parsed.errors).sort()).toEqual([
-			"accessCode",
-			"externalId",
-			"host",
+			"value:accessCode",
+			"value:host",
+			"value:serial",
 		]);
 		expect(
 			parseForm(
 				editBambuPrinterSchema,
-				form({ id: "p", name: "P1S", host: "192.168.1.51", accessCode: "" }),
+				form({
+					id: "p",
+					name: "P1S",
+					"value:host": "192.168.1.51",
+					"value:serial": "01P00A000000000",
+					"value:accessCode": "",
+				}),
 			),
 		).toEqual({
 			success: true,
@@ -154,8 +191,7 @@ describe("parseForm", () => {
 				id: "p",
 				name: "P1S",
 				roomId: null,
-				host: "192.168.1.51",
-				accessCode: undefined,
+				values: { host: "192.168.1.51", serial: "01P00A000000000" },
 			},
 		});
 		expect(
@@ -227,13 +263,19 @@ describe("parseForm", () => {
 				renameDeviceSchema,
 				form({ id: "d", name: "PAC", roomId: "house" }),
 			),
-		).toEqual({ success: true, data: { id: "d", name: "PAC", roomId: null } });
+		).toEqual({
+			success: true,
+			data: { id: "d", name: "PAC", roomId: null, values: {} },
+		});
 		expect(
 			parseForm(
 				renameDeviceSchema,
 				form({ id: "d", name: "PAC", roomId: "r" }),
 			),
-		).toEqual({ success: true, data: { id: "d", name: "PAC", roomId: "r" } });
+		).toEqual({
+			success: true,
+			data: { id: "d", name: "PAC", roomId: "r", values: {} },
+		});
 	});
 
 	test("a floor has a name and a level from the deep basement up", () => {
@@ -268,36 +310,46 @@ describe("parseForm", () => {
 			parseForm(
 				tuyaCoverSchema,
 				form({
+					plugin: "tuya",
 					name: "Living room",
-					host: "192.168.1.40",
-					externalId: "bf1234567890abcdefgh",
-					localKey: "abcdabcdabcdabcd",
+					"value:host": "192.168.1.40",
+					"value:deviceId": "bf1234567890abcdefgh",
+					"value:localKey": "abcdabcdabcdabcd",
 				}),
 			),
 		).toEqual({
 			success: true,
 			data: {
+				plugin: "tuya",
 				name: "Living room",
 				roomId: null,
-				host: "192.168.1.40",
-				externalId: "bf1234567890abcdefgh",
-				localKey: "abcdabcdabcdabcd",
-				protocolVersion: "3.3",
-				inverted: false,
-				controlDp: 1,
-				positionDp: 2,
-				positionStateDp: 3,
+				values: {
+					host: "192.168.1.40",
+					deviceId: "bf1234567890abcdefgh",
+					localKey: "abcdabcdabcdabcd",
+					protocolVersion: "3.3",
+					controlDp: 1,
+					positionDp: 2,
+					positionStateDp: 3,
+					inverted: false,
+				},
 			},
 		});
 		const parsed = parseForm(
 			tuyaCoverSchema,
-			form({ name: "", host: "", externalId: "x", localKey: "short" }),
+			form({
+				plugin: "tuya",
+				name: "",
+				"value:host": "",
+				"value:deviceId": "x",
+				"value:localKey": "short",
+			}),
 		);
 		expect(parsed.success || Object.keys(parsed.errors).sort()).toEqual([
-			"externalId",
-			"host",
-			"localKey",
 			"name",
+			"value:deviceId",
+			"value:host",
+			"value:localKey",
 		]);
 	});
 });

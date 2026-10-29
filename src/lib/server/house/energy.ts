@@ -9,6 +9,8 @@ import type {
 	EnergySummary,
 	EnergyUnit,
 } from "#lib/energy.js";
+import { kindInfo } from "#lib/plugins.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
 const hourMs = 60 * 60_000;
 const dayMs = 24 * hourMs;
@@ -85,8 +87,8 @@ class Energy {
 			beforeDays,
 			hourKeys,
 		});
-		const wholeHouse = (kind: string) =>
-			kind === "zigbee-meter" || kind === "linky";
+		const catalog = plugins.catalog();
+		const wholeHouse = (kind: string) => kindInfo(catalog, kind).houseMeter;
 		const meters = series.filter(({ device }) => wholeHouse(device.kind));
 		const appliances = series.filter(({ device }) => !wholeHouse(device.kind));
 		const source = meters.length > 0 ? meters : appliances;
@@ -146,13 +148,15 @@ class Energy {
 
 	/** The devices of `homeId` that count energy. */
 	#metered(homeId: string): DeviceDTO[] {
-		return DeviceDTO.inHome(homeId).filter(
-			(device) =>
-				device.kind === "zigbee-meter" ||
-				device.kind === "shelly-meter" ||
-				device.kind === "linky" ||
-				(device.state?.type === "switch" && device.state.energy !== null),
-		);
+		const catalog = plugins.catalog();
+		return DeviceDTO.inHome(homeId).filter((device) => {
+			const card = kindInfo(catalog, device.kind).card;
+			return (
+				card === "meter" ||
+				card === "linky" ||
+				(device.state?.type === "switch" && device.state.energy !== null)
+			);
+		});
 	}
 
 	/** The bucket-by-bucket sum of what `pick` takes from every entry of `source`. */
@@ -216,7 +220,7 @@ class Energy {
 				daily: this.#buckets(own, spans.span, timeZone, "day"),
 				beforeDaily,
 				hourly:
-					device.kind === "linky"
+					kindInfo(plugins.catalog(), device.kind).card === "linky"
 						? null
 						: this.#buckets(own, spans.hourKeys, timeZone, "hour"),
 				before: this.#sum(beforeDaily),
@@ -278,8 +282,9 @@ class Energy {
 		timeZone: string,
 		now = new Date(),
 	): Record<string, EnergySummary> {
+		const catalog = plugins.catalog();
 		const meters = DeviceDTO.inHome(homeId).filter(
-			(device) => device.kind === "linky",
+			(device) => kindInfo(catalog, device.kind).card === "linky",
 		);
 		const today = this.bucketOf(now, timeZone, "day");
 		const month = today.slice(0, 7);

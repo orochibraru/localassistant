@@ -19,10 +19,12 @@ import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { kindInfo } from "#lib/plugins.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { account, user } from "#lib/server/db/schema.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
 const root = join(import.meta.dir, "..", "..");
 const work = join(root, "tmp", "screenshots");
@@ -105,7 +107,7 @@ const demo: [DeviceDTO, DeviceState][] = [
 			name: "Living room",
 			roomId: rooms["Living room"],
 			externalId: "1001",
-			buildingId: 1,
+			fields: { buildingId: 1 },
 		}),
 		{
 			type: "climate",
@@ -126,7 +128,7 @@ const demo: [DeviceDTO, DeviceState][] = [
 			name: "Bedroom",
 			roomId: rooms.Bedroom,
 			externalId: "1002",
-			buildingId: 1,
+			fields: { buildingId: 1 },
 		}),
 		{
 			type: "climate",
@@ -146,7 +148,7 @@ const demo: [DeviceDTO, DeviceState][] = [
 			kind: "melcloud-atw",
 			name: "Heat pump",
 			externalId: "1003",
-			buildingId: 1,
+			fields: { buildingId: 1 },
 		}),
 		{
 			type: "climate",
@@ -169,7 +171,8 @@ const demo: [DeviceDTO, DeviceState][] = [
 			roomId: rooms.Workshop,
 			externalId: "01P00A000000000",
 			host: "192.0.2.50",
-			encryptedLocalKey: secrets.encrypt("12345678"),
+			fields: { host: "192.0.2.50", serial: "01P00A000000000" },
+			encryptedSecrets: { accessCode: secrets.encrypt("12345678") },
 		}),
 		{
 			type: "printer",
@@ -183,6 +186,7 @@ const demo: [DeviceDTO, DeviceState][] = [
 			bed: { temperature: 60, target: 60 },
 			light: true,
 			speed: 2,
+			camera: "camera.jpg",
 		},
 	],
 	...(
@@ -199,8 +203,8 @@ const demo: [DeviceDTO, DeviceState][] = [
 			roomId: rooms[room],
 			externalId: `bfdemo00000000000${index}`,
 			host: `192.0.2.${10 + index}`,
-			protocolVersion: "3.3",
-			encryptedLocalKey: secrets.encrypt("abcdabcdabcdabcd"),
+			fields: { protocolVersion: "3.3" },
+			encryptedSecrets: { localKey: secrets.encrypt("abcdabcdabcdabcd") },
 		}),
 		{ type: "cover", position },
 	]),
@@ -374,7 +378,7 @@ AutomationDTO.create(
 	presets["window-valves"].build(
 		DeviceDTO.inHome(homeId).map((device) => ({
 			id: device.id,
-			kind: device.kind,
+			card: kindInfo(plugins.catalog(), device.kind).card,
 		})),
 	),
 );

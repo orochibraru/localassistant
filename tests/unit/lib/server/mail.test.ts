@@ -58,3 +58,50 @@ describe("mailer", () => {
 		expect(sendMail).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("mailer errors", () => {
+	beforeEach(resetDatabase);
+
+	const smtp = {
+		host: "smtp.example.com",
+		port: 465,
+		security: "tls" as const,
+		username: "user",
+		encryptedPassword: "",
+		fromAddress: "localassistant@example.com",
+		fromName: "LocalAssistant",
+	};
+
+	test("a refused send throws the reason in plain words", async () => {
+		setSetting("smtp", { ...smtp, encryptedPassword: secrets.encrypt("x") });
+		sendMail.mockImplementationOnce(() =>
+			Promise.reject(
+				Object.assign(new Error("Invalid login"), { code: "EAUTH" }),
+			),
+		);
+		expect(mailer.deliver(emails.test("a@b.c"))).rejects.toThrow(
+			"refused the username and password",
+		);
+	});
+
+	test("explains TLS mismatches, timeouts, unknown hosts and refusals", () => {
+		expect(
+			mailer.explain(new Error("ssl3_get_record:wrong version number"), smtp),
+		).toContain("Port 465 uses TLS");
+		expect(mailer.explain({ code: "ETIMEDOUT" }, smtp)).toContain(
+			"didn't answer on port 465",
+		);
+		expect(mailer.explain({ code: "EDNS" }, smtp)).toContain(
+			"couldn't be found",
+		);
+		expect(
+			mailer.explain({ responseCode: 550, response: "550 no such user" }, smtp),
+		).toContain("sender or recipient");
+		expect(mailer.explain({ response: "421 busy" }, smtp)).toBe(
+			"The SMTP server refused the email: 421 busy",
+		);
+		expect(mailer.explain(null, smtp)).toBe(
+			"The SMTP server refused the email.",
+		);
+	});
+});

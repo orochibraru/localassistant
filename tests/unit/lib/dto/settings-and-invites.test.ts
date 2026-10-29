@@ -4,7 +4,13 @@ import { AppearanceDTO, defaultAppearance } from "#lib/dto/appearance.js";
 import { CodeChallengeDTO } from "#lib/dto/code-challenge.js";
 import { InviteDTO } from "#lib/dto/invite.js";
 import { PasskeyDTO } from "#lib/dto/passkey.js";
-import { allSettings, getSetting, setSetting } from "#lib/dto/setting.js";
+import {
+	allSettings,
+	getPluginSettings,
+	getSetting,
+	setPluginSettings,
+	setSetting,
+} from "#lib/dto/setting.js";
 import { UserDTO } from "#lib/dto/user.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { passkey, session, verification } from "#lib/server/db/schema.js";
@@ -20,10 +26,8 @@ describe("settings", () => {
 			requirePasskey: false,
 			sessionDays: 7,
 			smtp: null,
-			melcloud: null,
-			dreame: null,
 			mqtt: null,
-			frigate: null,
+			disabledPlugins: [],
 			multipleHomes: false,
 			passwordSignIn: true,
 			passkeySignIn: true,
@@ -37,9 +41,16 @@ describe("settings", () => {
 		setSetting("requireTwoFactor", false);
 		setSetting("requirePasskey", true);
 		expect(getSetting("requireTwoFactor")).toBe(false);
-		setSetting("melcloud", { email: "a@b.c", encryptedPassword: "x" });
-		setSetting("melcloud", null);
-		expect(getSetting("melcloud")).toBeNull();
+		const connection = {
+			homeId: null,
+			values: { email: "a@b.c" },
+			secrets: {},
+		};
+		setPluginSettings("melcloud", connection);
+		setPluginSettings("melcloud", connection);
+		expect(getPluginSettings("melcloud")).toEqual(connection);
+		setPluginSettings("melcloud", null);
+		expect(getPluginSettings("melcloud")).toBeNull();
 		expect(getSetting("requirePasskey")).toBe(true);
 	});
 });

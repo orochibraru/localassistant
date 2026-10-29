@@ -1,0 +1,37 @@
+{
+	"id": "tasmota-go",
+	"name": "Tasmota plugs (Go example)",
+	"description": "Plugs running Tasmota, turned on and off over your network.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"runtime": "process",
+	"entry": {
+		"linux-x64": "dist/linux-x64",
+		"linux-arm64": "dist/linux-arm64"
+	},
+	"icon": "plug",
+	"device": {
+		"title": "Add a Tasmota plug",
+		"description": "Give the plug a fixed IP in your router.",
+		"submit": "Add the plug",
+		"fields": [
+			{
+				"name": "host",
+				"label": "IP address",
+				"type": "text",
+				"keyboard": "decimal",
+				"pattern": "^[A-Za-z0-9.-]+$",
+				"message": "Type the plug's IP address."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "tasmota-go-plug",
+			"label": "Tasmota plug",
+			"card": "switch",
+			"icon": "plug",
+			"polled": true
+		}
+	]
+}

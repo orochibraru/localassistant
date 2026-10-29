@@ -1,7 +1,8 @@
 # Install
 
 LocalAssistant is one container. Its `/data` volume holds the SQLite database:
-accounts, devices and their encrypted keys. Back it up with `AUTH_SECRET`.
+accounts, devices, their encrypted keys and installed plugins. Back it up with
+`AUTH_SECRET`.
 
 ## Docker Compose
 
@@ -40,7 +41,8 @@ address in your router (a DHCP reservation), since LocalAssistant connects to
 the address you typed.
 
 Printers are reached on port 8883 (MQTT over TLS). MELCloud is reached at
-`app.melcloud.com` over HTTPS.
+`app.melcloud.com` over HTTPS. Installing or checking a community plugin reaches
+GitHub over HTTPS.
 
 ## Behind a proxy
 
@@ -52,5 +54,6 @@ URL you open.
 ## The image
 
 `docker.io/orochibraru/localassistant`, for `linux/amd64` and `linux/arm64`:
-Alpine and two compiled Bun binaries, the server and the background worker it
-starts. `latest` is the last release, `canary` the last merge.
+Alpine with ffmpeg and Python 3 (for plugins written in Python) and two compiled
+Bun binaries, the server and the background worker it starts. `latest` is the
+last release, `canary` the last merge.

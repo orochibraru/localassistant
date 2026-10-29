@@ -5,11 +5,22 @@ import type { ValveState } from "#lib/devices.js";
 import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { setPluginSettings } from "#lib/dto/setting.js";
+import type { DeviceCommand } from "#lib/plugin-sdk.js";
+import { kindInfo } from "#lib/plugins.js";
 import { automations } from "#lib/server/automations/automations.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { devices } from "#lib/server/devices/devices.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 
 import { homeId, resetDatabase } from "../../database.js";
+
+const cards = () =>
+	DeviceDTO.inHome(homeId()).map((device) => ({
+		id: device.id,
+		card: kindInfo(plugins.catalog(), device.kind).card,
+		roomId: device.toJSON().roomId,
+	}));
 
 function valveState(target: number): ValveState {
 	return {
@@ -26,13 +37,20 @@ function valveState(target: number): ValveState {
 }
 
 describe("door and window automations", () => {
-	beforeEach(resetDatabase);
+	beforeEach(() => {
+		resetDatabase();
+		setPluginSettings("zigbee", {
+			homeId: homeId(),
+			values: { topic: "zigbee2mqtt" },
+			secrets: {},
+		});
+	});
 
 	test("a window closes its room's valves until every window there is shut", async () => {
 		const sent: Record<string, unknown>[] = [];
 		const publish = spyOn(broker, "publish").mockImplementation(
-			async (_device, payload) => {
-				sent.push(payload);
+			async (_topic, payload) => {
+				sent.push(payload as Record<string, unknown>);
 			},
 		);
 		const room = RoomDTO.create(homeId(), {
@@ -68,12 +86,7 @@ describe("door and window automations", () => {
 		await automations.onContact(window, open);
 		expect(sent).toEqual([]);
 
-		const template = presets["window-valves"].build(
-			DeviceDTO.inHome(homeId()).map((device) => ({
-				id: device.id,
-				kind: device.kind,
-			})),
-		);
+		const template = presets["window-valves"].build(cards());
 		const automation = AutomationDTO.create(homeId(), {
 			...template,
 			trigger: { type: "contact", deviceIds: [window.id] },
@@ -122,12 +135,14 @@ describe("door and window automations", () => {
 			homeId: homeId(),
 			name: "Radiator",
 			externalId: "radiator",
+			host: "radiator",
 		});
 		const sensor = DeviceDTO.upsert({
 			kind: "zigbee-contact",
 			homeId: homeId(),
 			name: "Window",
 			externalId: "window",
+			host: "window",
 		});
 		valve.saveState(valveState(21));
 		const automation = AutomationDTO.create(homeId(), {
@@ -153,12 +168,26 @@ describe("door and window automations", () => {
 
 	test("a front door turns the heating down and puts it back once it shuts", async () => {
 		const publish = spyOn(broker, "publish").mockResolvedValue();
-		const climate = spyOn(devices, "climate").mockResolvedValue();
+		const climateChanges: unknown[] = [];
+		let climateFails = false;
+		const original = devices.command.bind(devices);
+		const climate = spyOn(devices, "command").mockImplementation(
+			(device: DeviceDTO, command: DeviceCommand) => {
+				if (command.type !== "climate") {
+					return original(device, command);
+				}
+				climateChanges.push(command.change);
+				return climateFails
+					? Promise.reject(new Error("offline"))
+					: Promise.resolve();
+			},
+		);
 		const door = DeviceDTO.upsert({
 			kind: "zigbee-contact",
 			homeId: homeId(),
 			name: "Front door",
 			externalId: "front-door",
+			host: "front-door",
 		});
 		const pump = DeviceDTO.upsert({
 			kind: "melcloud-ata",
@@ -171,6 +200,7 @@ describe("door and window automations", () => {
 			homeId: homeId(),
 			name: "Radiator",
 			externalId: "radiator",
+			host: "radiator",
 		});
 		pump.saveState({
 			type: "climate",
@@ -184,13 +214,7 @@ describe("door and window automations", () => {
 			offline: false,
 		});
 		valve.saveState(valveState(20));
-		const template = presets["door-heating"].build(
-			DeviceDTO.inHome(homeId()).map((device) => ({
-				id: device.id,
-				kind: device.kind,
-				roomId: device.toJSON().roomId,
-			})),
-		);
+		const template = presets["door-heating"].build(cards());
 		const automation = AutomationDTO.create(homeId(), {
 			...template,
 			period: { type: "always" },
@@ -200,10 +224,7 @@ describe("door and window automations", () => {
 		door.saveState(open);
 		await automations.onContact(door, open);
 		await automations.onContact(door, open);
-		expect(climate).toHaveBeenCalledTimes(1);
-		expect(climate).toHaveBeenLastCalledWith(expect.anything(), {
-			targetTemperature: 18,
-		});
+		expect(climateChanges).toEqual([{ targetTemperature: 18 }]);
 		expect(DeviceDTO.find(valve.id)?.state).toMatchObject({ target: 17 });
 		expect(AutomationDTO.find(automation.id)?.memory).toEqual({
 			lowered: { [pump.id]: 21, [valve.id]: 20 },
@@ -211,13 +232,11 @@ describe("door and window automations", () => {
 
 		door.saveState({ ...open, open: false });
 		await automations.onContact(door, { ...open, open: false });
-		expect(climate).toHaveBeenLastCalledWith(expect.anything(), {
-			targetTemperature: 21,
-		});
+		expect(climateChanges.at(-1)).toEqual({ targetTemperature: 21 });
 		expect(DeviceDTO.find(valve.id)?.state).toMatchObject({ target: 20 });
 		expect(AutomationDTO.find(automation.id)?.memory).toEqual({ lowered: {} });
 
-		climate.mockRejectedValue(new Error("offline"));
+		climateFails = true;
 		door.saveState(open);
 		await automations.onContact(door, open);
 		expect(AutomationDTO.find(automation.id)?.toJSON().runError).toContain(

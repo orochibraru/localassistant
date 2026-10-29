@@ -52,10 +52,9 @@
 			devices={data.setup}
 			rooms={data.rooms}
 			floors={data.floors}
-			melCloudEmail={data.melCloudEmail}
-			dreameEmail={data.dreameEmail}
+			setups={data.pluginSetups}
+			kinds={data.kinds}
 			brokerUrl={data.brokerUrl}
-			frigateUrl={data.frigateUrl}
 			people={data.people}
 		/>
 		<RoomSheet rooms={data.rooms} floors={data.floors} />

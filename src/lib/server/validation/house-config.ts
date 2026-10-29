@@ -1,11 +1,16 @@
 import { z } from "zod";
 
-import { tuyaProtocolVersions } from "#lib/devices.js";
 import { planSize, roomIcons } from "#lib/house.js";
-import { deviceKinds } from "#lib/server/db/schema.js";
 
 const name = z.string().trim().min(1).max(60);
-const dataPoint = z.number().int().min(1).max(255);
+const values = z.record(
+	z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/),
+	z.union([z.string().max(2000), z.number(), z.boolean()]),
+);
+const secretValues = z.record(
+	z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/),
+	z.string().min(1).max(2000),
+);
 
 const roomReference = z.object({
 	name,
@@ -34,7 +39,7 @@ const planPart = z
 
 export const houseConfigSchema = z.object({
 	format: z.literal("localassistant-house"),
-	version: z.literal(1),
+	version: z.literal(2),
 	exportedAt: z.string().optional(),
 	home: z.object({ name }).optional(),
 	floors: z
@@ -59,18 +64,16 @@ export const houseConfigSchema = z.object({
 	devices: z
 		.array(
 			z.object({
-				kind: z.enum(deviceKinds).exclude(["app"]),
+				kind: z
+					.string()
+					.regex(/^[a-z][a-z0-9-]{0,59}$/)
+					.refine((kind) => kind !== "app"),
 				name,
 				externalId: z.string().trim().min(1).max(64),
 				room: roomReference.nullable(),
 				host: z.string().trim().max(255).nullable(),
-				protocolVersion: z.enum(tuyaProtocolVersions).nullable(),
-				inverted: z.boolean(),
-				buildingId: z.number().int().nullable(),
-				controlDp: dataPoint,
-				positionDp: dataPoint,
-				positionStateDp: dataPoint,
-				secret: z.string().min(1).max(200).optional(),
+				fields: values.default({}),
+				secrets: secretValues.optional(),
 				pin: z
 					.object({
 						floor: name.nullable(),
@@ -84,13 +87,15 @@ export const houseConfigSchema = z.object({
 		)
 		.max(500)
 		.default([]),
-	melcloud: z
-		.object({
-			email: z.email(),
-			password: z.string().min(1).max(200).optional(),
-		})
-		.nullable()
-		.default(null),
+	plugins: z
+		.record(
+			z.string().regex(/^[a-z][a-z0-9-]{1,39}$/),
+			z.object({
+				values: values.default({}),
+				secrets: secretValues.optional(),
+			}),
+		)
+		.default({}),
 });
 
 export type HouseConfig = z.infer<typeof houseConfigSchema>;

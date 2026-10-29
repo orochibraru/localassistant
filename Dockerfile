@@ -8,7 +8,7 @@ COPY . .
 RUN AUTH_SECRET=placeholder-for-the-build-step-only-000000 bun run build
 
 FROM alpine:3.24
-RUN apk add --no-cache ca-certificates ffmpeg libgcc libstdc++ \
+RUN apk add --no-cache ca-certificates ffmpeg libgcc libstdc++ python3 \
     && mkdir -p /data \
     && chown 1000:1000 /data
 WORKDIR /app

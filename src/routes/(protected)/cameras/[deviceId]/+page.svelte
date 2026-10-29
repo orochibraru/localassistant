@@ -14,6 +14,7 @@
 
 	let playing = $state<{ src: string; label: string } | null>(null);
 
+	const media = (path: string) => `/media/${data.camera.id}/${path}`;
 	const timeFormat = new Intl.DateTimeFormat(undefined, {
 		hour: "2-digit",
 		minute: "2-digit",
@@ -23,15 +24,26 @@
 		day: "numeric",
 		month: "long",
 	});
-	const frigateName = $derived(encodeURIComponent(data.camera.externalId));
 	const days = $derived(
 		Object.entries(
-			Object.groupBy(data.recordings, (recording) =>
-				dayFormat.format(new Date(recording.startedAt)),
+			Object.groupBy(data.clips.clips, (clip) =>
+				dayFormat.format(new Date(clip.startedAt)),
 			),
 		),
 	);
-	const megabytes = (bytes: number) => `${Math.round(bytes / 1_000_000)} MB`;
+
+	function play(clip: {
+		video: string | null;
+		label: string;
+		startedAt: string;
+	}) {
+		if (clip.video) {
+			playing = {
+				src: media(clip.video),
+				label: `${clip.label || data.camera.name}, ${timeFormat.format(new Date(clip.startedAt))}`,
+			};
+		}
+	}
 </script>
 
 <div
@@ -52,14 +64,11 @@
 				class="text-primary min-h-11 self-start text-sm font-medium"
 				onclick={() => (playing = null)}>Back to live</button
 			>
-		{:else if data.camera.kind === "camera"}
-			<HlsPlayer
-				src="/cameras/{data.camera.id}/live/index.m3u8"
-				label="{data.camera.name}, live"
-			/>
-		{:else}
+		{:else if data.live?.format === "hls"}
+			<HlsPlayer src={media(data.live.path)} label="{data.camera.name}, live" />
+		{:else if data.live}
 			<img
-				src="/frigate/{frigateName}/stream"
+				src={media(data.live.path)}
 				alt="{data.camera.name}, live"
 				class="aspect-video w-full rounded-2xl bg-black object-contain"
 			/>
@@ -70,75 +79,56 @@
 		class="glass flex flex-col gap-4 rounded-2xl p-4"
 		aria-labelledby="history-heading"
 	>
-		<h2 id="history-heading" class="font-semibold">
-			{data.camera.kind === "camera" ? "Recordings" : "Events"}
-		</h2>
-		{#if data.camera.kind === "camera"}
-			{#if days.length === 0}
-				<p class="text-muted-foreground text-sm">
-					Nothing recorded yet. Turn recording on in the camera's settings.
-				</p>
-			{/if}
-			{#each days as [day, recordings] (day)}
-				<div class="flex flex-col gap-1">
-					<h3 class="text-muted-foreground text-sm font-medium capitalize">
-						{day}
-					</h3>
-					<ul class="flex flex-wrap gap-2">
-						{#each recordings ?? [] as recording (recording.file)}
-							<li>
+		<h2 id="history-heading" class="font-semibold">{data.clips.title}</h2>
+		{#if data.clipsError}
+			<p class="text-destructive text-sm">{data.clipsError}</p>
+		{:else if days.length === 0}
+			<p class="text-muted-foreground text-sm">{data.clips.empty}</p>
+		{/if}
+		{#each days as [day, clips] (day)}
+			<div class="flex flex-col gap-2">
+				<h3 class="text-muted-foreground text-sm font-medium capitalize">
+					{day}
+				</h3>
+				<ul class="flex flex-wrap gap-2">
+					{#each clips ?? [] as clip (clip.id)}
+						<li class={clip.image ? "w-[calc(50%-0.25rem)]" : ""}>
+							{#if clip.image}
 								<button
 									type="button"
-									class="bg-secondary hover:bg-secondary/80 flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm tabular-nums"
-									title={megabytes(recording.bytes)}
-									onclick={() =>
-										(playing = {
-											src: `/cameras/${data.camera.id}/recordings/${recording.file}`,
-											label: `${data.camera.name}, ${timeFormat.format(new Date(recording.startedAt))}`,
-										})}
-									><PlayIcon class="size-4" />{timeFormat.format(
-										new Date(recording.startedAt),
-									)}</button
+									class="flex w-full flex-col gap-1 text-left disabled:opacity-60"
+									disabled={!clip.video}
+									onclick={() => play(clip)}
 								>
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{/each}
-		{:else if data.eventsError}
-			<p class="text-destructive text-sm">{data.eventsError}</p>
-		{:else if data.events.length === 0}
-			<p class="text-muted-foreground text-sm">No event yet.</p>
-		{:else}
-			<ul class="grid grid-cols-2 gap-3">
-				{#each data.events as event (event.id)}
-					<li>
-						<button
-							type="button"
-							class="flex w-full flex-col gap-1 text-left disabled:opacity-60"
-							disabled={!event.hasClip}
-							onclick={() =>
-								(playing = {
-									src: `/frigate/events/${event.id}/clip.mp4`,
-									label: `${event.label}, ${timeFormat.format(new Date(event.startedAt))}`,
-								})}
-						>
-							<img
-								src="/frigate/events/{event.id}/thumbnail.jpg"
-								alt=""
-								class="aspect-video w-full rounded-xl bg-black object-cover"
-								loading="lazy"
-							/>
-							<span class="text-sm font-medium capitalize">{event.label}</span>
-							<span class="text-muted-foreground text-xs"
-								>{dayFormat.format(new Date(event.startedAt))}, {timeFormat.format(
-									new Date(event.startedAt),
-								)}</span
-							>
-						</button>
-					</li>
-				{/each}
-			</ul>
-		{/if}
+									<img
+										src={media(clip.image)}
+										alt=""
+										class="aspect-video w-full rounded-xl bg-black object-cover"
+										loading="lazy"
+									/>
+									<span class="text-sm font-medium capitalize"
+										>{clip.label}</span
+									>
+									<span class="text-muted-foreground text-xs"
+										>{timeFormat.format(new Date(clip.startedAt))}</span
+									>
+								</button>
+							{:else}
+								<button
+									type="button"
+									class="bg-secondary hover:bg-secondary/80 flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm tabular-nums disabled:opacity-60"
+									title={clip.detail}
+									disabled={!clip.video}
+									onclick={() => play(clip)}
+									><PlayIcon class="size-4" />{clip.label
+										? `${clip.label}, `
+										: ""}{timeFormat.format(new Date(clip.startedAt))}</button
+								>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/each}
 	</section>
 </div>

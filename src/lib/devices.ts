@@ -4,8 +4,6 @@ export type CoverAction = (typeof coverActions)[number];
 export const climateModes = ["heat", "dry", "cool", "fan", "auto"] as const;
 export type ClimateMode = (typeof climateModes)[number];
 
-export const tuyaProtocolVersions = ["3.1", "3.3", "3.4", "3.5"] as const;
-
 export interface CoverState {
 	type: "cover";
 	position: number | null;
@@ -63,6 +61,7 @@ export interface PrinterState {
 	bed: Heater;
 	light: boolean | null;
 	speed: PrinterSpeed | null;
+	camera: string | null;
 }
 
 export interface PrinterChange {
@@ -187,48 +186,6 @@ export const cardSizeLabels: Record<CardSize, string> = {
 	large: "Large",
 };
 
-/** The size a device's card shows at: what the account picked, else large for a robot vacuum and medium for the rest. */
-export function cardSizeOf(
-	sizes: Record<string, CardSize> | undefined,
-	device: { id: string; kind: string },
-): CardSize {
-	return (
-		sizes?.[device.id] ?? (device.kind === "dreame-vacuum" ? "large" : "medium")
-	);
-}
-
-const kindOrder: Record<string, number> = {
-	"melcloud-ata": 0,
-	"melcloud-atw": 0,
-	"esphome-climate": 0,
-	"tuya-cover": 1,
-	"bambu-printer": 2,
-	"zigbee-valve": 0,
-	"zigbee-contact": 1,
-	"zigbee-switch": 3,
-	"dreame-vacuum": 3,
-	"zigbee-meter": 4,
-	"shelly-meter": 4,
-	linky: 4,
-	camera: -1,
-	"frigate-camera": -1,
-	app: 5,
-};
-
-/** Cards in the order the account arranged them; the ones it never placed follow, by kind and then name. */
-export function sortCards<
-	Card extends { id: string; kind: string; name: string },
->(cards: Card[], order: string[]): Card[] {
-	const position = new Map(order.map((id, index) => [id, index]));
-	return cards.toSorted(
-		(first, second) =>
-			(position.get(first.id) ?? Number.MAX_SAFE_INTEGER) -
-				(position.get(second.id) ?? Number.MAX_SAFE_INTEGER) ||
-			(kindOrder[first.kind] ?? 9) - (kindOrder[second.kind] ?? 9) ||
-			first.name.localeCompare(second.name),
-	);
-}
-
 /** `ids` with `moving` taken out and put where `target` was. */
 export function moveCard(
 	ids: string[],
@@ -250,9 +207,6 @@ export function refill(order: string[], section: string[]): string[] {
 	const queue = [...section];
 	return order.map((id) => (moved.has(id) ? (queue.shift() ?? id) : id));
 }
-
-export const dreameRegions = ["eu", "us", "cn", "sg", "ru"] as const;
-export type DreameRegion = (typeof dreameRegions)[number];
 
 export interface VacuumState {
 	type: "vacuum";
@@ -307,11 +261,19 @@ export interface LinkyState {
 	kilowattHours: number | null;
 }
 
+export interface CameraLive {
+	format: "hls" | "image";
+	path: string;
+}
+
 export interface CameraState {
 	type: "camera";
 	streaming: boolean;
 	recording: boolean;
 	lastRecordingAt: string | null;
+	source: string | null;
+	live: CameraLive | null;
+	snapshot: string | null;
 }
 
 export type AppReport = Omit<AppState, "type" | "location"> & {

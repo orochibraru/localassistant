@@ -7,50 +7,50 @@ import {
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { kindInfo, type PluginCard } from "#lib/plugins.js";
 import { homes } from "#lib/server/house/homes.js";
+import { plugins } from "#lib/server/plugins/registry.js";
 import {
 	automationFormSchema,
 	automationToggleSchema,
 } from "#lib/server/validation/automation.js";
 import { idSchema, parseForm } from "#lib/server/validation/form.js";
 
-const actionKinds = {
-	climate: ["melcloud-ata", "melcloud-atw", "esphome-climate"],
-	printer: ["bambu-printer"],
-	vacuum: ["dreame-vacuum"],
-} as const;
+const actionCards: Record<"climate" | "printer" | "vacuum", PluginCard> = {
+	climate: "climate",
+	printer: "printer",
+	vacuum: "vacuum",
+};
 
 function brokenReference(
 	homeId: string,
 	definition: AutomationDefinition,
 ): string | null {
-	const ofKind = (deviceIds: string[], kind: string) =>
-		deviceIds.every(
-			(deviceId) => DeviceDTO.find(deviceId, homeId)?.kind === kind,
-		);
+	const catalog = plugins.catalog();
+	const cardOf = (deviceId: string) => {
+		const device = DeviceDTO.find(deviceId, homeId);
+		return device ? kindInfo(catalog, device.kind).card : null;
+	};
+	const allOf = (deviceIds: string[], ...cards: PluginCard[]) =>
+		deviceIds.every((deviceId) => {
+			const card = cardOf(deviceId);
+			return card !== null && cards.includes(card);
+		});
 	if (
 		definition.trigger.type === "contact" &&
-		!ofKind(definition.trigger.deviceIds, "zigbee-contact")
+		!allOf(definition.trigger.deviceIds, "contact")
 	) {
 		return "A door or window sensor it watches is gone.";
 	}
 	for (const action of definition.actions) {
 		if (action.type === "valves") {
-			if (!ofKind(action.deviceIds, "zigbee-valve")) {
+			if (!allOf(action.deviceIds, "valve")) {
 				return "A radiator valve it closes is gone.";
 			}
 			continue;
 		}
 		if (action.type === "heating") {
-			const heats = action.deviceIds.every((deviceId) => {
-				const kind = DeviceDTO.find(deviceId, homeId)?.kind;
-				return (
-					kind === "zigbee-valve" ||
-					(kind !== undefined &&
-						(actionKinds.climate as readonly string[]).includes(kind))
-				);
-			});
-			if (!heats) {
+			if (!allOf(action.deviceIds, "valve", "climate")) {
 				return "A heater it turns down is gone.";
 			}
 			continue;
@@ -61,9 +61,7 @@ function brokenReference(
 			}
 			continue;
 		}
-		const device = DeviceDTO.find(action.deviceId, homeId);
-		const kinds: readonly string[] = actionKinds[action.type];
-		if (!device || !kinds.includes(device.kind)) {
+		if (!allOf([action.deviceId], actionCards[action.type])) {
 			return "A device it drives is gone.";
 		}
 	}
