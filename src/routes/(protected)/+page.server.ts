@@ -1,8 +1,8 @@
 import { DeviceDTO } from "#lib/dto/device.js";
 
 export const load = async ({ parent }) => {
-	await parent();
+	const { home } = await parent();
 	return {
-		devices: DeviceDTO.all().map((device) => device.toJSON()),
+		devices: DeviceDTO.inHome(home.id).map((device) => device.toJSON()),
 	};
 };

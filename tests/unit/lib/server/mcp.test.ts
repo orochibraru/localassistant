@@ -58,6 +58,7 @@ describe("MCP tools", () => {
 			"control_heat_pump",
 			"control_printer",
 			"control_room_blinds",
+			"control_vacuum",
 			"get_device",
 			"list_homes",
 			"list_house",

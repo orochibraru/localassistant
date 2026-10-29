@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CameraIcon from "@lucide/svelte/icons/camera";
 	import LightbulbIcon from "@lucide/svelte/icons/lightbulb";
 	import LightbulbOffIcon from "@lucide/svelte/icons/lightbulb-off";
 	import PauseIcon from "@lucide/svelte/icons/pause";
@@ -51,6 +52,9 @@
 		},
 		describe: (failure) => toastError(failure, `${name} didn't answer.`),
 	});
+	let watching = $state(false);
+	let frame = $state(0);
+
 	onDestroy(() => void pending.flush());
 
 	const stillExpected = $derived(
@@ -146,7 +150,23 @@
 				onclick={() => pending.set({ light: !shown.light })}
 			/>
 		{/if}
+		<IconButton
+			label={watching ? `Hide ${name}'s camera` : `Show ${name}'s camera`}
+			icon={CameraIcon}
+			variant={watching ? "default" : "secondary"}
+			onclick={() => (watching = !watching)}
+		/>
 	</header>
+
+	{#if watching}
+		<img
+			src="/printers/{id}/camera.jpg?at={frame}"
+			alt="{name}'s camera"
+			class="aspect-video w-full rounded-xl bg-black object-contain"
+			onload={() => setTimeout(() => (frame += 1), 2000)}
+			onerror={() => setTimeout(() => (frame += 1), 5000)}
+		/>
+	{/if}
 
 	{#if shown}
 		{#if active}

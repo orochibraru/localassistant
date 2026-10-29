@@ -117,7 +117,6 @@ they sleep. Avoid Ring, Nest and Arlo: cloud only.
 
 ## What LocalAssistant supports today
 
-Tuya blinds, Mitsubishi heat pumps (MELCloud) and Bambu Lab printers. The Zigbee
-devices above come with the Zigbee2MQTT integration, the Shelly meters with
-their local MQTT, energy charts after that, and the cameras with the go2rtc live
-view, all on the backlog.
+All of the above: the Zigbee devices through Zigbee2MQTT, the Shelly meters over
+the same MQTT broker, the Linky through the ZLinky or Enedis online, and the
+cameras over RTSP or through Frigate.

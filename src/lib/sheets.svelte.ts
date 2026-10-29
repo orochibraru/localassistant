@@ -2,7 +2,16 @@ import { getContext, setContext } from "svelte";
 
 const key = Symbol("sheets");
 
-export type AddDeviceSheet = "blind" | "printer" | "melcloud";
+export type AddDeviceSheet =
+	| "blind"
+	| "printer"
+	| "melcloud"
+	| "dreame"
+	| "zigbee"
+	| "linky"
+	| "camera"
+	| "frigate"
+	| "esphome";
 
 /** Which setup sheet is open: the shell renders them once, and anything can open one. */
 export class Sheets {

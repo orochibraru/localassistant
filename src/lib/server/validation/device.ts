@@ -3,9 +3,11 @@ import { z } from "zod";
 import {
 	climateModes,
 	coverActions,
+	dreameRegions,
 	printerCommands,
 	printerSpeeds,
 	tuyaProtocolVersions,
+	vacuumCommands,
 } from "#lib/devices.js";
 import { noFloorPlace, outsidePlace, roomIcons } from "#lib/house.js";
 
@@ -41,6 +43,11 @@ function dataPoint(fallback: number) {
 
 export const coverActionSchema = z.object({
 	deviceId,
+	action: z.enum(coverActions),
+});
+
+export const coverGroupSchema = z.object({
+	roomId: z.string().trim().min(1).nullable(),
 	action: z.enum(coverActions),
 });
 
@@ -167,6 +174,153 @@ export const melCloudAccountSchema = z.object({
 	password: z.string().min(1, "Type your MELCloud password.").max(200),
 });
 
+export const dreameAccountSchema = z.object({
+	email: z.email("Type your Dreamehome email."),
+	password: z.string().min(1, "Type your Dreamehome password.").max(200),
+	region: z.enum(dreameRegions, "Pick the region your app uses.").default("eu"),
+});
+
+export const vacuumCommandSchema = z.object({
+	deviceId,
+	command: z.enum(vacuumCommands),
+});
+
+export const valveTargetSchema = z.object({
+	deviceId,
+	target: z.number().min(4).max(35),
+});
+
+export const switchPowerSchema = z.object({ deviceId, on: z.boolean() });
+
+export const mqttBrokerSchema = z.object({
+	url: z
+		.string()
+		.trim()
+		.regex(
+			/^mqtts?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/,
+			"Type the broker's address, like mqtt://192.168.1.10:1883.",
+		),
+	username: z
+		.string()
+		.trim()
+		.max(100)
+		.optional()
+		.transform((value) => value || null),
+	password: z
+		.string()
+		.max(200)
+		.optional()
+		.transform((value) => value || undefined),
+	zigbeeTopic: z
+		.string()
+		.trim()
+		.regex(/^[A-Za-z0-9_/-]{1,60}$/, "Type Zigbee2MQTT's base topic.")
+		.default("zigbee2mqtt"),
+});
+
+export const linkySchema = z.object({
+	name: z.string().trim().min(1, "Name the meter.").max(60).default("Linky"),
+	roomId,
+	externalId: z
+		.string()
+		.trim()
+		.regex(/^\d{14}$/, "Type the 14-digit PRM from your bill or the meter."),
+	token: z
+		.string()
+		.trim()
+		.min(20, "Paste the token conso.boris.sh gave you.")
+		.max(2000),
+});
+
+const rtspUrl = z
+	.string()
+	.trim()
+	.regex(
+		/^rtsps?:\/\/\S+$/,
+		"Paste the camera's RTSP address, like rtsp://user:password@192.168.1.60:554/stream1.",
+	);
+
+const cameraOptions = {
+	record: z.stringbool().default(false),
+	retentionDays: z.coerce
+		.number("Type a number of days.")
+		.int()
+		.min(1, "Keep at least a day.")
+		.max(365, "A year at most.")
+		.default(7),
+};
+
+export const cameraSchema = z.object({
+	name: z.string().trim().min(1, "Name the camera.").max(60),
+	roomId,
+	url: rtspUrl,
+	...cameraOptions,
+});
+
+export const editCameraSchema = z.object({
+	id: deviceId,
+	name: z.string().trim().min(1, "Name the camera.").max(60),
+	roomId,
+	url: z
+		.string()
+		.trim()
+		.optional()
+		.transform((value) => value || undefined)
+		.pipe(rtspUrl.optional()),
+	...cameraOptions,
+});
+
+export const frigateSchema = z.object({
+	url: z
+		.string()
+		.trim()
+		.regex(
+			/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?\/?$/,
+			"Type Frigate's address, like http://192.168.1.10:5000.",
+		),
+	notifyLabels: z
+		.string()
+		.trim()
+		.default("person")
+		.transform((value) =>
+			value
+				.split(",")
+				.map((label) => label.trim().toLowerCase())
+				.filter((label) => /^[a-z_]{1,30}$/.test(label)),
+		),
+});
+
+const espHomeFields = {
+	name: z.string().trim().min(1, "Name the unit.").max(60),
+	roomId,
+	host: z
+		.string()
+		.trim()
+		.regex(
+			/^(\d{1,3}\.){3}\d{1,3}$|^[A-Za-z0-9.-]+$/,
+			"Type the adapter's IP address on your network.",
+		),
+	objectId: z
+		.string()
+		.trim()
+		.regex(/^[a-z0-9_]{1,60}$/, "Type the climate's id, like living_room."),
+	username: z
+		.string()
+		.trim()
+		.max(60)
+		.optional()
+		.transform((value) => value || undefined),
+	password: z
+		.string()
+		.max(200)
+		.optional()
+		.transform((value) => value || undefined),
+};
+
+export const espHomeSchema = z.object(espHomeFields);
+
+export const editEspHomeSchema = z.object({ id: deviceId, ...espHomeFields });
+
 export const renameDeviceSchema = z.object({
 	id: deviceId,
 	name: z.string().trim().min(1, "Name the device.").max(60),
@@ -216,4 +370,36 @@ export const floorSchema = z.object({
 
 export const editFloorSchema = floorSchema.extend({
 	id: z.string().trim().min(1, "Pick a floor."),
+});
+
+export const nobody = "nobody";
+
+const deviceName = z.string().trim().min(1, "Name the device.").max(60);
+
+export const appDeviceSchema = z.object({ name: deviceName });
+
+export const editAppDeviceSchema = z.object({
+	id: deviceId,
+	name: deviceName,
+	roomId,
+	ownerId: z
+		.string()
+		.trim()
+		.optional()
+		.transform((value) => (value && value !== nobody ? value : null)),
+});
+
+export const appReportSchema = z.object({
+	deviceId,
+	battery: z.number().int().min(0).max(100).nullable(),
+	charging: z.boolean().nullable(),
+	platform: z.string().trim().max(80),
+	location: z
+		.object({
+			latitude: z.number().min(-90).max(90),
+			longitude: z.number().min(-180).max(180),
+			accuracy: z.number().min(0).max(1_000_000).nullable(),
+		})
+		.nullable()
+		.optional(),
 });

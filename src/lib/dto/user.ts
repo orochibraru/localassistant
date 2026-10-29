@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt } from "drizzle-orm";
 
 import { BaseDTO } from "#lib/dto/base-dto.js";
 import { databaseConnection } from "#lib/server/db/database.js";
@@ -110,6 +110,16 @@ export class UserDTO extends BaseDTO<UserRow> {
 			.where(eq(user.role, "admin"))
 			.all()
 			.map((row) => row.id);
+	}
+
+	/** Every account's id and name, by name, for picking whose a device is. */
+	static people(): { id: string; name: string }[] {
+		return databaseConnection
+			.get()
+			.select({ id: user.id, name: user.name })
+			.from(user)
+			.orderBy(asc(user.name))
+			.all();
 	}
 
 	/** How many accounts hold the admin role. */

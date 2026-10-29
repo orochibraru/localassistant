@@ -3,6 +3,7 @@ import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { getSetting } from "#lib/dto/setting.js";
+import { UserDTO } from "#lib/dto/user.js";
 import { access } from "#lib/server/auth/access.js";
 import { homes } from "#lib/server/house/homes.js";
 
@@ -17,9 +18,19 @@ export const load = ({ cookies, locals, url }) => {
 			email: locals.user.email,
 		},
 		isAdmin: access.isAdmin(locals.user),
+		people: UserDTO.people(),
 		...houseOf(homes.current(cookies)),
 		melCloudEmail: access.isAdmin(locals.user)
 			? (getSetting("melcloud")?.email ?? null)
+			: null,
+		dreameEmail: access.isAdmin(locals.user)
+			? (getSetting("dreame")?.email ?? null)
+			: null,
+		frigateUrl: access.isAdmin(locals.user)
+			? (getSetting("frigate")?.url ?? null)
+			: null,
+		brokerUrl: access.isAdmin(locals.user)
+			? (getSetting("mqtt")?.url ?? null)
 			: null,
 	};
 };

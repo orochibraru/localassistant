@@ -49,9 +49,46 @@
 					"icon": "printer"
 				},
 				{
+					"slug": "zigbee",
+					"title": "Zigbee and Shelly",
+					"icon": "radio"
+				},
+				{
+					"slug": "cameras",
+					"title": "Cameras",
+					"icon": "cctv"
+				},
+				{
+					"slug": "more-devices",
+					"title": "More devices",
+					"icon": "bot"
+				},
+				{
 					"slug": "ai-apps",
 					"title": "AI apps",
 					"icon": "bot"
+				}
+			]
+		},
+		{
+			"title": "Around the house",
+			"description": "What the house does on its own, and how it shows.",
+			"icon": "workflow",
+			"pages": [
+				{
+					"slug": "automations",
+					"title": "Automations",
+					"icon": "workflow"
+				},
+				{
+					"slug": "energy",
+					"title": "Energy",
+					"icon": "gauge"
+				},
+				{
+					"slug": "wall-panel",
+					"title": "Wall panel",
+					"icon": "monitor"
 				}
 			]
 		},

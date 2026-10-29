@@ -23,6 +23,7 @@ register on the fly; either way you approve each one.
 - Turn a heat pump on or off, set its mode and temperature, boost the hot water.
 - Pause, resume or stop a print, and set the printer's light and speed. It's
   told to ask before stopping a print.
+- Start, pause, stop or dock a robot vacuum.
 
 It can't add, change or remove devices, rooms or floors, and never sees your
 email, the device keys, the printer's access code or the MELCloud password.

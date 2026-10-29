@@ -646,3 +646,57 @@ describe("device jobs", () => {
 		await jobHandlers["device.refresh"]({ deviceId: "gone" });
 	});
 });
+
+describe("phones and tablets", () => {
+	function addPhone() {
+		const owner = createUser("ada");
+		return DeviceDTO.upsert({
+			kind: "app",
+			homeId: homeId(),
+			ownerId: owner.id,
+			name: "Ada's iPhone",
+			externalId: "browser-1",
+		});
+	}
+
+	test("save what they report and keep the last location until it's withdrawn", async () => {
+		const phone = addPhone();
+		expect(phone.ownerId).toBe("ada");
+		devices.reportApp(phone, {
+			battery: 80,
+			charging: false,
+			platform: "Safari on iPhone",
+			location: { latitude: 45.77, longitude: 3.08, accuracy: 12 },
+		});
+		expect(DeviceDTO.find(phone.id)?.state).toMatchObject({
+			type: "app",
+			battery: 80,
+			location: { latitude: 45.77, longitude: 3.08, accuracy: 12 },
+		});
+		devices.reportApp(DeviceDTO.find(phone.id) as DeviceDTO, {
+			battery: 79,
+			charging: true,
+			platform: "Safari on iPhone",
+		});
+		expect(DeviceDTO.find(phone.id)?.state).toMatchObject({
+			battery: 79,
+			charging: true,
+			location: { latitude: 45.77 },
+		});
+		devices.reportApp(DeviceDTO.find(phone.id) as DeviceDTO, {
+			battery: null,
+			charging: null,
+			platform: "Safari on iPhone",
+			location: null,
+		});
+		expect(DeviceDTO.find(phone.id)?.state).toMatchObject({ location: null });
+		await devices.refresh(DeviceDTO.find(phone.id) as DeviceDTO);
+		expect(DeviceDTO.find(phone.id)?.toJSON().stateError).toBeNull();
+	});
+
+	test("change hands", () => {
+		const phone = addPhone();
+		phone.setOwner(null);
+		expect(DeviceDTO.find(phone.id)?.ownerId).toBeNull();
+	});
+});

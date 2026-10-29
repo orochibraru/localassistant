@@ -1,5 +1,7 @@
 import { eq } from "drizzle-orm";
 
+import type { PresetKey } from "#lib/automations.js";
+import type { DreameRegion } from "#lib/devices.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { setting } from "#lib/server/db/schema.js";
 
@@ -29,6 +31,26 @@ export interface SsoProvider {
 	enabled: boolean;
 }
 
+export interface DreameAccount {
+	email: string;
+	encryptedPassword: string;
+	region: DreameRegion;
+}
+
+export interface MqttBroker {
+	url: string;
+	username: string | null;
+	encryptedPassword: string | null;
+	zigbeeTopic: string;
+	homeId: string;
+}
+
+export interface FrigateServer {
+	url: string;
+	homeId: string;
+	notifyLabels: string[];
+}
+
 export interface VapidKeys {
 	publicKey: string;
 	encryptedPrivateKey: string;
@@ -42,6 +64,10 @@ export interface SettingValues {
 	sessionDays: (typeof sessionDayOptions)[number];
 	smtp: SmtpSettings | null;
 	melcloud: MelCloudAccount | null;
+	dreame: DreameAccount | null;
+	mqtt: MqttBroker | null;
+	frigate: FrigateServer | null;
+	presets: Record<string, PresetKey[]>;
 	multipleHomes: boolean;
 	passwordSignIn: boolean;
 	passkeySignIn: boolean;
@@ -58,6 +84,10 @@ const defaults: SettingValues = {
 	sessionDays: 7,
 	smtp: null,
 	melcloud: null,
+	dreame: null,
+	mqtt: null,
+	frigate: null,
+	presets: {},
 	multipleHomes: false,
 	passwordSignIn: true,
 	passkeySignIn: true,
@@ -89,6 +119,10 @@ export function allSettings(): SettingValues {
 		sessionDays: getSetting("sessionDays"),
 		smtp: getSetting("smtp"),
 		melcloud: getSetting("melcloud"),
+		dreame: getSetting("dreame"),
+		mqtt: getSetting("mqtt"),
+		frigate: getSetting("frigate"),
+		presets: getSetting("presets"),
 		multipleHomes: getSetting("multipleHomes"),
 		passwordSignIn: getSetting("passwordSignIn"),
 		passkeySignIn: getSetting("passkeySignIn"),

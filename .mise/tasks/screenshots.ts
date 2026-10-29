@@ -12,10 +12,13 @@ import { hashPassword } from "better-auth/crypto";
 import { $, Image } from "bun";
 
 import type { DeviceState } from "#lib/devices.js";
+import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
+import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { setSetting } from "#lib/dto/setting.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
@@ -203,6 +206,151 @@ const demo: [DeviceDTO, DeviceState][] = [
 	]),
 ];
 
+const zigbee = (
+	kind: "zigbee-contact" | "zigbee-valve" | "zigbee-switch" | "zigbee-meter",
+	name: string,
+	room: string | null,
+	address: string,
+) =>
+	DeviceDTO.upsert({
+		homeId,
+		kind,
+		name,
+		roomId: room ? rooms[room] : null,
+		externalId: address,
+		host: name,
+	});
+const linky = zigbee("zigbee-meter", "Linky", null, "0x0000000000000001");
+const dryer = zigbee("zigbee-switch", "Dryer", "Kitchen", "0x0000000000000002");
+demo.push(
+	[
+		zigbee("zigbee-contact", "Bedroom window", "Bedroom", "0x0000000000000003"),
+		{ type: "contact", open: true, battery: 88 },
+	],
+	[
+		zigbee("zigbee-valve", "Bedroom radiator", "Bedroom", "0x0000000000000004"),
+		{
+			type: "valve",
+			target: 5,
+			temperature: 18.5,
+			battery: 76,
+			setpoint: "occupied_heating_setpoint",
+			min: 5,
+			max: 30,
+			heldBy: "Bedroom window",
+			heldTarget: 20,
+		},
+	],
+	[
+		zigbee("zigbee-valve", "Office radiator", "Office", "0x0000000000000005"),
+		{
+			type: "valve",
+			target: 20.5,
+			temperature: 20,
+			battery: 91,
+			setpoint: "occupied_heating_setpoint",
+			min: 5,
+			max: 30,
+			heldBy: null,
+			heldTarget: null,
+		},
+	],
+	[dryer, { type: "switch", on: true, power: 2140, energy: 312.4 }],
+	[linky, { type: "meter", power: 3260, energy: 18_240 }],
+	[
+		DeviceDTO.upsert({
+			homeId,
+			kind: "dreame-vacuum",
+			name: "X30 Ultra",
+			roomId: rooms["Living room"],
+			externalId: "demo-vacuum",
+			host: "10000.mt.eu.iot.dreame.tech:19973",
+		}),
+		{
+			type: "vacuum",
+			stage: "docked",
+			battery: 100,
+			charging: false,
+			errorCode: null,
+		},
+	],
+	[
+		DeviceDTO.upsert({
+			homeId,
+			kind: "app",
+			ownerId: "ada",
+			name: "Ada's iPhone",
+			externalId: "demo-phone",
+		}),
+		{
+			type: "app",
+			battery: null,
+			charging: null,
+			platform: "Safari on iPhone",
+			location: {
+				latitude: 45.7797,
+				longitude: 3.0863,
+				accuracy: 20,
+				at: new Date().toISOString(),
+			},
+		},
+	],
+);
+HomeDTO.first().locate({
+	place: "Clermont-Ferrand, France",
+	latitude: 45.7772,
+	longitude: 3.087,
+	timezone: "Europe/Paris",
+});
+const hourMs = 60 * 60_000;
+const startHour = Math.floor(Date.now() / hourMs) * hourMs - 400 * 24 * hourMs;
+let house = 14_000;
+let laundry = 200;
+for (let hour = startHour; hour <= Date.now(); hour += hourMs) {
+	const date = new Date(hour);
+	const winter = Math.cos(((date.getMonth() + 0.5) / 12) * 2 * Math.PI);
+	const daytime = date.getHours() >= 7 && date.getHours() <= 22 ? 1.4 : 0.6;
+	house +=
+		(0.45 + 0.35 * winter) * daytime * (0.8 + ((hour / hourMs) % 7) / 15);
+	if (date.getHours() === 19 && date.getDay() % 3 === 0) {
+		laundry += 2.6;
+	}
+	EnergyReadingDTO.record(linky.id, date, Math.round(house * 100) / 100);
+	EnergyReadingDTO.record(dryer.id, date, Math.round(laundry * 100) / 100);
+}
+AutomationDTO.create(homeId, {
+	name: "Close the blinds at sunset",
+	trigger: { type: "sun", event: "sunset", offsetMinutes: 0 },
+	period: { type: "seasons", seasons: ["autumn", "winter"] },
+	actions: [{ type: "blinds", roomId: null, move: "close", position: null }],
+});
+AutomationDTO.create(homeId, {
+	name: "Open the blinds at sunrise",
+	trigger: { type: "sun", event: "sunrise", offsetMinutes: 15 },
+	period: { type: "seasons", seasons: ["autumn", "winter"] },
+	actions: [{ type: "blinds", roomId: null, move: "open", position: null }],
+});
+AutomationDTO.create(homeId, {
+	name: "Keep the heat out",
+	trigger: { type: "temperature", direction: "above", threshold: 28 },
+	period: { type: "dates", from: "06-01", to: "09-15" },
+	actions: [
+		{
+			type: "blinds",
+			roomId: rooms.Bedroom ?? null,
+			move: "position",
+			position: 20,
+		},
+		{
+			type: "blinds",
+			roomId: rooms["Living room"] ?? null,
+			move: "close",
+			position: null,
+		},
+	],
+});
+setSetting("presets", { [homeId]: ["window-valves"] });
+
 function showDemoStates(): void {
 	for (const [device, state] of demo) {
 		device.saveState(state);
@@ -315,6 +463,39 @@ try {
 		await new Image(await phone.screenshot()).webp({ quality: 90 }).bytes(),
 	);
 	process.stdout.write("docs/images/add-blind-mobile.webp\n");
+
+	await wide.goto(`${origin}/automations`);
+	await shoot(wide, "automations-desktop");
+	await wide.getByRole("button", { name: "New automation" }).first().click();
+	await wide.getByLabel("Name").fill("Hot afternoon");
+	await Bun.sleep(400);
+	await Bun.write(
+		join(images, "automation-sheet-desktop.webp"),
+		await new Image(await wide.screenshot()).webp({ quality: 90 }).bytes(),
+	);
+	process.stdout.write("docs/images/automation-sheet-desktop.webp\n");
+	await wide.keyboard.press("Escape");
+	await wide.goto(`${origin}/energy`);
+	await shoot(wide, "energy-desktop");
+	await phone.goto(`${origin}/automations`);
+	await shoot(phone, "automations-mobile");
+	await phone.goto(`${origin}/energy`);
+	await shoot(phone, "energy-mobile");
+
+	for (const [name, width, height] of [
+		["panel-tablet", 1180, 820],
+		["panel-wall-display", 720, 720],
+	] as const) {
+		const tablet = await signedIn({
+			viewport: { width, height },
+			deviceScaleFactor: 2,
+			hasTouch: true,
+			colorScheme: "dark",
+			reducedMotion: "reduce",
+		});
+		await tablet.goto(`${origin}/panel`);
+		await shoot(tablet, name);
+	}
 
 	await browser.close();
 	for (const [source, target] of [

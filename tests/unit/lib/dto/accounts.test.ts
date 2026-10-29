@@ -17,6 +17,15 @@ import { createUser, resetDatabase } from "../../database.js";
 describe("UserDTO account changes", () => {
 	beforeEach(resetDatabase);
 
+	test("people lists every account by name", () => {
+		createUser("zed", "Zed");
+		createUser("ada", "Ada");
+		expect(UserDTO.people()).toEqual([
+			{ id: "ada", name: "Ada" },
+			{ id: "zed", name: "Zed" },
+		]);
+	});
+
 	test("resetFactors removes the authenticator, passkeys and sessions", () => {
 		const ada = createUser("ada");
 		const database = databaseConnection.get();

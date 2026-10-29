@@ -4,32 +4,43 @@
 
 # LocalAssistant
 
-Your Tuya blinds, Mitsubishi heat pumps and Bambu Lab printer on one page, on a
-server you run. A small, self-hosted alternative to Home Assistant that installs
-on your phone like an app.
+Your blinds, heat pumps, radiators, cameras and energy on one page, on a server
+you run. A small, self-hosted alternative to Home Assistant that installs on
+your phone like an app.
 
 ## What it does
 
 - **Tuya blinds over your network**: open, close, stop or move to a position,
   straight to the motor with its local key. No Tuya cloud at runtime.
-- **Mitsubishi heat pumps through MELCloud**: power, mode and target temperature
-  for air-to-air units; power, zone 1 temperature and hot water boost for
-  air-to-water (Ecodan) units; the room temperature for both.
-- **Bambu Lab printers over your network**: progress, time left and temperatures
-  live, and pause, resume, stop, light and speed (with Developer Mode on).
+- **Mitsubishi heat pumps**, through MELCloud or locally through an ESPHome
+  CN105 adapter: power, mode, target and room temperature, and hot water boost
+  on air-to-water (Ecodan) units.
+- **Zigbee through Zigbee2MQTT**: door and window sensors, radiator valves,
+  relays, metering plugs and the ZLinky reader, all on their own once paired.
+- **Energy**: Shelly meters and metering plugs per appliance, the Linky for the
+  house (ZLinky or Enedis online), per day and per month.
+- **Automations** run by the server: sunrise, sunset, a time on chosen days or
+  the outside temperature, limited to seasons or dates, driving blinds by room,
+  heat pumps, printers and the vacuum. Presets like radiators off while a window
+  is open.
+- **Cameras**: RTSP cameras watched and recorded on the server in five-minute
+  files with a retention, or a Frigate NVR with its events, clips and detection
+  notifications. The Bambu printer's camera on its card.
+- **Bambu Lab printers over your network** and **Dreame robot vacuums** through
+  the Dreamehome cloud.
+- **Weather and a wall panel**: the forecast on Home, and a screen for a wall
+  tablet or a Shelly Wall Display that stays on.
+- **Phones as devices**: each phone in the house with its owner, battery and, if
+  shared, where it is.
 - **AI apps**: Claude, ChatGPT or Gemini drive the house over MCP, each person
   signing in and allowing their own app.
 - **Instant controls**: every tap shows on the card at once and goes out as one
   command when you stop, with a spinner while it's sent and no pop-ups.
-- **Your house**: floors from the basement up, rooms with icons on each, outside
-  ones like the garage or the terrace, and each device in a room or the whole
-  house. A page per room, Home grouped by room.
-- **Always current**: a background worker reads every device every two minutes,
-  re-reads a blind once it stopped moving, and pushes the admins a notification
-  when a device has been unreachable for an hour.
-- **Accounts for the household**, invite-only, administered from the app: the
-  admin adds devices, everyone signed in drives them. Authenticator apps,
-  passkeys, single sign-on and email sign-in when you want them.
+- **Your house**, or several: floors, rooms with icons, outside ones like the
+  garage, and each device in a room or the whole house. JSON import and export.
+- **Accounts for the household**, invite-only: the admin adds devices, everyone
+  signed in drives them. Authenticator apps, passkeys, single sign-on and email
+  sign-in when you want them.
 - **Installable on phones**, with a desktop layout that uses the screen.
 
 ## Documentation

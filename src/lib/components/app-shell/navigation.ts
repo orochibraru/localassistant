@@ -1,9 +1,10 @@
 import { resolve } from "$app/paths";
+import GaugeIcon from "@lucide/svelte/icons/gauge";
 import HouseIcon from "@lucide/svelte/icons/house";
 import LayersIcon from "@lucide/svelte/icons/layers";
 import PlugIcon from "@lucide/svelte/icons/plug";
 import ShieldIcon from "@lucide/svelte/icons/shield";
-import UserRoundIcon from "@lucide/svelte/icons/user-round";
+import WorkflowIcon from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
 
 export interface NavigationItem {
@@ -12,19 +13,23 @@ export interface NavigationItem {
 	icon: Component<{ class?: string }>;
 }
 
-/** The app's top-level destinations, shared by the bottom tab bar and the sidebar; admins also get Devices and Admin. */
+/**
+ * The app's top-level destinations, shared by the bottom tab bar and the sidebar; admins also get Devices and Admin.
+ * The account is the avatar in the app bar and the desktop header.
+ */
 export function navigationItems(isAdmin: boolean): NavigationItem[] {
 	const items = [
 		{ href: resolve("/(protected)"), label: "Home", icon: HouseIcon },
 		{ href: resolve("/(protected)/house"), label: "House", icon: LayersIcon },
 		{
-			href: resolve("/(protected)/account"),
-			label: "Account",
-			icon: UserRoundIcon,
+			href: resolve("/(protected)/automations"),
+			label: "Automations",
+			icon: WorkflowIcon,
 		},
+		{ href: resolve("/(protected)/energy"), label: "Energy", icon: GaugeIcon },
 	];
 	if (isAdmin) {
-		items.splice(2, 0, {
+		items.push({
 			href: resolve("/(protected)/devices"),
 			label: "Devices",
 			icon: PlugIcon,
@@ -36,6 +41,13 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 		});
 	}
 	return items;
+}
+
+/** The destinations of the phone's tab bar: everything but Admin, which phones reach from the account page. */
+export function phoneNavigationItems(isAdmin: boolean): NavigationItem[] {
+	return navigationItems(isAdmin).filter(
+		(item) => item.href !== resolve("/(protected)/admin"),
+	);
 }
 
 /** Whether `pathname` sits under the destination at `href`. */

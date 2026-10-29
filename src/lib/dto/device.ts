@@ -11,6 +11,8 @@ export interface DeviceRow {
 	id: string;
 	kind: DeviceKind;
 	homeId: string | null;
+	ownerId: string | null;
+	options: DeviceOptions | null;
 	name: string;
 	roomId: string | null;
 	externalId: string;
@@ -28,6 +30,12 @@ export interface DeviceRow {
 	unreachableAlerted: boolean;
 }
 
+export interface DeviceOptions {
+	record?: boolean;
+	retentionDays?: number;
+	objectId?: string;
+}
+
 export interface TuyaCoverSettings {
 	name: string;
 	roomId: string | null;
@@ -43,6 +51,8 @@ export interface TuyaCoverSettings {
 export interface NewDevice {
 	kind: DeviceKind;
 	homeId: string;
+	ownerId?: string | null;
+	options?: DeviceOptions | null;
 	name: string;
 	roomId?: string | null;
 	externalId: string;
@@ -60,6 +70,8 @@ const columns = {
 	id: device.id,
 	kind: device.kind,
 	homeId: device.homeId,
+	ownerId: device.ownerId,
+	options: device.options,
 	name: device.name,
 	roomId: device.roomId,
 	externalId: device.externalId,
@@ -77,7 +89,10 @@ const columns = {
 	unreachableAlerted: device.unreachableAlerted,
 };
 
-type SelectedRow = Omit<DeviceRow, "state"> & { state: unknown };
+type SelectedRow = Omit<DeviceRow, "state" | "options"> & {
+	state: unknown;
+	options: unknown;
+};
 
 export class DeviceDTO extends BaseDTO<DeviceRow> {
 	/** The devices of `homeId`, by name. */
@@ -162,7 +177,11 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 	}
 
 	static #wrap(row: SelectedRow): DeviceDTO {
-		return new DeviceDTO({ ...row, state: row.state as DeviceState | null });
+		return new DeviceDTO({
+			...row,
+			state: row.state as DeviceState | null,
+			options: row.options as DeviceOptions | null,
+		});
 	}
 
 	get id(): string {
@@ -260,6 +279,36 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		this.#update({ unreachableAlerted: true });
 	}
 
+	get ownerId(): string | null {
+		return this.row.ownerId;
+	}
+
+	get options(): DeviceOptions {
+		return this.row.options ?? {};
+	}
+
+	/** Replaces the device's kind-specific options. */
+	setOptions(options: DeviceOptions): void {
+		databaseConnection
+			.get()
+			.update(device)
+			.set({ options, updatedAt: new Date() })
+			.where(eq(device.id, this.row.id))
+			.run();
+		this.row.options = options;
+	}
+
+	/** Gives the device to `ownerId`, nobody when `null`. */
+	setOwner(ownerId: string | null): void {
+		databaseConnection
+			.get()
+			.update(device)
+			.set({ ownerId, updatedAt: new Date() })
+			.where(eq(device.id, this.row.id))
+			.run();
+		this.row.ownerId = ownerId;
+	}
+
 	/** Renames the device and moves it to `roomId`, the whole house when `null`. */
 	rename(name: string, roomId: string | null): void {
 		databaseConnection
@@ -283,7 +332,7 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		Object.assign(this.row, rest);
 	}
 
-	/** Changes a printer's name and address, and its access code when a new one is given. */
+	/** Changes a printer's or camera's name and address, and its secret when a new one is given. */
 	reconnect(values: {
 		name: string;
 		roomId: string | null;

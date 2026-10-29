@@ -1,0 +1,1 @@
+ALTER TABLE `device` ADD `owner_id` text;

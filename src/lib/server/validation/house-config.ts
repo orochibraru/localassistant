@@ -33,7 +33,7 @@ export const houseConfigSchema = z.object({
 	devices: z
 		.array(
 			z.object({
-				kind: z.enum(deviceKinds),
+				kind: z.enum(deviceKinds).exclude(["app"]),
 				name,
 				externalId: z.string().trim().min(1).max(64),
 				room: roomReference.nullable(),

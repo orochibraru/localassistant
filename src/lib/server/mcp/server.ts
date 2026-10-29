@@ -16,6 +16,7 @@ import {
 	coverActions,
 	printerCommands,
 	printerSpeeds,
+	vacuumCommands,
 } from "#lib/devices.js";
 import { AiAppDTO } from "#lib/dto/ai-app.js";
 import { DeviceDTO } from "#lib/dto/device.js";
@@ -86,6 +87,7 @@ class McpEndpoint {
 		this.#registerCovers(server);
 		this.#registerClimate(server);
 		this.#registerPrinter(server);
+		this.#registerVacuum(server);
 		return server;
 	}
 
@@ -206,12 +208,7 @@ class McpEndpoint {
 					home.id,
 					roomId === wholeHouse ? null : roomId,
 				).filter((device) => device.kind === "tuya-cover");
-				const failed: { name: string; error: string }[] = [];
-				for (const cover of covers) {
-					await devices.coverAction(cover, action).catch((error: unknown) => {
-						failed.push({ name: cover.name, error: devices.message(error) });
-					});
-				}
+				const failed = await devices.coverGroup(covers, action);
 				return this.#reply({ blinds: covers.length, failed });
 			},
 		);
@@ -257,6 +254,26 @@ class McpEndpoint {
 			({ deviceId, ...change }) =>
 				this.#withDevice(deviceId, async (device) => {
 					await devices.printer(device, change);
+					return { done: true };
+				}),
+		);
+	}
+
+	#registerVacuum(server: McpServer): void {
+		server.registerTool(
+			"control_vacuum",
+			{
+				title: "Control a robot vacuum",
+				description:
+					"Starts a full clean, pauses, stops, or sends a Dreame robot vacuum back to its dock.",
+				inputSchema: z.object({
+					deviceId: deviceIdField,
+					command: z.enum(vacuumCommands),
+				}),
+			},
+			({ deviceId, command }) =>
+				this.#withDevice(deviceId, async (device) => {
+					await devices.vacuum(device, command);
 					return { done: true };
 				}),
 		);

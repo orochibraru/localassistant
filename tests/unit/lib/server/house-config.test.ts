@@ -42,6 +42,12 @@ function furnish(home: HomeDTO) {
 		protocolVersion: "3.4",
 		encryptedLocalKey: secrets.encrypt("abcdabcdabcdabcd"),
 	});
+	DeviceDTO.upsert({
+		homeId: home.id,
+		kind: "app",
+		name: "Ada's phone",
+		externalId: "browser-1",
+	});
 	setSetting("melcloud", {
 		email: "ada@example.com",
 		encryptedPassword: secrets.encrypt("hunter2"),
@@ -60,6 +66,7 @@ describe("house configuration", () => {
 			{ name: "First floor", level: 1 },
 		]);
 		expect(plain.rooms).toHaveLength(3);
+		expect(plain.devices).toHaveLength(1);
 		expect(plain.devices[0]).toMatchObject({
 			name: "Bathroom blind",
 			room: { name: "Bathroom", floor: "Ground floor", outdoor: false },

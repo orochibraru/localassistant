@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
+	import { resolve } from "$app/paths";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
+	import ShieldIcon from "@lucide/svelte/icons/shield";
 
 	import NavCards from "#lib/components/nav-cards.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -29,7 +31,22 @@
 		</span>
 	</section>
 
-	<NavCards tabs={accountTabs()} />
+	<NavCards
+		tabs={[
+			...accountTabs(),
+			...(data.isAdmin
+				? [
+						{
+							href: resolve("/(protected)/admin"),
+							label: "Admin",
+							description:
+								"Users, sign-in, homes, configuration and the server.",
+							icon: ShieldIcon,
+						},
+					]
+				: []),
+		]}
+	/>
 
 	<form method="POST" action="?/signOut" use:enhance>
 		<Button

@@ -44,8 +44,11 @@ class HouseConfiguration {
 				...(reference(room.id) as RoomReference),
 				icon: room.icon as HouseConfig["rooms"][number]["icon"],
 			})),
-			devices: DeviceDTO.inHome(home.id).map((device) => {
+			devices: DeviceDTO.inHome(home.id).flatMap((device) => {
 				const row = device.toJSON();
+				if (row.kind === "app") {
+					return [];
+				}
 				const key = withSecrets ? device.encryptedLocalKey() : null;
 				return {
 					kind: row.kind,

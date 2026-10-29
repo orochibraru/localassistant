@@ -7,6 +7,12 @@ export interface JobPayloads {
 	"push.send": PushNotification & { userIds: string[] };
 	"devices.refresh": Record<string, never>;
 	"device.refresh": { deviceId: string };
+	"weather.refresh": { homeId?: string };
+	"automations.tick": Record<string, never>;
+	"automation.run": { automationId: string };
+	"broker.connect": Record<string, never>;
+	"energy.record": Record<string, never>;
+	"cameras.sync": Record<string, never>;
 }
 
 export type JobType = keyof JobPayloads;

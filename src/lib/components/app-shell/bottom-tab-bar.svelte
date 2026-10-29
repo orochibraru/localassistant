@@ -3,12 +3,12 @@
 
 	import {
 		isActive,
-		navigationItems,
+		phoneNavigationItems,
 	} from "#lib/components/app-shell/navigation.js";
 
 	const { isAdmin }: { isAdmin: boolean } = $props();
 
-	const items = $derived(navigationItems(isAdmin));
+	const items = $derived(phoneNavigationItems(isAdmin));
 </script>
 
 <nav
@@ -25,7 +25,7 @@
 				<a
 					href={item.href}
 					aria-current={active ? "page" : undefined}
-					class="text-muted-foreground aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:glow flex h-12 flex-col items-center justify-center gap-0.5 rounded-full text-[0.6875rem] font-medium transition-all active:scale-95"
+					class="text-muted-foreground aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:glow flex h-12 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-[0.625rem] font-medium tracking-tight transition-all active:scale-95"
 				>
 					<item.icon class="size-5" />
 					{item.label}

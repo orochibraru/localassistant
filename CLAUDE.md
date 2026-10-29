@@ -3,18 +3,16 @@
 ## What this is
 
 LocalAssistant is a small, self-hosted alternative to Home Assistant for one
-household: it drives Tuya blinds and Bambu Lab printers straight over the LAN,
-and Mitsubishi Electric heat pumps through MELCloud, from one Home page. Admins
-add devices and integration credentials; everyone signed in drives them. It's
-installed as a PWA on phones where it must feel like a native app, and on
-desktop it's a full app with a sidebar. Few integrations, done properly.
+household: Tuya blinds, Bambu printers, ESPHome and Zigbee2MQTT devices, Shelly
+meters and RTSP cameras locally; MELCloud, Dreame, Enedis and Frigate when they
+must. Automations, energy charts and a wall panel on top. Admins add devices;
+everyone signed in drives them. A PWA on phones, a full app on desktop.
 
 SvelteKit 3 with Svelte 5 runes on Bun, compiled by `@sveltejs/adapter-bun` into
 `build/server`, which spawns and supervises the compiled worker `build/worker`:
-one container, one SQLite file (Drizzle over `bun:sqlite`). better-auth with
-two-factor, passkeys, email sign-in and SSO. Tuya through `tuyapi`, MELCloud
-through its web API, Bambu through `mqtt`. AI apps reach `/mcp` (house and
-device tools) behind better-auth's OAuth provider with CIMD. Tailwind v4 and
+one container, one SQLite file (Drizzle over `bun:sqlite`), ffmpeg in the image.
+better-auth with two-factor, passkeys, email sign-in and SSO. AI apps reach
+`/mcp` behind better-auth's OAuth provider with CIMD. Tailwind v4 and
 shadcn-svelte, `bun lint`, `bun fmt`, prek hooks, mise.
 
 ## How to work here
@@ -79,12 +77,13 @@ Each is a hard rule.
   `secrets.encrypt`, and forms say "leave empty to keep".
 - Integrations live in `#lib/server/devices/`: a client per integration reading
   a `DeviceState` (`#lib/devices.ts`) and applying commands, routed by the
-  `devices` service. The worker reads every device every two minutes, one after
-  the other so MELCloud never sees a burst, re-reads a cover 30 seconds after a
-  command, and keeps one MQTT connection per printer (one `pushall`, then the
-  pushed changes, saved every 5 seconds). Commands are the one request that
-  awaits slow work (a remote function in `#lib/remote/devices.remote.ts`): the
-  person tapping needs to know.
+  `devices` service. The worker polls the rest every two minutes, one after the
+  other; pushed kinds (Zigbee and Shelly through the one MQTT `broker`, phones,
+  cameras) save their own state. Printers keep one MQTT connection each, cameras
+  one supervised ffmpeg each. Commands are the one request that awaits slow work
+  (`#lib/remote/devices.remote.ts`): the person tapping needs to know. Media
+  routes outside `(protected)/` (`/cameras`, `/frigate`, `/printers`) check
+  `locals.user` themselves and only serve names they validate.
 - A tabbed page is one real route per tab under a `TabSection` layout, each tab
   with a description. On phones the index route is `NavCards` and each tab is a
   page with a back button; on desktop the index opens the first tab and `TabNav`

@@ -2,6 +2,7 @@ import { fail } from "@sveltejs/kit";
 import { z } from "zod";
 
 import { HomeDTO } from "#lib/dto/home.js";
+import { JobDTO } from "#lib/dto/job.js";
 import { getSetting, setSetting } from "#lib/dto/setting.js";
 import { access } from "#lib/server/auth/access.js";
 import { idSchema, parseForm } from "#lib/server/validation/form.js";
@@ -17,6 +18,22 @@ const multipleSchema = z.object({
 });
 const newHomeSchema = z.object({ name: homeName });
 const renameHomeSchema = z.object({ id: z.string().min(1), name: homeName });
+const locateSchema = z.object({
+	id: z.string().min(1),
+	place: z.string().trim().min(1).max(200),
+	latitude: z.coerce.number().min(-90).max(90),
+	longitude: z.coerce.number().min(-180).max(180),
+	timezone: z
+		.string()
+		.trim()
+		.min(1)
+		.max(64)
+		.refine(
+			(zone) =>
+				Intl.supportedValuesOf("timeZone").includes(zone) || zone === "UTC",
+			"Pick a place from the list.",
+		),
+});
 
 export const load = async ({ parent }) => {
 	await parent();
@@ -71,6 +88,24 @@ export const actions = {
 			return fail(404, { error: "That home is gone." });
 		}
 		home.rename(parsed.data.name);
+		return { saved: true };
+	},
+	locate: async ({ locals, request }) => {
+		const admin = access.adminFrom(locals);
+		if (!("id" in admin)) {
+			return admin;
+		}
+		const parsed = parseForm(locateSchema, await request.formData());
+		if (!parsed.success) {
+			return fail(400, { error: "Pick a place from the list." });
+		}
+		const { id, ...location } = parsed.data;
+		const home = HomeDTO.find(id);
+		if (!home) {
+			return fail(404, { error: "That home is gone." });
+		}
+		home.locate(location);
+		JobDTO.enqueue("weather.refresh", { homeId: id }, { maxAttempts: 1 });
 		return { saved: true };
 	},
 	remove: async ({ locals, request }) => {

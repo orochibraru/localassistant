@@ -3,6 +3,7 @@ import BellIcon from "@lucide/svelte/icons/bell";
 import BotIcon from "@lucide/svelte/icons/bot";
 import FingerprintIcon from "@lucide/svelte/icons/fingerprint";
 import PaletteIcon from "@lucide/svelte/icons/palette";
+import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 import UserRoundIcon from "@lucide/svelte/icons/user-round";
 
 import type { SectionTab } from "#lib/components/nav-cards.svelte";
@@ -34,6 +35,13 @@ export function accountTabs(): SectionTab[] {
 			label: "Notifications",
 			description: "Get told on this device when something needs you.",
 			icon: BellIcon,
+		},
+		{
+			href: resolve("/(protected)/account/device"),
+			label: "This device",
+			description:
+				"Put this phone or tablet in the house, or make it a wall panel.",
+			icon: SmartphoneIcon,
 		},
 		{
 			href: resolve("/(protected)/account/ai-apps"),

@@ -42,3 +42,29 @@ test("a phone is offered the install once", async ({ page }) => {
 		),
 	).not.toBeNull();
 });
+
+test("automations open their editor and the wall panel fits a square screen", async ({
+	page,
+}) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/automations");
+	await expect(
+		page.getByText("Radiators off while a window is open"),
+	).toBeVisible();
+	await page.getByRole("button", { name: "New automation" }).last().click();
+	const sheet = page.getByRole("dialog").last();
+	await expect(sheet.getByRole("radio", { name: "Sunset" })).toBeVisible();
+	await page.keyboard.press("Escape");
+
+	await page.setViewportSize({ width: 720, height: 720 });
+	await page.goto("/panel");
+	await expect(
+		page.getByRole("button", { name: "Leave the panel" }),
+	).toBeVisible();
+	const overflow = await page.evaluate(
+		() => document.documentElement.scrollWidth - window.innerWidth,
+	);
+	expect(overflow).toBeLessThanOrEqual(0);
+});

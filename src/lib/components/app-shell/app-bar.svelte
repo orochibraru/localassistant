@@ -4,7 +4,6 @@
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
 
-	import BrandMark from "#lib/components/brand-mark.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import type { HeaderAction } from "#lib/page-title.svelte.js";
@@ -45,8 +44,17 @@
 			<div class="absolute top-1/2 left-1.5 -translate-y-1/2">
 				<IconButton label="Back" icon={ChevronLeftIcon} href={title.backHref} />
 			</div>
-		{:else if page.url.pathname === resolve("/(protected)")}
-			<BrandMark class="absolute top-1/2 left-3.5 -translate-y-1/2" />
+		{:else if page.data.user}
+			<a
+				href={resolve("/(protected)/account")}
+				aria-label="Your account, {page.data.user.name}"
+				class="absolute top-1/2 left-1.5 flex size-11 -translate-y-1/2 items-center justify-center"
+			>
+				<span
+					class="from-primary flex size-8 items-center justify-center rounded-full bg-linear-to-br to-[oklch(0.6_0.15_calc(var(--hue)+60))] text-sm font-semibold text-white"
+					>{page.data.user.name.slice(0, 1).toUpperCase()}</span
+				>
+			</a>
 		{/if}
 		<h1 class="truncate text-[1.0625rem] font-semibold">{title.current}</h1>
 		{#if mobileActions.length === 1}

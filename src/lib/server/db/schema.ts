@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import {
 	index,
 	integer,
+	primaryKey,
+	real,
 	sqliteTable,
 	text,
 	uniqueIndex,
@@ -236,6 +238,12 @@ export const home = sqliteTable("home", {
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
 	name: text("name").notNull(),
+	place: text("place"),
+	latitude: real("latitude"),
+	longitude: real("longitude"),
+	timezone: text("timezone"),
+	weather: text("weather", { mode: "json" }),
+	weatherAt: integer("weather_at", { mode: "timestamp_ms" }),
 	createdAt: createdAt(),
 });
 
@@ -268,6 +276,17 @@ export const deviceKinds = [
 	"melcloud-ata",
 	"melcloud-atw",
 	"bambu-printer",
+	"app",
+	"dreame-vacuum",
+	"zigbee-contact",
+	"zigbee-valve",
+	"zigbee-switch",
+	"zigbee-meter",
+	"shelly-meter",
+	"linky",
+	"camera",
+	"frigate-camera",
+	"esphome-climate",
 ] as const;
 
 export const device = sqliteTable(
@@ -278,6 +297,8 @@ export const device = sqliteTable(
 			.$defaultFn(() => crypto.randomUUID()),
 		kind: text("kind", { enum: deviceKinds }).notNull(),
 		homeId: text("home_id").references(() => home.id),
+		ownerId: text("owner_id"),
+		options: text("options", { mode: "json" }),
 		name: text("name").notNull(),
 		roomId: text("room_id").references(() => room.id, { onDelete: "set null" }),
 		externalId: text("external_id").notNull(),
@@ -303,6 +324,38 @@ export const device = sqliteTable(
 		uniqueIndex("device_kind_external_id_idx").on(table.kind, table.externalId),
 	],
 );
+
+export const energyReading = sqliteTable(
+	"energy_reading",
+	{
+		deviceId: text("device_id")
+			.notNull()
+			.references(() => device.id, { onDelete: "cascade" }),
+		hour: integer("hour", { mode: "timestamp_ms" }).notNull(),
+		total: real("total").notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.deviceId, table.hour] })],
+);
+
+export const automation = sqliteTable("automation", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	homeId: text("home_id")
+		.notNull()
+		.references(() => home.id, { onDelete: "cascade" }),
+	name: text("name").notNull(),
+	enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+	trigger: text("trigger", { mode: "json" }).notNull(),
+	period: text("period", { mode: "json" }).notNull(),
+	actions: text("actions", { mode: "json" }).notNull(),
+	memory: text("memory", { mode: "json" }),
+	checkedAt: integer("checked_at", { mode: "timestamp_ms" }),
+	ranAt: integer("ran_at", { mode: "timestamp_ms" }),
+	runError: text("run_error"),
+	createdAt: createdAt(),
+	updatedAt: updatedAt(),
+});
 
 export const jwks = sqliteTable("jwks", {
 	id: text("id").primaryKey(),

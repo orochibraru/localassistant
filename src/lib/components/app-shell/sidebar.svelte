@@ -2,7 +2,10 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import BlindsIcon from "@lucide/svelte/icons/blinds";
+	import BotIcon from "@lucide/svelte/icons/bot";
+	import CctvIcon from "@lucide/svelte/icons/cctv";
 	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
+	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import PlusIcon from "@lucide/svelte/icons/plus";
@@ -15,9 +18,11 @@
 		navigationItems,
 	} from "#lib/components/app-shell/navigation.js";
 	import BrandMark from "#lib/components/brand-mark.svelte";
+	import { deviceKindIcons } from "#lib/components/devices/device-kinds.js";
 	import HomeSwitcher from "#lib/components/house/home-switcher.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import type { DeviceKind } from "#lib/dto/device.js";
 	import { type HouseFloor, houseGroups, type HouseRoom } from "#lib/house.js";
 	import { roomIcon } from "#lib/room-icons.js";
 	import { useSheets } from "#lib/sheets.svelte.js";
@@ -29,7 +34,7 @@
 		devices: {
 			id: string;
 			name: string;
-			kind: string;
+			kind: DeviceKind;
 			roomId: string | null;
 		}[];
 		home: { id: string; name: string };
@@ -40,14 +45,8 @@
 
 	const sheets = useSheets();
 
-	const kindIcons: Record<string, Component<{ class?: string }>> = {
-		"tuya-cover": BlindsIcon,
-		"bambu-printer": PrinterIcon,
-	};
-
 	const homeHref = resolve("/(protected)");
 	const sectionHrefs = new Set<string>([
-		resolve("/(protected)/account"),
 		resolve("/(protected)/house"),
 		resolve("/(protected)/devices"),
 	]);
@@ -221,6 +220,28 @@
 							>
 								<ThermometerIcon />Mitsubishi heat pumps
 							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onSelect={() => (sheets.addDevice = "esphome")}
+							>
+								<ThermometerIcon />Mitsubishi through ESPHome
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "dreame")}>
+								<BotIcon />Dreame robot vacuums
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "zigbee")}>
+								<DoorOpenIcon />Zigbee devices
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "linky")}>
+								<GaugeIcon />Linky online
+							</DropdownMenu.Item>
+							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "camera")}>
+								<CctvIcon />Camera
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								onSelect={() => (sheets.addDevice = "frigate")}
+							>
+								<CctvIcon />Frigate
+							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 				{:else}
@@ -229,7 +250,7 @@
 			</div>
 			<ul class="flex flex-col gap-0.5">
 				{#each sortedDevices as device (device.id)}
-					{@const Icon = kindIcons[device.kind] ?? ThermometerIcon}
+					{@const Icon = deviceKindIcons[device.kind]}
 					<li>
 						{#if isAdmin}
 							<button

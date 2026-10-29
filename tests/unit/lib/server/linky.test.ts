@@ -1,0 +1,118 @@
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+
+import { DeviceDTO } from "#lib/dto/device.js";
+import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
+import { secrets } from "#lib/server/core/secrets.js";
+import { devices } from "#lib/server/devices/devices.js";
+import { linky } from "#lib/server/devices/linky.js";
+import { energy } from "#lib/server/house/energy.js";
+import { linkySchema } from "#lib/server/validation/device.js";
+
+import { homeId, resetDatabase } from "../../database.js";
+
+let answer: () => Response | Promise<Response>;
+const urls: string[] = [];
+
+function addLinky(withToken = true) {
+	return DeviceDTO.upsert({
+		kind: "linky",
+		homeId: homeId(),
+		name: "Linky",
+		externalId: "12345678901234",
+		encryptedLocalKey: withToken
+			? secrets.encrypt("token-0123456789abcdef")
+			: undefined,
+	});
+}
+
+const daily = (values: [string, number][]) =>
+	Response.json({
+		interval_reading: values.map(([date, value]) => ({
+			date,
+			value: String(value),
+		})),
+	});
+
+beforeEach(() => {
+	resetDatabase();
+	urls.length = 0;
+	spyOn(globalThis, "fetch").mockImplementation((async (input: string) => {
+		urls.push(input);
+		return answer();
+	}) as unknown as typeof fetch);
+});
+
+afterEach(() => {
+	(globalThis.fetch as unknown as { mockRestore: () => void }).mockRestore();
+});
+
+describe("Linky online", () => {
+	test("stores the daily use as a counter the energy charts read, and keeps the last for six hours", async () => {
+		const meter = addLinky();
+		const now = new Date("2026-10-28T10:00:00Z");
+		answer = () =>
+			daily([
+				["2026-10-27", 12_500],
+				["2026-10-26", 10_000],
+				["2026-10-25", Number.NaN],
+			]);
+		await devices.refresh(meter);
+		expect(urls[0]).toContain("prm=12345678901234");
+		expect(DeviceDTO.find(meter.id)?.state).toEqual({
+			type: "linky",
+			day: "2026-10-27",
+			kilowattHours: 12.5,
+		});
+		expect(
+			EnergyReadingDTO.since([meter.id], new Date(0)).map(
+				(reading) => reading.toJSON().total,
+			),
+		).toEqual([10, 22.5]);
+		const overview = energy.overview(homeId(), "Europe/Paris", now);
+		expect(overview.house.metered).toBe(true);
+		expect(overview.house.days.at(-2)).toEqual({
+			key: "2026-10-27",
+			kilowattHours: 12.5,
+		});
+
+		answer = () => daily([["2026-10-28", 9000]]);
+		const fresh = DeviceDTO.find(meter.id) as DeviceDTO;
+		expect(await linky.read(fresh, new Date())).toMatchObject({
+			day: "2026-10-27",
+		});
+		expect(
+			await linky.read(fresh, new Date(Date.now() + 7 * 60 * 60_000)),
+		).toMatchObject({ day: "2026-10-28" });
+		expect(
+			EnergyReadingDTO.since([meter.id], new Date(0)).at(-1)?.toJSON().total,
+		).toBe(31.5);
+		answer = () => daily([]);
+		expect(
+			await linky.read(fresh, new Date(Date.now() + 14 * 60 * 60_000)),
+		).toEqual({ type: "linky", day: null, kilowattHours: null });
+	});
+
+	test("explains a refused token, an outage and a missing token", async () => {
+		answer = () => new Response("", { status: 403 });
+		expect(linky.read(addLinky())).rejects.toThrow("refused the token");
+		answer = () => new Response("", { status: 500 });
+		expect(linky.read(addLinky())).rejects.toThrow("answered 500");
+		answer = () => Promise.reject(new Error("offline"));
+		expect(linky.read(addLinky())).rejects.toThrow("can't be reached");
+		resetDatabase();
+		expect(linky.read(addLinky(false))).rejects.toThrow("no token");
+	});
+
+	test("the form wants a 14-digit PRM and a token", () => {
+		expect(
+			linkySchema.safeParse({
+				externalId: "12345678901234",
+				token: "t".repeat(30),
+			}).success,
+		).toBe(true);
+		expect(
+			linkySchema.safeParse({ externalId: "1234", token: "t".repeat(30) })
+				.success,
+		).toBe(false);
+	});
+});

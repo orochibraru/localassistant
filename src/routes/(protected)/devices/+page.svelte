@@ -1,12 +1,18 @@
 <script lang="ts">
 	import BlindsIcon from "@lucide/svelte/icons/blinds";
+	import BotIcon from "@lucide/svelte/icons/bot";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import PrinterIcon from "@lucide/svelte/icons/printer";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 	import type { Component } from "svelte";
 
+	import {
+		deviceKindIcons,
+		deviceKindLabels,
+	} from "#lib/components/devices/device-kinds.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { roomLabels } from "#lib/house.js";
@@ -20,20 +26,6 @@
 	setPageTitle("Devices");
 
 	type Device = (typeof data.devices)[number];
-
-	const kindLabels: Record<Device["kind"], string> = {
-		"tuya-cover": "Tuya blind",
-		"melcloud-ata": "Air-to-air heat pump",
-		"melcloud-atw": "Air-to-water heat pump",
-		"bambu-printer": "Bambu Lab printer",
-	};
-
-	const kindIcons: Record<Device["kind"], Component<{ class?: string }>> = {
-		"tuya-cover": BlindsIcon,
-		"melcloud-ata": ThermometerIcon,
-		"melcloud-atw": ThermometerIcon,
-		"bambu-printer": PrinterIcon,
-	};
 
 	const roomNames = $derived(roomLabels(data.rooms, data.floors));
 </script>
@@ -49,14 +41,100 @@
 						: "Sign in with the account the MELCloud app uses to bring in every unit."}
 				</p>
 			</div>
+			<div class="flex flex-wrap gap-3">
+				<Button
+					variant={data.melCloudEmail ? "outline" : "default"}
+					class="h-11 rounded-xl px-5"
+					onclick={() => (sheets.addDevice = "melcloud")}
+				>
+					{#if data.melCloudEmail}<SettingsIcon />Manage{:else}<PlusIcon
+						/>Connect{/if}
+				</Button>
+				<Button
+					variant="secondary"
+					class="h-11 rounded-xl px-5"
+					onclick={() => (sheets.addDevice = "esphome")}
+					><PlusIcon />Add through ESPHome</Button
+				>
+			</div>
+		</section>
+
+		<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
+			<div>
+				<h2 class="font-semibold">Dreame robot vacuums</h2>
+				<p class="text-muted-foreground mt-1 text-sm">
+					{data.dreameEmail
+						? `Connected as ${data.dreameEmail}. Robots are read every two minutes.`
+						: "Sign in with the account the Dreamehome app uses. Dreame may refuse anything but its own app; if it does, the error says so."}
+				</p>
+			</div>
 			<Button
-				variant={data.melCloudEmail ? "outline" : "default"}
+				variant={data.dreameEmail ? "outline" : "default"}
 				class="h-11 self-start rounded-xl px-5"
-				onclick={() => (sheets.addDevice = "melcloud")}
+				onclick={() => (sheets.addDevice = "dreame")}
 			>
-				{#if data.melCloudEmail}<SettingsIcon />Manage{:else}<PlusIcon
+				{#if data.dreameEmail}<SettingsIcon />Manage{:else}<PlusIcon
 					/>Connect{/if}
 			</Button>
+		</section>
+
+		<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
+			<div>
+				<h2 class="font-semibold">Zigbee (Zigbee2MQTT)</h2>
+				<p class="text-muted-foreground mt-1 text-sm">
+					{data.brokerUrl
+						? `Listening on ${data.brokerUrl}. Door and window sensors, radiator valves, relays, plugs and the Linky reader show up on their own once paired in Zigbee2MQTT.`
+						: "Point LocalAssistant at the MQTT broker Zigbee2MQTT publishes to: its devices come in by themselves."}
+				</p>
+			</div>
+			<Button
+				variant={data.brokerUrl ? "outline" : "default"}
+				class="h-11 self-start rounded-xl px-5"
+				onclick={() => (sheets.addDevice = "zigbee")}
+			>
+				{#if data.brokerUrl}<SettingsIcon />Manage{:else}<PlusIcon
+					/>Connect{/if}
+			</Button>
+		</section>
+
+		<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
+			<div>
+				<h2 class="font-semibold">Cameras</h2>
+				<p class="text-muted-foreground mt-1 text-sm">
+					Cameras with local RTSP are watched and recorded by this server. A
+					Frigate NVR brings its own cameras, events and clips.
+				</p>
+			</div>
+			<div class="flex flex-wrap gap-3">
+				<Button
+					class="h-11 rounded-xl px-5"
+					onclick={() => (sheets.addDevice = "camera")}
+					><PlusIcon />Add a camera</Button
+				>
+				<Button
+					variant={data.frigateUrl ? "outline" : "secondary"}
+					class="h-11 rounded-xl px-5"
+					onclick={() => (sheets.addDevice = "frigate")}
+				>
+					{#if data.frigateUrl}<SettingsIcon />Frigate{:else}<PlusIcon />Connect
+						Frigate{/if}
+				</Button>
+			</div>
+		</section>
+
+		<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
+			<div>
+				<h2 class="font-semibold">Linky</h2>
+				<p class="text-muted-foreground mt-1 text-sm">
+					Live, through the ZLinky_TIC Zigbee reader. Or online with no
+					hardware: Enedis's daily use, a day behind, through conso.boris.sh.
+				</p>
+			</div>
+			<Button
+				class="h-11 self-start rounded-xl px-5"
+				onclick={() => (sheets.addDevice = "linky")}
+				><PlusIcon />Add a Linky online</Button
+			>
 		</section>
 
 		<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
@@ -94,7 +172,7 @@
 	{#if data.devices.length > 0}
 		<ul class="glass divide-border divide-y rounded-2xl">
 			{#each data.devices as device (device.id)}
-				{@const Icon = kindIcons[device.kind]}
+				{@const Icon = deviceKindIcons[device.kind]}
 				<li>
 					<button
 						type="button"
@@ -110,7 +188,7 @@
 						<span class="min-w-0 flex-1">
 							<span class="block truncate font-medium">{device.name}</span>
 							<span class="text-muted-foreground block truncate text-sm">
-								{kindLabels[device.kind]}, {device.roomId
+								{deviceKindLabels[device.kind]}, {device.roomId
 									? (roomNames.get(device.roomId) ?? "Whole house")
 									: "Whole house"}
 							</span>

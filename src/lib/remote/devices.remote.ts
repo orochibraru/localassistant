@@ -1,14 +1,20 @@
-import { command } from "$app/server";
+import { command, getRequestEvent } from "$app/server";
 import { error } from "@sveltejs/kit";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { access } from "#lib/server/auth/access.js";
 import { devices } from "#lib/server/devices/devices.js";
+import { homes } from "#lib/server/house/homes.js";
 import {
+	appReportSchema,
 	climateChangeSchema,
 	coverActionSchema,
+	coverGroupSchema,
 	coverPositionSchema,
 	printerChangeSchema,
+	switchPowerSchema,
+	vacuumCommandSchema,
+	valveTargetSchema,
 } from "#lib/server/validation/device.js";
 
 function deviceFor(deviceId: string): DeviceDTO {
@@ -60,5 +66,62 @@ export const controlPrinter = command(
 		access.requireUser();
 		const device = deviceFor(deviceId);
 		await attempt(() => devices.printer(device, change));
+	},
+);
+
+export const reportAppDevice = command(
+	appReportSchema,
+	({ deviceId, ...report }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		if (device.kind !== "app") {
+			error(400, "That device isn't a phone or tablet.");
+		}
+		devices.reportApp(device, report);
+	},
+);
+
+export const controlVacuum = command(
+	vacuumCommandSchema,
+	async ({ deviceId, command: order }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.vacuum(device, order));
+	},
+);
+
+export const controlValve = command(
+	valveTargetSchema,
+	async ({ deviceId, target }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.valve(device, target));
+	},
+);
+
+export const controlSwitch = command(
+	switchPowerSchema,
+	async ({ deviceId, on }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.switchPower(device, on));
+	},
+);
+
+export const controlBlinds = command(
+	coverGroupSchema,
+	async ({ roomId, action }) => {
+		access.requireUser();
+		const homeId = homes.current(getRequestEvent().cookies).id;
+		const covers = DeviceDTO.inHome(homeId).filter(
+			(device) => roomId === null || device.toJSON().roomId === roomId,
+		);
+		const failed = await devices.coverGroup(covers, action);
+		if (failed.length > 0) {
+			error(
+				502,
+				failed.map((entry) => `${entry.name}: ${entry.error}`).join(" "),
+			);
+		}
 	},
 );

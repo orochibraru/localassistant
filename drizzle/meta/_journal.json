@@ -64,6 +64,41 @@
       "when": 1793225096537,
       "tag": "0008_one_home",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793226172611,
+      "tag": "0009_majestic_sphinx",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793226332058,
+      "tag": "0010_stormy_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793227024593,
+      "tag": "0011_automations",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793227868452,
+      "tag": "0012_energy_readings",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793228570158,
+      "tag": "0013_device_options",
+      "breakpoints": true
     }
   ]
 }

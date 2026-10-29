@@ -15,8 +15,19 @@
 	const kindOrder: Record<string, number> = {
 		"melcloud-ata": 0,
 		"melcloud-atw": 0,
+		"esphome-climate": 0,
 		"tuya-cover": 1,
 		"bambu-printer": 2,
+		"zigbee-valve": 0,
+		"zigbee-contact": 1,
+		"zigbee-switch": 3,
+		"dreame-vacuum": 3,
+		"zigbee-meter": 4,
+		"shelly-meter": 4,
+		linky: 4,
+		camera: -1,
+		"frigate-camera": -1,
+		app: 5,
 	};
 
 	const sorted = $derived(

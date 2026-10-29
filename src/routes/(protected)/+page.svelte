@@ -1,19 +1,29 @@
 <script lang="ts">
+	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import PlugIcon from "@lucide/svelte/icons/plug";
+	import { onMount } from "svelte";
 
 	import DeviceGrid from "#lib/components/devices/device-grid.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
+	import WeatherCard from "#lib/components/house/weather-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { houseGroups, roomLabels } from "#lib/house.js";
 	import { LiveRefresh } from "#lib/live-refresh.svelte.js";
 	import { setPageTitle } from "#lib/page-title.svelte.js";
+	import { panelMode } from "#lib/panel-mode.js";
 
 	const { data } = $props();
 
 	setPageTitle("Home");
+
+	onMount(() => {
+		if (panelMode()) {
+			void goto(resolve("/(protected)/panel"), { replaceState: true });
+		}
+	});
 
 	const live = new LiveRefresh();
 
@@ -35,6 +45,16 @@
 		}),
 	);
 </script>
+
+{#if data.home.weather && data.home.place}
+	<div class="mb-8">
+		<WeatherCard
+			place={data.home.place}
+			timezone={data.home.timezone}
+			weather={data.home.weather}
+		/>
+	</div>
+{/if}
 
 {#if data.devices.length === 0}
 	<div class="glass mx-auto mt-6 max-w-xl rounded-3xl">

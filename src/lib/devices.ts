@@ -71,7 +71,133 @@ export interface PrinterChange {
 	speed?: PrinterSpeed;
 }
 
-export type DeviceState = CoverState | ClimateState | PrinterState;
+export interface AppLocation {
+	latitude: number;
+	longitude: number;
+	accuracy: number | null;
+	at: string;
+}
+
+export interface AppState {
+	type: "app";
+	battery: number | null;
+	charging: boolean | null;
+	location: AppLocation | null;
+	platform: string;
+}
+
+export const vacuumStages = [
+	"cleaning",
+	"idle",
+	"paused",
+	"returning",
+	"charging",
+	"docked",
+	"washing",
+	"error",
+] as const;
+export type VacuumStage = (typeof vacuumStages)[number];
+
+export const vacuumCommands = ["start", "pause", "dock", "stop"] as const;
+export type VacuumCommand = (typeof vacuumCommands)[number];
+
+export const dreameRegions = ["eu", "us", "cn", "sg", "ru"] as const;
+export type DreameRegion = (typeof dreameRegions)[number];
+
+export interface VacuumState {
+	type: "vacuum";
+	stage: VacuumStage;
+	battery: number | null;
+	charging: boolean;
+	errorCode: number | null;
+}
+
+export interface ContactState {
+	type: "contact";
+	open: boolean | null;
+	battery: number | null;
+}
+
+export interface ValveState {
+	type: "valve";
+	target: number | null;
+	temperature: number | null;
+	battery: number | null;
+	setpoint: string;
+	min: number;
+	max: number;
+	heldBy: string | null;
+	heldTarget: number | null;
+}
+
+export interface SwitchState {
+	type: "switch";
+	on: boolean | null;
+	power: number | null;
+	energy: number | null;
+}
+
+export interface MeterState {
+	type: "meter";
+	power: number | null;
+	energy: number | null;
+}
+
+export interface LinkyState {
+	type: "linky";
+	day: string | null;
+	kilowattHours: number | null;
+}
+
+export interface CameraState {
+	type: "camera";
+	streaming: boolean;
+	recording: boolean;
+	lastRecordingAt: string | null;
+}
+
+export type AppReport = Omit<AppState, "type" | "location"> & {
+	location?: Omit<AppLocation, "at"> | null;
+};
+
+export type DeviceState =
+	| CoverState
+	| ClimateState
+	| PrinterState
+	| AppState
+	| VacuumState
+	| ContactState
+	| ValveState
+	| SwitchState
+	| MeterState
+	| LinkyState
+	| CameraState;
+
+/** How far apart two points are, in metres, along the Earth's surface. */
+export function distanceMetres(
+	from: { latitude: number; longitude: number },
+	to: { latitude: number; longitude: number },
+): number {
+	const radians = (degrees: number) => (degrees * Math.PI) / 180;
+	const latitude = radians(to.latitude - from.latitude);
+	const longitude = radians(to.longitude - from.longitude);
+	const a =
+		Math.sin(latitude / 2) ** 2 +
+		Math.cos(radians(from.latitude)) *
+			Math.cos(radians(to.latitude)) *
+			Math.sin(longitude / 2) ** 2;
+	return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** A distance from home in words: "At home" under 150 m, then metres, then kilometres. */
+export function describeDistance(metres: number): string {
+	if (metres < 150) {
+		return "At home";
+	}
+	return metres < 1000
+		? `${Math.round(metres / 10) * 10} m away`
+		: `${(metres / 1000).toFixed(metres < 10_000 ? 1 : 0)} km away`;
+}
 
 export interface ClimateChange {
 	power?: boolean;
