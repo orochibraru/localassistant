@@ -19,6 +19,8 @@ every run.
   reading, a meter's watts, a thermostat's room temperature, a light's
   brightness, a blind's position). It fires when the device gets there, not
   while it stays.
+- **Someone arrives or leaves**: anyone, a given person, the first one home or
+  the last one out. See "Who's home" below.
 
 ## During
 
@@ -33,7 +35,8 @@ skips that time and the history says which:
 - a device is on, off, open, shut, locked, playing, above or below a value;
 - between two times (it may wrap over midnight);
 - on chosen weekdays;
-- during the day or at night, from the home's sunrise and sunset.
+- during the day or at night, from the home's sunrise and sunset;
+- who's home: somebody, nobody, or a given person home or away.
 
 **Run now** ignores them.
 
@@ -60,6 +63,23 @@ With a door or window trigger, two more steps hold until the sensors shut:
 - **Turn the heating down** by some degrees: the chosen heat pumps and valves in
   that room, or all of them for a door in the whole house, go back to the target
   they had once it shuts.
+
+## Who's home
+
+A person counts as home when a device they own says so, and away when the ones
+that know all say away. An admin picks the owner in **Devices**, **Edit**,
+**Whose is it**, for two kinds of devices:
+
+- **Person trackers**: Home Assistant's people and device trackers through the
+  Home Assistant integration, or any tracker announcing itself through MQTT
+  discovery. They follow the person all day.
+- **Phones and tablets** added from **Account**, **This device**, with the
+  location shared. A web app only reports while it's open, so a phone alone says
+  when someone opened the app at home, not when they walked in: pair it with a
+  tracker (OwnTracks, Home Assistant's companion app) for routines that should
+  fire at the door.
+
+**Home** shows everyone who's tracked, home or away and since when.
 
 ## Scenes
 

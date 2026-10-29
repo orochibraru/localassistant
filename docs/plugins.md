@@ -98,24 +98,25 @@ The device form also asks for a name and a room; you don't declare those.
 A kind shows on one of LocalAssistant's cards, and its devices report the
 matching state:
 
-| `card`    | State                                                                              | Commands it sends |
-| --------- | ---------------------------------------------------------------------------------- | ----------------- |
-| `cover`   | `{ type: "cover", position }` (0 closed, 100 open, or null)                        | `cover`           |
-| `climate` | `{ type: "climate", power, mode, modes, targetTemperature, roomTemperature, ... }` | `climate`         |
-| `switch`  | `{ type: "switch", on, power, energy }`                                            | `switch`          |
-| `valve`   | `{ type: "valve", target, temperature, battery, setpoint, min, max, ... }`         | `valve`           |
-| `contact` | `{ type: "contact", open, battery }`; opening one triggers routines                |                   |
-| `meter`   | `{ type: "meter", power, energy }`, watts and kWh; counted in Energy               |                   |
-| `linky`   | `{ type: "linky", day, kilowattHours }`, a daily meter                             |                   |
-| `printer` | `{ type: "printer", stage, progress, ..., camera }`                                | `printer`         |
-| `vacuum`  | `{ type: "vacuum", stage, battery, ... }`                                          | `vacuum`          |
-| `camera`  | `{ type: "camera", streaming, recording, live, snapshot, source, ... }`            |                   |
-| `light`   | `{ type: "light", on, brightness, temperature, color, features, ... }`             | `light`           |
-| `lock`    | `{ type: "lock", locked, jammed, battery }`                                        | `lock`            |
-| `fan`     | `{ type: "fan", on, speed, speedSteps, oscillating }`                              | `fan`             |
-| `media`   | `{ type: "media", power, playback, title, artist, volume, source, sources, ... }`  | `media`           |
-| `sensor`  | `{ type: "sensor", readings: [{ name, value, unit }] }`                            |                   |
-| `button`  | `{ type: "button", pressedAt }`; a tap presses it                                  | `button`          |
+| `card`     | State                                                                              | Commands it sends |
+| ---------- | ---------------------------------------------------------------------------------- | ----------------- |
+| `cover`    | `{ type: "cover", position }` (0 closed, 100 open, or null)                        | `cover`           |
+| `climate`  | `{ type: "climate", power, mode, modes, targetTemperature, roomTemperature, ... }` | `climate`         |
+| `switch`   | `{ type: "switch", on, power, energy }`                                            | `switch`          |
+| `valve`    | `{ type: "valve", target, temperature, battery, setpoint, min, max, ... }`         | `valve`           |
+| `contact`  | `{ type: "contact", open, battery }`; opening one triggers routines                |                   |
+| `meter`    | `{ type: "meter", power, energy }`, watts and kWh; counted in Energy               |                   |
+| `linky`    | `{ type: "linky", day, kilowattHours }`, a daily meter                             |                   |
+| `printer`  | `{ type: "printer", stage, progress, ..., camera }`                                | `printer`         |
+| `vacuum`   | `{ type: "vacuum", stage, battery, ... }`                                          | `vacuum`          |
+| `camera`   | `{ type: "camera", streaming, recording, live, snapshot, source, ... }`            |                   |
+| `light`    | `{ type: "light", on, brightness, temperature, color, features, ... }`             | `light`           |
+| `lock`     | `{ type: "lock", locked, jammed, battery }`                                        | `lock`            |
+| `fan`      | `{ type: "fan", on, speed, speedSteps, oscillating }`                              | `fan`             |
+| `media`    | `{ type: "media", power, playback, title, artist, volume, source, sources, ... }`  | `media`           |
+| `sensor`   | `{ type: "sensor", readings: [{ name, value, unit }] }`                            |                   |
+| `button`   | `{ type: "button", pressedAt }`; a tap presses it                                  | `button`          |
+| `presence` | `{ type: "presence", home, zone, battery }`; counts for its owner in Who's home    |                   |
 
 A light's `features` lists `brightness` (0 to 100), `temperature` (kelvin,
 between `minTemperature` and `maxTemperature`) and `color`
