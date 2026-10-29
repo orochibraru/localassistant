@@ -13,6 +13,7 @@ import {
 	vacuumSuctions,
 	vacuumWetness,
 } from "#lib/devices.js";
+import { historyRanges } from "#lib/history.js";
 import { noFloorPlace, outsidePlace, planSize, roomIcons } from "#lib/house.js";
 
 const deviceId = z.string().trim().min(1, "Pick a device.");
@@ -144,6 +145,15 @@ export const mediaChangeSchema = z
 	);
 
 export const buttonSchema = z.object({ deviceId });
+
+export const logbookPageSchema = z.object({
+	before: z.coerce.number().int().positive().optional(),
+});
+
+export const deviceHistorySchema = z.object({
+	deviceId,
+	range: z.enum(historyRanges),
+});
 
 const place = z
 	.string()

@@ -20,6 +20,7 @@
 	import SwitchCard from "#lib/components/devices/switch-card.svelte";
 	import VacuumCard from "#lib/components/devices/vacuum-card.svelte";
 	import ValveCard from "#lib/components/devices/valve-card.svelte";
+	import DeviceHistory from "#lib/components/history/device-history.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
@@ -349,6 +350,9 @@
 				{/each}
 			</ToggleGroup.Root>
 		</div>
+		{#if menuOpen && cardType !== "camera"}
+			<DeviceHistory deviceId={device.id} name={device.name} />
+		{/if}
 		{#if canSetUp}
 			<Button variant="outline" class="h-11 rounded-xl" onclick={openSetup}
 				><SettingsIcon />Device settings</Button

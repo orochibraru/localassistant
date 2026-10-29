@@ -1,11 +1,14 @@
-import { command, getRequestEvent } from "$app/server";
+import { command, getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 
 import { CardLayoutDTO } from "#lib/dto/card-layout.js";
 import { CardSizeDTO } from "#lib/dto/card-size.js";
 import { DeviceDTO } from "#lib/dto/device.js";
+import { LogbookEntryDTO } from "#lib/dto/logbook-entry.js";
+import { readingUnit } from "#lib/history.js";
 import { access } from "#lib/server/auth/access.js";
 import { devices } from "#lib/server/devices/devices.js";
+import { history } from "#lib/server/house/history.js";
 import { homes } from "#lib/server/house/homes.js";
 import {
 	appReportSchema,
@@ -17,6 +20,7 @@ import {
 	coverActionSchema,
 	coverGroupSchema,
 	coverPositionSchema,
+	deviceHistorySchema,
 	fanChangeSchema,
 	lightChangeSchema,
 	lockSchema,
@@ -196,5 +200,18 @@ export const showCardDetails = command(
 		const user = access.requireUser();
 		deviceFor(deviceId);
 		CardLayoutDTO.showDetails(user.id, deviceId, shown);
+	},
+);
+
+export const deviceHistory = query(
+	deviceHistorySchema,
+	({ deviceId, range }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		return {
+			unit: readingUnit(device.state),
+			points: history.series(device.id, range),
+			lines: LogbookEntryDTO.forDevice(device.id),
+		};
 	},
 );
