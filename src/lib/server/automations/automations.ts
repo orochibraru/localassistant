@@ -2,6 +2,7 @@ import {
 	type AutomationAction,
 	type Condition,
 	describeCondition,
+	describePresence,
 	describeTest,
 	describeTrigger,
 	inPeriod,
@@ -16,11 +17,14 @@ import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { JobDTO } from "#lib/dto/job.js";
+import { PresenceDTO } from "#lib/dto/presence.js";
 import { SceneDTO } from "#lib/dto/scene.js";
+import { UserDTO } from "#lib/dto/user.js";
 import { kindInfo } from "#lib/plugins.js";
 import { scenes } from "#lib/server/automations/scenes.js";
 import { Logger } from "#lib/server/core/logger.js";
 import { devices } from "#lib/server/devices/devices.js";
+import { type PresenceChange, presences } from "#lib/server/house/presence.js";
 import type { JobPayloads } from "#lib/server/jobs/types.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 
@@ -171,6 +175,47 @@ class Automations {
 	}
 
 	/**
+	 * Runs the routines someone arriving or leaving sets off: the ones watching anyone, that person, or the first one in
+	 * or the last one out when that's who it was. Never throws.
+	 */
+	async onPresence(change: PresenceChange): Promise<void> {
+		const event = change.home ? "arrive" : "leave";
+		const othersHome = PresenceDTO.all().some(
+			(entry) => entry.userId !== change.userId && entry.home === true,
+		);
+		const name = UserDTO.people().find(
+			(person) => person.id === change.userId,
+		)?.name;
+		const cause = describePresence(
+			event,
+			change.userId,
+			() => name ?? "Someone",
+		);
+		const now = new Date();
+		for (const home of HomeDTO.all()) {
+			const monthDay = this.#monthDay(now, this.timeZoneOf(home));
+			for (const automation of AutomationDTO.inHome(home.id)) {
+				const trigger = automation.trigger;
+				if (
+					!automation.enabled ||
+					trigger.type !== "presence" ||
+					trigger.event !== event ||
+					!inPeriod(automation.period, monthDay)
+				) {
+					continue;
+				}
+				const matches =
+					trigger.who === "anyone" ||
+					trigger.who === change.userId ||
+					((trigger.who === "first" || trigger.who === "last") && !othersHome);
+				if (matches) {
+					await this.trigger(automation, home, now, undefined, cause);
+				}
+			}
+		}
+	}
+
+	/**
 	 * Runs `automation` when its conditions hold at `now`, recording a skipped run with the first one that doesn't
 	 * otherwise; returns whether it ran. Never throws.
 	 */
@@ -179,8 +224,8 @@ class Automations {
 		home: HomeDTO,
 		now: Date,
 		opened?: Opened,
+		cause = this.#cause(automation, opened),
 	): Promise<boolean> {
-		const cause = this.#cause(automation, opened);
 		const unmet = automation.conditions.find(
 			(condition) => !this.holds(condition, home, now),
 		);
@@ -188,7 +233,11 @@ class Automations {
 			AutomationRunDTO.skipped(
 				automation.id,
 				cause,
-				`${describeCondition(unmet, (deviceId) => this.#deviceName(deviceId))}: not now.`,
+				`${describeCondition(
+					unmet,
+					(deviceId) => this.#deviceName(deviceId),
+					(userId) => this.#personName(userId),
+				)}: not now.`,
 			);
 			return false;
 		}
@@ -209,6 +258,9 @@ class Automations {
 			const parts = this.#parts(now, timeZone);
 			const time = `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
 			return withinTimes(time, condition.from, condition.to);
+		}
+		if (condition.type === "presence") {
+			return presences.isHome(condition.who) === condition.home;
 		}
 		if (condition.type === "weekdays") {
 			return condition.weekdays.includes(this.localDate(now, timeZone).weekday);
@@ -323,7 +375,15 @@ class Automations {
 		const trigger = automation.trigger;
 		return trigger.type === "device"
 			? describeTest(trigger.test, (deviceId) => this.#deviceName(deviceId))
-			: describeTrigger(trigger);
+			: describeTrigger(trigger, undefined, (userId) =>
+					this.#personName(userId),
+				);
+	}
+
+	#personName(userId: string): string {
+		return (
+			UserDTO.people().find((person) => person.id === userId)?.name ?? "Someone"
+		);
 	}
 
 	#deviceName(deviceId: string): string {
@@ -369,7 +429,11 @@ class Automations {
 		{ since, now, timeZone }: { since: Date; now: Date; timeZone: string },
 	): Check {
 		const trigger: Trigger = automation.trigger;
-		if (trigger.type === "contact" || trigger.type === "device") {
+		if (
+			trigger.type === "contact" ||
+			trigger.type === "device" ||
+			trigger.type === "presence"
+		) {
 			return { due: false, memory: null };
 		}
 		const within = (instant: number) =>

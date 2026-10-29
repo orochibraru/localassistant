@@ -42,6 +42,9 @@
 	});
 	const deviceName = (deviceId: string) =>
 		names.devices.get(deviceId) ?? "a removed device";
+	const personName = (userId: string) =>
+		data.people.find((person) => person.id === userId)?.name ??
+		"a removed account";
 </script>
 
 {#if data.automations.length > 0}
@@ -111,7 +114,7 @@
 							<span class="block truncate font-semibold">{automation.name}</span
 							>
 							<span class="text-muted-foreground block text-sm"
-								>{describeTrigger(automation.trigger, deviceName)}, {describePeriod(
+								>{describeTrigger(automation.trigger, deviceName, personName)}, {describePeriod(
 									automation.period,
 								).toLowerCase()}</span
 							>
@@ -119,7 +122,11 @@
 								<span class="text-muted-foreground block text-sm"
 									>Only if {automation.conditions
 										.map((condition) =>
-											describeCondition(condition, deviceName).toLowerCase(),
+											describeCondition(
+												condition,
+												deviceName,
+												personName,
+											).toLowerCase(),
 										)
 										.join(", ")}</span
 								>
@@ -171,5 +178,6 @@
 	rooms={data.rooms}
 	floors={data.floors}
 	scenes={data.scenes}
+	people={data.people}
 	hasLocation={data.hasLocation}
 />

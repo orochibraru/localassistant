@@ -7,6 +7,7 @@
 	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 	import TrendingDownIcon from "@lucide/svelte/icons/trending-down";
 	import TrendingUpIcon from "@lucide/svelte/icons/trending-up";
+	import UsersIcon from "@lucide/svelte/icons/users";
 	import { untrack } from "svelte";
 
 	import {
@@ -22,17 +23,25 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as ToggleGroup from "#lib/components/ui/toggle-group/index.js";
 	import type { PluginCard } from "#lib/plugins.js";
+	import type { PresenceEvent } from "#lib/presence.js";
 
 	interface Props {
 		trigger: Trigger;
 		devices: { id: string; card: PluginCard; name: string }[];
+		people: { id: string; name: string }[];
 		hasLocation: boolean;
 	}
 
-	let { trigger = $bindable(), devices, hasLocation }: Props = $props();
+	let { trigger = $bindable(), devices, people, hasLocation }: Props = $props();
 
 	type Choice =
-		"sunrise" | "sunset" | "time" | "temperature" | "contact" | "device";
+		| "sunrise"
+		| "sunset"
+		| "time"
+		| "temperature"
+		| "contact"
+		| "device"
+		| "presence";
 
 	const initial = untrack(() => trigger);
 	const firstWatchable = untrack(() =>
@@ -71,6 +80,18 @@
 				},
 	);
 
+	let event = $state<PresenceEvent>(
+		initial.type === "presence" ? initial.event : "arrive",
+	);
+	let who = $state(initial.type === "presence" ? initial.who : "anyone");
+	const whoOptions = $derived([
+		{ value: "anyone", label: "Anyone" },
+		event === "arrive"
+			? { value: "first", label: "The first one home" }
+			: { value: "last", label: "The last one out" },
+		...people.map((person) => ({ value: person.id, label: person.name })),
+	]);
+
 	const sensorOptions = $derived(
 		devices
 			.filter((device) => device.card === "contact")
@@ -91,13 +112,19 @@
 					? { type: "contact", deviceIds: [...sensors] }
 					: choice === "device"
 						? { type: "device", test: { ...test } }
-						: choice === "temperature"
-							? { type: "temperature", direction, threshold: Number(threshold) }
-							: {
-									type: "sun",
-									event: choice,
-									offsetMinutes: Number(offsetMinutes) || 0,
-								};
+						: choice === "presence"
+							? { type: "presence", event, who }
+							: choice === "temperature"
+								? {
+										type: "temperature",
+										direction,
+										threshold: Number(threshold),
+									}
+								: {
+										type: "sun",
+										event: choice,
+										offsetMinutes: Number(offsetMinutes) || 0,
+									};
 	});
 </script>
 
@@ -124,6 +151,7 @@
 		...(firstWatchable
 			? [{ value: "device", label: "A device changes", icon: PlugIcon }]
 			: []),
+		{ value: "presence", label: "Someone arrives or leaves", icon: UsersIcon },
 	]}
 	value={choice}
 	onChange={(next) => (choice = next as Choice)}
@@ -194,6 +222,37 @@
 	</Field.Field>
 {:else if choice === "device"}
 	<StateTestEditor id="trigger" bind:test {devices} />
+{:else if choice === "presence"}
+	<ChoiceRow
+		label="Event"
+		options={[
+			{ value: "arrive", label: "Gets home" },
+			{ value: "leave", label: "Leaves" },
+		]}
+		value={event}
+		onChange={(next) => {
+			event = next === "leave" ? "leave" : "arrive";
+			if (who === "first" || who === "last") {
+				who = event === "arrive" ? "first" : "last";
+			}
+		}}
+	/>
+	<Field.Field>
+		<Field.Label for="automation-who">Who</Field.Label>
+		<Picker
+			id="automation-who"
+			name=""
+			label="Who"
+			options={whoOptions}
+			value={who}
+			onPick={(next) => (who = next)}
+		/>
+		<Field.Description
+			>From the person trackers and phones each person owns, set in Devices.
+			Phones only count while the app is open: a tracker like OwnTracks or Home
+			Assistant's companion app follows them all day.</Field.Description
+		>
+	</Field.Field>
 {:else}
 	<ChoiceRow
 		label="Direction"

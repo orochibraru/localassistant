@@ -17,6 +17,7 @@ import {
 	printerSpeeds,
 	vacuumCommands,
 } from "#lib/devices.js";
+import { presenceEvents } from "#lib/presence.js";
 
 const deviceId = z.string().trim().min(1, "Pick a device.");
 const monthDay = z
@@ -108,6 +109,11 @@ export const conditionSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("time"), from: time, to: time }),
 	z.object({ type: z.literal("weekdays"), weekdays: weekdayList }),
 	z.object({ type: z.literal("sun"), when: z.enum(dayParts) }),
+	z.object({
+		type: z.literal("presence"),
+		who: z.string().trim().min(1, "Pick who."),
+		home: z.boolean(),
+	}),
 ]);
 
 export const triggerSchema = z.discriminatedUnion("type", [
@@ -130,6 +136,11 @@ export const triggerSchema = z.discriminatedUnion("type", [
 			.max(100),
 	}),
 	z.object({ type: z.literal("device"), test: stateTestSchema }),
+	z.object({
+		type: z.literal("presence"),
+		event: z.enum(presenceEvents),
+		who: z.string().trim().min(1, "Pick who."),
+	}),
 ]);
 
 export const periodSchema = z.discriminatedUnion("type", [
@@ -200,6 +211,18 @@ export const automationSchema = z
 			.min(1, "Add something for it to do.")
 			.max(20, "That's a lot: split it in two."),
 	})
+	.refine(
+		(automation) =>
+			automation.trigger.type !== "presence" ||
+			(automation.trigger.who !== "first" &&
+				automation.trigger.who !== "last") ||
+			(automation.trigger.who === "first") ===
+				(automation.trigger.event === "arrive"),
+		{
+			message: "The first person arrives and the last one leaves.",
+			path: ["trigger"],
+		},
+	)
 	.refine(
 		(automation) =>
 			automation.trigger.type === "contact" ||

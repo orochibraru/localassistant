@@ -53,6 +53,7 @@
 		rooms: HouseRoom[];
 		floors: HouseFloor[];
 		scenes: { id: string; name: string }[];
+		people: { id: string; name: string }[];
 		hasLocation: boolean;
 	}
 
@@ -63,6 +64,7 @@
 		rooms,
 		floors,
 		scenes,
+		people,
 		hasLocation,
 	}: Props = $props();
 
@@ -204,7 +206,7 @@
 		<Field.Set>
 			<Field.Legend>When</Field.Legend>
 			{#key loaded}
-				<TriggerEditor bind:trigger {devices} {hasLocation} />
+				<TriggerEditor bind:trigger {devices} {people} {hasLocation} />
 			{/key}
 		</Field.Set>
 
@@ -275,7 +277,7 @@
 				>Every condition has to hold when it's set off, or it skips this time.
 				Run now ignores them.</Field.Description
 			>
-			<ConditionList bind:conditions {devices} {hasLocation} />
+			<ConditionList bind:conditions {devices} {people} {hasLocation} />
 		</Field.Set>
 
 		<Field.Set>

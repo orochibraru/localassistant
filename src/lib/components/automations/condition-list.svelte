@@ -5,6 +5,7 @@
 	import PlugIcon from "@lucide/svelte/icons/plug";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SunIcon from "@lucide/svelte/icons/sun";
+	import UsersIcon from "@lucide/svelte/icons/users";
 	import XIcon from "@lucide/svelte/icons/x";
 	import type { Component } from "svelte";
 
@@ -12,6 +13,7 @@
 	import ChoiceRow from "#lib/components/automations/choice-row.svelte";
 	import StateTestEditor from "#lib/components/automations/state-test-editor.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
+	import Picker from "#lib/components/picker.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
@@ -22,10 +24,21 @@
 	interface Props {
 		conditions: Condition[];
 		devices: { id: string; card: PluginCard; name: string }[];
+		people: { id: string; name: string }[];
 		hasLocation: boolean;
 	}
 
-	let { conditions = $bindable(), devices, hasLocation }: Props = $props();
+	let {
+		conditions = $bindable(),
+		devices,
+		people,
+		hasLocation,
+	}: Props = $props();
+
+	const whoOptions = $derived([
+		{ value: "anyone", label: "Somebody" },
+		...people.map((person) => ({ value: person.id, label: person.name })),
+	]);
 
 	const firstWatchable = $derived(
 		devices.find((device) => checksFor(device.card).length > 0),
@@ -36,12 +49,14 @@
 		time: "Between two times",
 		weekdays: "On some days",
 		sun: "Day or night",
+		presence: "Who's home",
 	};
 	const icons: Record<Condition["type"], Component<{ class?: string }>> = {
 		device: PlugIcon,
 		time: ClockIcon,
 		weekdays: CalendarDaysIcon,
 		sun: SunIcon,
+		presence: UsersIcon,
 	};
 
 	const addable = $derived(
@@ -79,6 +94,15 @@
 				type: "sun" as const,
 				available: true,
 				make: (): Condition => ({ type: "sun", when: "night" }),
+			},
+			{
+				type: "presence" as const,
+				available: true,
+				make: (): Condition => ({
+					type: "presence",
+					who: "anyone",
+					home: false,
+				}),
 			},
 		].filter((entry) => entry.available),
 	);
@@ -147,6 +171,30 @@
 						>
 					{/each}
 				</ToggleGroup.Root>
+			{:else if condition.type === "presence"}
+				<Picker
+					id="condition-{index}-who"
+					name=""
+					label="Who"
+					options={whoOptions}
+					value={condition.who}
+					onPick={(next) => (condition.who = next)}
+				/>
+				<ChoiceRow
+					label="Is"
+					options={[
+						{ value: "home", label: "Home" },
+						{
+							value: "away",
+							label: condition.who === "anyone" ? "Nobody home" : "Away",
+						},
+					]}
+					value={condition.home ? "home" : "away"}
+					onChange={(next) => (condition.home = next === "home")}
+				/>
+				<p class="text-muted-foreground text-sm">
+					From the person trackers and phones each person owns, set in Devices.
+				</p>
 			{:else}
 				<ChoiceRow
 					label="When"

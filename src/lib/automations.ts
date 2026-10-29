@@ -1,6 +1,7 @@
 import type { DeviceState } from "#lib/devices.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import type { PluginCard } from "#lib/plugins.js";
+import type { PresenceEvent } from "#lib/presence.js";
 
 export const sunEvents = ["sunrise", "sunset"] as const;
 export type SunEvent = (typeof sunEvents)[number];
@@ -156,7 +157,8 @@ export type Condition =
 	| { type: "device"; test: StateTest }
 	| { type: "time"; from: string; to: string }
 	| { type: "weekdays"; weekdays: number[] }
-	| { type: "sun"; when: DayPart };
+	| { type: "sun"; when: DayPart }
+	| { type: "presence"; who: string; home: boolean };
 
 export type Trigger =
 	| { type: "sun"; event: SunEvent; offsetMinutes: number }
@@ -167,7 +169,8 @@ export type Trigger =
 			threshold: number;
 	  }
 	| { type: "contact"; deviceIds: string[] }
-	| { type: "device"; test: StateTest };
+	| { type: "device"; test: StateTest }
+	| { type: "presence"; event: PresenceEvent; who: string };
 
 export type Period =
 	| { type: "always" }
@@ -230,7 +233,11 @@ export function inPeriod(period: Period, monthDay: string): boolean {
 export function describeTrigger(
 	trigger: Trigger,
 	deviceName: (deviceId: string) => string = () => "a device",
+	personName: (userId: string) => string = () => "someone",
 ): string {
+	if (trigger.type === "presence") {
+		return `When ${describePresence(trigger.event, trigger.who, personName)}`;
+	}
 	if (trigger.type === "sun") {
 		const offset = Math.abs(trigger.offsetMinutes);
 		if (offset === 0) {
@@ -450,6 +457,23 @@ export function describeTest(
 	return `${deviceName(test.deviceId)} ${words}${measures(test.check) ? ` ${test.value ?? 0}` : ""}`;
 }
 
+/** Someone arriving or leaving in words: "someone gets home", "the last person leaves", "Ada leaves". */
+export function describePresence(
+	event: PresenceEvent,
+	who: string,
+	personName: (userId: string) => string,
+): string {
+	const person =
+		who === "anyone"
+			? "someone"
+			: who === "first"
+				? "the first person"
+				: who === "last"
+					? "the last person"
+					: personName(who);
+	return `${person} ${event === "arrive" ? "gets home" : "leaves"}`;
+}
+
 /** Whether `time` ("HH:MM") falls between `from` and `to`, `from` included and `to` excluded, wrapping over midnight. */
 export function withinTimes(time: string, from: string, to: string): boolean {
 	return from <= to ? time >= from && time < to : time >= from || time < to;
@@ -459,7 +483,14 @@ export function withinTimes(time: string, from: string, to: string): boolean {
 export function describeCondition(
 	condition: Condition,
 	deviceName: (deviceId: string) => string,
+	personName: (userId: string) => string = () => "Someone",
 ): string {
+	if (condition.type === "presence") {
+		if (condition.who === "anyone") {
+			return condition.home ? "Someone is home" : "Nobody is home";
+		}
+		return `${personName(condition.who)} is ${condition.home ? "home" : "away"}`;
+	}
 	if (condition.type === "device") {
 		return describeTest(condition.test, deviceName, true);
 	}
