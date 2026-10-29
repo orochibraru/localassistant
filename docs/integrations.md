@@ -59,6 +59,34 @@ GitHub, most starred first; **Look** opens the same preview.
 An integration runs on your server with full access to your devices and your
 network. Only install one from someone you trust.
 
+## Add a private integration
+
+An integration in a private repository, yours or your company's, installs the
+same way once LocalAssistant may read it. GitHub only lets it in with a token:
+
+1. On GitHub, open your picture, **Settings**, **Developer settings**,
+   **Personal access tokens**, **Fine-grained tokens**, **Generate new token**.
+2. Name it (`LocalAssistant`), pick an expiry, and under **Repository access**
+   choose **Only select repositories** with the integration's repository. For a
+   repository owned by an organization, pick the organization as the resource
+   owner; it may have to approve the token.
+3. Under **Permissions**, **Repository permissions**, set **Contents** to
+   **Read-only**. Nothing else: the token can't change anything.
+4. **Generate token** and copy it (it starts with `github_pat_`).
+5. In **Admin, Integrations**, paste it under **GitHub access** and **Save the
+   token**. LocalAssistant checks it with GitHub and stores it encrypted.
+6. Paste the repository's link under **Add an integration** and install it as
+   any other.
+
+The token also lets LocalAssistant ask GitHub more often, so a busy instance
+never hits the hourly limit. When it expires or is revoked, installed
+integrations keep running but stop finding updates, and the page says GitHub
+refused the token: make a new one and save it in its place. **Remove the token**
+forgets it.
+
+The maintenance badge works the same for a private repository: it reads when the
+repository last changed.
+
 ## Is it maintained?
 
 LocalAssistant asks GitHub about every installed integration once a day, and

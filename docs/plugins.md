@@ -196,7 +196,9 @@ Only the standard library is available in the Docker image.
 
 ## Publishing
 
-1. Push the repository to GitHub, public.
+1. Push the repository to GitHub. Public for everyone; a private one installs
+   only where an admin saved a token that may read it
+   ([how](integrations.md#add-a-private-integration)).
 2. Tag it with the topic `localassistant-plugin` so it shows up under
    **Browse**.
 3. Publish releases: LocalAssistant installs and updates from the latest
