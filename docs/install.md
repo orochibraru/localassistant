@@ -5,11 +5,30 @@ accounts, devices and their encrypted keys. Back it up with `AUTH_SECRET`.
 
 ## Docker Compose
 
+Save this as `compose.yaml` in a folder of its own:
+
+```yaml
+services:
+  localassistant:
+    image: docker.io/orochibraru/localassistant:latest
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    volumes:
+      - localassistant:/data
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET, e.g. openssl rand -base64 32}
+      ORIGIN: ${ORIGIN:-}
+
+volumes:
+  localassistant: {}
+```
+
+Then, in that folder:
+
 ```bash
-mkdir localassistant && cd localassistant
-curl -fsSLO https://raw.githubusercontent.com/orochibraru/localassistant/main/compose.prod.yaml
 printf 'AUTH_SECRET=%s\nORIGIN=http://192.168.1.10:3000\n' "$(openssl rand -base64 32)" > .env
-docker compose -f compose.prod.yaml up -d
+docker compose up -d
 ```
 
 ## Network

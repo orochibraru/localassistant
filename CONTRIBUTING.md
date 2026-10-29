@@ -61,8 +61,9 @@ with `AUTH_SECRET` and `ORIGIN` from `.env`:
 docker compose up --build
 ```
 
-It is for checking the real container before a PR. Self-hosters use
-`compose.prod.yaml`, which pulls the published image; keep the two in step.
+It is for checking the real container before a PR. Self-hosters copy the
+`compose.yaml` block in `README.md` and `docs/install.md`, which pulls the
+published image, the same as `compose.prod.yaml`; keep all of them in step.
 
 ## Screenshots
 
