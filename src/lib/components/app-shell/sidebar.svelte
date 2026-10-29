@@ -12,11 +12,10 @@
 		navigationItems,
 	} from "#lib/components/app-shell/navigation.js";
 	import BrandMark from "#lib/components/brand-mark.svelte";
-	import { deviceKindIcons } from "#lib/components/devices/device-kinds.js";
+	import { kindIcon } from "#lib/components/devices/device-kinds.js";
 	import HomeSwitcher from "#lib/components/house/home-switcher.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
-	import type { DeviceKind } from "#lib/dto/device.js";
 	import { type HouseFloor, houseGroups, type HouseRoom } from "#lib/house.js";
 	import { roomIcon } from "#lib/room-icons.js";
 	import { useSheets } from "#lib/sheets.svelte.js";
@@ -28,7 +27,7 @@
 		devices: {
 			id: string;
 			name: string;
-			kind: DeviceKind;
+			kind: string;
 			roomId: string | null;
 		}[];
 		home: { id: string; name: string };
@@ -201,7 +200,7 @@
 			</div>
 			<ul class="flex flex-col gap-0.5">
 				{#each sortedDevices as device (device.id)}
-					{@const Icon = deviceKindIcons[device.kind]}
+					{@const Icon = kindIcon(page.data.kinds, device.kind)}
 					<li>
 						{#if isAdmin}
 							<button

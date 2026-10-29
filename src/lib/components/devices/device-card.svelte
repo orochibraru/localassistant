@@ -23,6 +23,7 @@
 		cardSizes,
 		type DeviceState,
 	} from "#lib/devices.js";
+	import { kindInfo } from "#lib/plugins.js";
 	import { resizeCard, showCardDetails } from "#lib/remote/devices.remote.js";
 	import { useSheets } from "#lib/sheets.svelte.js";
 	import { toastError } from "#lib/toast.js";
@@ -52,6 +53,7 @@
 	);
 
 	const reading = $derived(device.state);
+	const cardType = $derived(kindInfo(page.data.kinds, device.kind).card);
 	const ownerName = $derived(
 		page.data.people?.find(
 			(person: { id: string }) => person.id === device.ownerId,
@@ -91,7 +93,7 @@
 		});
 	}
 
-	const hasDetails = $derived(device.kind === "linky");
+	const hasDetails = $derived(cardType === "linky");
 	const detailsShown = $derived(
 		!(page.data.cardLayout?.brief ?? []).includes(device.id),
 	);
@@ -116,7 +118,7 @@
 </script>
 
 {#snippet card(compact: boolean, onMore?: () => void)}
-	{#if device.kind === "tuya-cover"}
+	{#if cardType === "cover"}
 		<CoverCard
 			id={device.id}
 			name={device.name}
@@ -127,7 +129,7 @@
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "bambu-printer"}
+	{:else if cardType === "printer"}
 		<PrinterCard
 			id={device.id}
 			name={device.name}
@@ -138,7 +140,7 @@
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "dreame-vacuum"}
+	{:else if cardType === "vacuum"}
 		<VacuumCard
 			id={device.id}
 			name={device.name}
@@ -149,7 +151,7 @@
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "zigbee-contact" || device.kind === "zigbee-meter" || device.kind === "shelly-meter" || device.kind === "linky"}
+	{:else if cardType === "contact" || cardType === "meter" || cardType === "linky"}
 		<SensorCard
 			details={detailsShown
 				? (page.data.energySummaries?.[device.id] ?? null)
@@ -167,7 +169,7 @@
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "zigbee-valve"}
+	{:else if cardType === "valve"}
 		<ValveCard
 			id={device.id}
 			name={device.name}
@@ -177,7 +179,7 @@
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "zigbee-switch"}
+	{:else if cardType === "switch"}
 		<SwitchCard
 			id={device.id}
 			name={device.name}
@@ -187,20 +189,17 @@
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "camera" || device.kind === "frigate-camera"}
+	{:else if cardType === "camera"}
 		<CameraCard
 			id={device.id}
 			name={device.name}
-			frigateName={device.kind === "frigate-camera"
-				? (device.externalId ?? null)
-				: null}
 			reading={reading?.type === "camera" ? reading : null}
 			error={device.stateError}
 			{now}
 			{compact}
 			{onMore}
 		/>
-	{:else if device.kind === "app"}
+	{:else if cardType === "app"}
 		<AppCard
 			id={device.id}
 			name={device.name}

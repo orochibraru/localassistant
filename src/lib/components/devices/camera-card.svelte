@@ -9,7 +9,6 @@
 	interface Props {
 		id: string;
 		name: string;
-		frigateName: string | null;
 		reading: CameraState | null;
 		error: string | null;
 		now: number;
@@ -20,7 +19,6 @@
 	const {
 		id,
 		name,
-		frigateName,
 		reading,
 		error,
 		now,
@@ -29,13 +27,13 @@
 	}: Props = $props();
 
 	const snapshot = $derived(
-		frigateName
-			? `/frigate/${encodeURIComponent(frigateName)}/latest.jpg?at=${Math.floor(now / 10_000)}`
+		reading?.snapshot
+			? `/media/${id}/${reading.snapshot}?at=${Math.floor(now / 10_000)}`
 			: null,
 	);
 	const status = $derived.by(() => {
-		if (frigateName) {
-			return "Frigate";
+		if (reading?.source) {
+			return reading.source;
 		}
 		if (!reading?.streaming) {
 			return "Offline";

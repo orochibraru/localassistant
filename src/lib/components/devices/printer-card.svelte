@@ -164,7 +164,7 @@
 				onclick={() => pending.set({ light: !shown.light })}
 			/>
 		{/if}
-		{#if !compact}
+		{#if !compact && reading?.camera}
 			<IconButton
 				label={watching ? `Hide ${name}'s camera` : `Show ${name}'s camera`}
 				icon={CameraIcon}
@@ -175,9 +175,9 @@
 		<CardMore {name} onclick={onMore} />
 	</header>
 
-	{#if watching && !compact}
+	{#if watching && !compact && reading?.camera}
 		<img
-			src="/printers/{id}/camera.jpg?at={frame}"
+			src="/media/{id}/{reading.camera}?at={frame}"
 			alt="{name}'s camera"
 			class="aspect-video w-full rounded-xl bg-black object-contain"
 			onload={() => setTimeout(() => (frame += 1), 2000)}

@@ -15,11 +15,12 @@
 	import Fab from "#lib/components/fab.svelte";
 	import WeatherCard from "#lib/components/house/weather-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { refill, sortCards } from "#lib/devices.js";
+	import { refill } from "#lib/devices.js";
 	import { houseGroups, roomLabels } from "#lib/house.js";
 	import { LiveRefresh } from "#lib/live-refresh.svelte.js";
 	import { setPageTitle } from "#lib/page-title.svelte.js";
 	import { panelMode } from "#lib/panel-mode.js";
+	import { sortCards } from "#lib/plugins.js";
 	import { arrangeCards } from "#lib/remote/devices.remote.js";
 	import { toastError } from "#lib/toast.js";
 
@@ -55,7 +56,7 @@
 	);
 
 	function startArranging() {
-		draft = sortCards(data.devices, data.cardLayout.order).map(
+		draft = sortCards(data.devices, data.cardLayout.order, data.kinds).map(
 			(device) => device.id,
 		);
 		arranging = true;

@@ -14,6 +14,7 @@
 	import { houseGroups, roomLabels } from "#lib/house.js";
 	import { LiveRefresh } from "#lib/live-refresh.svelte.js";
 	import { setPanelMode } from "#lib/panel-mode.js";
+	import { withCard } from "#lib/plugins.js";
 	import { controlBlinds } from "#lib/remote/devices.remote.js";
 	import { roomIcon } from "#lib/room-icons.js";
 	import { toastError } from "#lib/toast.js";
@@ -90,8 +91,7 @@
 				return {
 					...room,
 					label: labels.get(room.id) ?? room.name,
-					blinds: inside.filter((device) => device.kind === "tuya-cover")
-						.length,
+					blinds: withCard(data.kinds, inside, "cover").length,
 					open: inside.filter((device) => openings.includes(device)).length,
 					temperature: temperatures[0] ?? null,
 				};
@@ -101,19 +101,20 @@
 			),
 	);
 	const controls = $derived(
-		data.devices.filter(
-			(device) =>
-				![
-					"app",
-					"zigbee-contact",
-					"zigbee-meter",
-					"shelly-meter",
-					"tuya-cover",
-				].includes(device.kind),
+		withCard(
+			data.kinds,
+			data.devices,
+			"climate",
+			"printer",
+			"vacuum",
+			"valve",
+			"switch",
+			"camera",
+			"linky",
 		),
 	);
 	const hasBlinds = $derived(
-		data.devices.some((device) => device.kind === "tuya-cover"),
+		withCard(data.kinds, data.devices, "cover").length > 0,
 	);
 
 	async function blinds(roomId: string | null, action: CoverAction) {

@@ -2,21 +2,10 @@ import { getContext, setContext } from "svelte";
 
 const key = Symbol("sheets");
 
-export type AddDeviceSheet =
-	| "blind"
-	| "printer"
-	| "melcloud"
-	| "dreame"
-	| "zigbee"
-	| "linky"
-	| "camera"
-	| "frigate"
-	| "esphome";
-
 /** Which setup sheet is open: the shell renders them once, and anything can open one. */
 export class Sheets {
 	pickDevice = $state(false);
-	addDevice = $state<AddDeviceSheet | null>(null);
+	addDevice = $state<string | null>(null);
 	editDeviceId = $state<string | null>(null);
 	room = $state<{ id: string | null; place?: string } | null>(null);
 	floor = $state<{ id: string | null } | null>(null);

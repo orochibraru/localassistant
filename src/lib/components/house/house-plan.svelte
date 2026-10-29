@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 	import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import ArrowRightIcon from "@lucide/svelte/icons/arrow-right";
@@ -14,12 +15,11 @@
 	import { MediaQuery } from "svelte/reactivity";
 
 	import { longPress } from "#lib/actions/long-press.js";
-	import { deviceKindIcons } from "#lib/components/devices/device-kinds.js";
+	import { kindIcon } from "#lib/components/devices/device-kinds.js";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Drawer from "#lib/components/ui/drawer/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
-	import type { DeviceKind } from "#lib/dto/device.js";
 	import {
 		extendPart,
 		planOutline,
@@ -46,7 +46,7 @@
 	interface PlanDevice {
 		id: string;
 		name: string;
-		kind: DeviceKind;
+		kind: string;
 		roomId: string | null;
 		pin: PlanPin | null;
 	}
@@ -499,7 +499,7 @@
 </script>
 
 {#snippet chip(device: PlanDevice)}
-	{@const Icon = deviceKindIcons[device.kind]}
+	{@const Icon = kindIcon(page.data.kinds, device.kind)}
 	<li
 		class="bg-card/90 text-foreground flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs shadow-sm {editing
 			? 'pointer-events-auto min-h-11 cursor-grab touch-none'
@@ -821,7 +821,7 @@
 </div>
 
 {#if deviceDrag}
-	{@const Icon = deviceKindIcons[deviceDrag.device.kind]}
+	{@const Icon = kindIcon(page.data.kinds, deviceDrag.device.kind)}
 	<div
 		class="bg-primary text-primary-foreground pointer-events-none fixed z-50 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs shadow-lg"
 		style="left: {deviceDrag.x}px; top: {deviceDrag.y}px;"
