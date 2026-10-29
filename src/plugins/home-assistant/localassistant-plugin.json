@@ -1,0 +1,81 @@
+{
+	"id": "home-assistant",
+	"name": "Home Assistant",
+	"description": "Every device a Home Assistant instance knows, driven through it.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "puzzle",
+	"connection": {
+		"description": "For devices only Home Assistant integrates: LocalAssistant shows its switches, lights, covers, thermostats, door and window sensors, power and energy sensors and cameras. In Home Assistant, open your profile, Security, and create a long-lived access token.",
+		"connected": "Its devices follow Home Assistant live.",
+		"find": "Find new devices",
+		"fields": [
+			{
+				"name": "url",
+				"label": "Address",
+				"type": "text",
+				"placeholder": "http://192.168.1.10:8123",
+				"keyboard": "url",
+				"pattern": "^https?://[A-Za-z0-9.-]+(:\\d{1,5})?/?$",
+				"message": "Type Home Assistant's address, like http://192.168.1.10:8123."
+			},
+			{
+				"name": "token",
+				"label": "Long-lived access token",
+				"type": "secret",
+				"description": "Stored encrypted, never shown again."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "home-assistant-switch",
+			"label": "Switch or light (Home Assistant)",
+			"card": "switch",
+			"icon": "lightbulb",
+			"order": 3
+		},
+		{
+			"id": "home-assistant-cover",
+			"label": "Cover (Home Assistant)",
+			"card": "cover",
+			"icon": "blinds",
+			"order": 1
+		},
+		{
+			"id": "home-assistant-climate",
+			"label": "Thermostat (Home Assistant)",
+			"card": "climate",
+			"icon": "thermometer",
+			"order": 0
+		},
+		{
+			"id": "home-assistant-contact",
+			"label": "Door or window sensor (Home Assistant)",
+			"card": "contact",
+			"icon": "door-open",
+			"order": 1
+		},
+		{
+			"id": "home-assistant-power",
+			"label": "Power sensor (Home Assistant)",
+			"card": "meter",
+			"icon": "zap",
+			"order": 4
+		},
+		{
+			"id": "home-assistant-energy",
+			"label": "Energy sensor (Home Assistant)",
+			"card": "meter",
+			"icon": "gauge",
+			"order": 4
+		},
+		{
+			"id": "home-assistant-camera",
+			"label": "Camera (Home Assistant)",
+			"card": "camera",
+			"icon": "cctv",
+			"order": -1
+		}
+	]
+}

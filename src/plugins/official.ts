@@ -9,6 +9,8 @@ import esphome from "#plugins/esphome/index.js";
 import esphomeManifest from "#plugins/esphome/localassistant-plugin.json";
 import frigate from "#plugins/frigate/index.js";
 import frigateManifest from "#plugins/frigate/localassistant-plugin.json";
+import homeAssistant from "#plugins/home-assistant/index.js";
+import homeAssistantManifest from "#plugins/home-assistant/localassistant-plugin.json";
 import linky from "#plugins/linky/index.js";
 import linkyManifest from "#plugins/linky/localassistant-plugin.json";
 import melcloud from "#plugins/melcloud/index.js";
@@ -34,4 +36,5 @@ export const officialPlugins: { manifest: unknown; plugin: Plugin }[] = [
 	{ manifest: dreameManifest, plugin: dreame },
 	{ manifest: linkyManifest, plugin: linky },
 	{ manifest: mqttDiscoveryManifest, plugin: mqttDiscovery },
+	{ manifest: homeAssistantManifest, plugin: homeAssistant },
 ];
