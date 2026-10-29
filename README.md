@@ -54,11 +54,30 @@ LocalAssistant is one container and one SQLite file. The image,
 [`docker.io/orochibraru/localassistant`](https://hub.docker.com/r/orochibraru/localassistant),
 is built for `linux/amd64` and `linux/arm64`.
 
+Save this as `compose.yaml` in a folder of its own:
+
+```yaml
+services:
+  localassistant:
+    image: docker.io/orochibraru/localassistant:latest
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    volumes:
+      - localassistant:/data
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET, e.g. openssl rand -base64 32}
+      ORIGIN: ${ORIGIN:-}
+
+volumes:
+  localassistant: {}
+```
+
+Then, in that folder:
+
 ```bash
-mkdir localassistant && cd localassistant
-curl -fsSLO https://raw.githubusercontent.com/orochibraru/localassistant/main/compose.prod.yaml
 printf 'AUTH_SECRET=%s\nORIGIN=http://192.168.1.10:3000\n' "$(openssl rand -base64 32)" > .env
-docker compose -f compose.prod.yaml up -d
+docker compose up -d
 ```
 
 Run it on a machine in the same network as the blinds: the container talks to
@@ -77,7 +96,7 @@ Every page sends a fresh instance to the setup screen, which asks for the code
 the server's log shows:
 
 ```bash
-docker compose -f compose.prod.yaml logs localassistant | grep "Setup code"
+docker compose logs localassistant | grep "Setup code"
 ```
 
 Enter it, then create your account: it's the admin. Then **House** and
@@ -87,8 +106,8 @@ Enter it, then create your account: it's the admin. Then **House** and
 ### Upgrades
 
 ```bash
-docker compose -f compose.prod.yaml pull
-docker compose -f compose.prod.yaml up -d
+docker compose pull
+docker compose up -d
 ```
 
 Migrations run at boot. Your data is the `localassistant` volume.

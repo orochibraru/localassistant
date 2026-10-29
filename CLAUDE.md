@@ -22,8 +22,8 @@ shadcn-svelte, `bun lint`, `bun fmt`, prek hooks, mise.
   proceed on what was already asked, fix instead of ranking findings, no feature
   flags, compat shims or deprecation windows. Breaking dev data or needing a
   manual step is fine: say so and move on. The conventions still apply.
-- End every turn that edited files with a suggested one-line conventional commit
-  message in a code block. Suggest, never commit.
+- End a turn that edited files with a suggested one-line conventional commit.
+  Commit only when asked, then ship as `.agents/notes/ci-releases.md` says.
 - `TODO.md` is the only backlog, one `- [ ]` checkbox per entry. Pick from it
   when there's no specific ask, mark an item `**[WIP]**` before starting and
   delete it when done, add a line for anything found out of scope.

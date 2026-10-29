@@ -1,5 +1,16 @@
 # CI and releases
 
+## Shipping a change
+
+- Never push to `main`. Branch as `<type>/<what-it-does>`: a Conventional Commit
+  type and a meaningful kebab-case summary (`fix/e2e-routines-rename`, not
+  `fix/ci-stuff`).
+- Open a PR whose title is a Conventional Commit, since the squash merge makes
+  it the commit releaser reads, and whose body fills
+  `.github/pull_request_template.md`. No Claude session URL or Claude Code link
+  in the PR body.
+- Watch its CI until `CI Gate` is green and fix what fails.
+
 ## Pull requests
 
 - `pull_request.yaml` runs code quality (prek over every file, then the pre-push

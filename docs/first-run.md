@@ -6,7 +6,7 @@ A fresh instance sends every page to the setup screen. It asks for a six-digit
 code only the server's log shows, valid 15 minutes:
 
 ```bash
-docker compose -f compose.prod.yaml logs localassistant | grep "Setup code"
+docker compose logs localassistant | grep "Setup code"
 ```
 
 Then your email, name and password. That first account is the admin.
