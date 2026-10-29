@@ -52,7 +52,7 @@
 <ResponsiveSheet
 	bind:open
 	title="Where is {home?.name ?? ''}?"
-	description="For the weather and the sunrise and sunset automations. Only the coordinates leave the server, to Open-Meteo."
+	description="For the weather and the sunrise and sunset routines. Only the coordinates leave the server, to Open-Meteo."
 >
 	{#if home}
 		<div class="flex flex-col gap-4 pb-6">

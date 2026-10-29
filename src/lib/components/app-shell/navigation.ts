@@ -25,7 +25,7 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 		{ href: resolve("/(protected)/plan"), label: "Plan", icon: MapIcon },
 		{
 			href: resolve("/(protected)/automations"),
-			label: "Automations",
+			label: "Routines",
 			icon: WorkflowIcon,
 		},
 		{ href: resolve("/(protected)/energy"), label: "Energy", icon: GaugeIcon },
@@ -45,11 +45,22 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 	return items;
 }
 
-/** The destinations of the phone's tab bar: everything but Admin, which phones reach from the account page. */
-export function phoneNavigationItems(isAdmin: boolean): NavigationItem[] {
-	return navigationItems(isAdmin).filter(
-		(item) => item.href !== resolve("/(protected)/admin"),
-	);
+/** The phone's tab bar: the four daily destinations as tabs, the rest behind its More drawer. */
+export function phoneNavigation(isAdmin: boolean): {
+	tabs: NavigationItem[];
+	more: NavigationItem[];
+} {
+	const daily = new Set<string>([
+		resolve("/(protected)"),
+		resolve("/(protected)/plan"),
+		resolve("/(protected)/automations"),
+		resolve("/(protected)/energy"),
+	]);
+	const items = navigationItems(isAdmin);
+	return {
+		tabs: items.filter((item) => daily.has(item.href)),
+		more: items.filter((item) => !daily.has(item.href)),
+	};
 }
 
 /** Whether `pathname` sits under the destination at `href`. */

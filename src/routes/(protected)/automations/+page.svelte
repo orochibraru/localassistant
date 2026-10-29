@@ -35,9 +35,9 @@
 		sheetOpen = true;
 	}
 
-	setPageTitle("Automations", undefined, () => [
+	setPageTitle("Routines", undefined, () => [
 		{
-			label: "New automation",
+			label: "New routine",
 			icon: PlusIcon,
 			onSelect: () => openSheet(null),
 			primary: true,
@@ -54,11 +54,11 @@
 	<div class="glass rounded-2xl">
 		<EmptyState
 			icon={WorkflowIcon}
-			title="No automation yet"
+			title="No routine yet"
 			subtitle="Close the blinds at sunset in winter, at a set time in summer, or when it gets hot outside."
 		>
 			<Button class="h-11 rounded-xl px-5" onclick={() => openSheet(null)}
-				><PlusIcon />New automation</Button
+				><PlusIcon />New routine</Button
 			>
 		</EmptyState>
 	</div>
@@ -152,7 +152,7 @@
 	</ul>
 {/if}
 
-<Fab label="New automation" icon={PlusIcon} onclick={() => openSheet(null)} />
+<Fab label="New routine" icon={PlusIcon} onclick={() => openSheet(null)} />
 
 <AutomationSheet
 	bind:open={sheetOpen}

@@ -101,7 +101,7 @@ export const actions = {
 		if (id) {
 			const existing = AutomationDTO.find(id, home.id);
 			if (!existing) {
-				return fail(404, { error: "That automation is gone." });
+				return fail(404, { error: "That routine is gone." });
 			}
 			existing.update(definition);
 		} else {
@@ -115,14 +115,14 @@ export const actions = {
 		}
 		const parsed = parseForm(automationToggleSchema, await request.formData());
 		if (!parsed.success) {
-			return fail(400, { error: "Pick an automation." });
+			return fail(400, { error: "Pick a routine." });
 		}
 		const automation = AutomationDTO.find(
 			parsed.data.id,
 			homes.current(cookies).id,
 		);
 		if (!automation) {
-			return fail(404, { error: "That automation is gone." });
+			return fail(404, { error: "That routine is gone." });
 		}
 		automation.setEnabled(parsed.data.enabled);
 		return { enabled: parsed.data.enabled };
@@ -136,7 +136,7 @@ export const actions = {
 			? AutomationDTO.find(parsed.data.id, homes.current(cookies).id)
 			: undefined;
 		if (!automation) {
-			return fail(404, { error: "That automation is gone." });
+			return fail(404, { error: "That routine is gone." });
 		}
 		JobDTO.enqueue(
 			"automation.run",

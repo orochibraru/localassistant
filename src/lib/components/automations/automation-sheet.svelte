@@ -117,7 +117,7 @@
 		"door-heating": DoorOpenIcon,
 	};
 	const startOptions = [
-		{ value: "blank", label: "A blank automation", icon: PlusIcon },
+		{ value: "blank", label: "A blank routine", icon: PlusIcon },
 		...presetKeys.map((key) => ({
 			value: key,
 			label: presets[key].title,
@@ -390,7 +390,7 @@
 <ResponsiveSheet
 	bind:open
 	wide
-	title={editing ? `Edit ${editing.name}` : "New automation"}
+	title={editing ? `Edit ${editing.name}` : "New routine"}
 	description="Run by the server, whether or not anyone has the app open."
 >
 	{#if !editing}
@@ -413,7 +413,7 @@
 		class="flex flex-col gap-6 pb-6"
 		use:enhance={enhanceToast({
 			loading: "Saving",
-			success: `${name || "Automation"} saved.`,
+			success: `${name || "Routine"} saved.`,
 			onSuccess: () => {
 				open = false;
 			},
