@@ -20,7 +20,8 @@ export type Role =
 	| "fan"
 	| "fan-speed"
 	| "fan-oscillation"
-	| "reading";
+	| "reading"
+	| "presence";
 
 export interface Subscription {
 	topic: string;
@@ -68,7 +69,9 @@ const abbreviations: Record<string, string> = {
 	pct_stat_t: "percentage_state_topic",
 	pct_val_tpl: "percentage_value_template",
 	pl_cls: "payload_close",
+	pl_home: "payload_home",
 	pl_lock: "payload_lock",
+	pl_not_home: "payload_not_home",
 	pl_off: "payload_off",
 	pl_on: "payload_on",
 	pl_open: "payload_open",
@@ -138,7 +141,7 @@ class Discovery {
 
 	/**
 	 * The device a discovery message announces, or `null` for one LocalAssistant can't show: switches, lights, locks,
-	 * fans, buttons, covers, door and window sensors, power, energy and other sensors, and thermostats.
+	 * fans, buttons, person trackers, covers, door and window sensors, power, energy and other sensors, and thermostats.
 	 */
 	entity(
 		component: string,
@@ -237,6 +240,7 @@ class Discovery {
 					],
 				],
 				"mqtt-discovery-sensor": [[topic("state_topic"), "reading", value]],
+				"mqtt-discovery-tracker": [[topic("state_topic"), "presence", value]],
 				"mqtt-discovery-climate": [
 					[
 						topic("mode_state_topic"),
@@ -332,6 +336,12 @@ class Discovery {
 		}
 		if (component === "button" && commanded) {
 			return "mqtt-discovery-button";
+		}
+		if (
+			component === "device_tracker" &&
+			typeof config.state_topic === "string"
+		) {
+			return "mqtt-discovery-tracker";
 		}
 		if (
 			component === "cover" &&

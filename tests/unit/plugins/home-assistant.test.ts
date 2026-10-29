@@ -585,6 +585,26 @@ describe("Home Assistant", () => {
 			readings: [{ name: "Value", value: null, unit: "ppm" }],
 		});
 
+		expect(kind("person.ada")).toBe("home-assistant-presence");
+		expect(
+			haMapping.state(
+				"home-assistant-presence",
+				entity("person.ada", "home", { battery_level: 80 }),
+			),
+		).toEqual({ type: "presence", home: true, zone: null, battery: 80 });
+		expect(
+			haMapping.state(
+				"home-assistant-presence",
+				entity("device_tracker.a", "Work"),
+			),
+		).toEqual({ type: "presence", home: false, zone: "Work", battery: null });
+		expect(
+			haMapping.state(
+				"home-assistant-presence",
+				entity("person.ada", "unavailable"),
+			),
+		).toMatchObject({ home: null, zone: null });
+
 		expect(
 			haMapping.services(
 				"home-assistant-switch",

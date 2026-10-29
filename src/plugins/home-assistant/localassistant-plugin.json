@@ -3,7 +3,7 @@
 	"name": "Home Assistant",
 	"description": "Every device a Home Assistant instance knows, driven through it.",
 	"author": "LocalAssistant",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"icon": "puzzle",
 	"connection": {
 		"description": "For devices only Home Assistant integrates: LocalAssistant shows its switches, lights, covers, thermostats, door and window sensors, power and energy sensors and cameras. In Home Assistant, open your profile, Security, and create a long-lived access token.",
@@ -120,6 +120,14 @@
 			"icon": "mouse-pointer-click",
 			"size": "small",
 			"order": 6
+		},
+		{
+			"id": "home-assistant-presence",
+			"label": "Person (Home Assistant)",
+			"card": "presence",
+			"icon": "user",
+			"size": "small",
+			"order": -1
 		}
 	]
 }

@@ -15,7 +15,7 @@ type Publish = PluginContext["mqtt"]["publish"];
 
 const colorModes = new Set(["hs", "xy", "rgb", "rgbw", "rgbww"]);
 
-/** Lights, locks, fans, sensors and buttons announced for Home Assistant: their states and the payloads they take. */
+/** Lights, locks, fans, sensors, buttons and trackers announced for Home Assistant: their states and the payloads they take. */
 class Controls {
 	/** The state a newly announced device of `kind` starts in, or `null` for a kind this doesn't handle. */
 	initial(kind: string, config: DiscoveryConfig): DeviceState | null {
@@ -51,6 +51,9 @@ class Controls {
 		}
 		if (kind === "mqtt-discovery-sensor") {
 			return { type: "sensor", readings: [] };
+		}
+		if (kind === "mqtt-discovery-tracker") {
+			return { type: "presence", home: null, zone: null, battery: null };
 		}
 		return kind === "mqtt-discovery-button"
 			? { type: "button", pressedAt: null }
@@ -114,6 +117,16 @@ class Controls {
 		}
 		if (previous.type === "fan") {
 			return this.#fan(previous, role, text, config);
+		}
+		if (previous.type === "presence" && role === "presence") {
+			const home = option("payload_home", "home");
+			const away = option("payload_not_home", "not_home");
+			const known = text !== "unknown" && text !== "";
+			return {
+				...previous,
+				home: known ? text === home : null,
+				zone: known && text !== home && text !== away ? text : null,
+			};
 		}
 		if (previous.type === "sensor" && role === "reading") {
 			return { ...previous, readings: [this.#reading(text, config)] };

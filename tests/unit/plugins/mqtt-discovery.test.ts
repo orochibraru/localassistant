@@ -545,6 +545,46 @@ describe("MQTT discovery", () => {
 		publish.mockRestore();
 	});
 
+	test("follows person trackers home, away and into zones", () => {
+		announce("device_tracker/ada/phone", {
+			name: "Ada's phone",
+			stat_t: "trackers/ada",
+			pl_home: "home",
+			pl_not_home: "away",
+			uniq_id: "ada_phone",
+		});
+		expect(named("Ada's phone").state).toEqual({
+			type: "presence",
+			home: null,
+			zone: null,
+			battery: null,
+		});
+		report("trackers/ada", "home");
+		plugin.flush(context);
+		expect(named("Ada's phone").state).toMatchObject({
+			home: true,
+			zone: null,
+		});
+		report("trackers/ada", "Work");
+		plugin.flush(context);
+		expect(named("Ada's phone").state).toMatchObject({
+			home: false,
+			zone: "Work",
+		});
+		report("trackers/ada", "away");
+		plugin.flush(context);
+		expect(named("Ada's phone").state).toMatchObject({
+			home: false,
+			zone: null,
+		});
+		report("trackers/ada", "unknown");
+		plugin.flush(context);
+		expect(named("Ada's phone").state).toMatchObject({ home: null });
+		expect(
+			discovery.entity("device_tracker", "x/y", { name: "No topic" }),
+		).toBeNull();
+	});
+
 	test("keeps a light it already shows as a switch", () => {
 		DeviceDTO.upsert({
 			kind: "mqtt-discovery-switch",

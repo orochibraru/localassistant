@@ -55,6 +55,8 @@ const ownKinds: Record<string, string> = {
 	lock: "home-assistant-lock",
 	fan: "home-assistant-fan",
 	media_player: "home-assistant-media",
+	person: "home-assistant-presence",
+	device_tracker: "home-assistant-presence",
 };
 
 const climateModes: Record<string, ClimateMode> = {
@@ -386,6 +388,18 @@ class HaMapping {
 				pressedAt: Number.isNaN(pressed)
 					? null
 					: new Date(pressed).toISOString(),
+			};
+		}
+		if (kind === "home-assistant-presence") {
+			const battery = number(attributes.battery_level);
+			return {
+				type: "presence",
+				home: missing ? null : entity.state === "home",
+				zone:
+					missing || entity.state === "home" || entity.state === "not_home"
+						? null
+						: entity.state,
+				battery,
 			};
 		}
 		if (kind === "home-assistant-sensor") {
