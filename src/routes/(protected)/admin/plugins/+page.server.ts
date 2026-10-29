@@ -1,17 +1,16 @@
 import { fail } from "@sveltejs/kit";
 import { z } from "zod";
 
-import { getSetting, setSetting } from "#lib/dto/setting.js";
 import { access } from "#lib/server/auth/access.js";
-import { secrets } from "#lib/server/core/secrets.js";
 import { devices } from "#lib/server/devices/devices.js";
-import { gitHub } from "#lib/server/plugins/github.js";
 import { pluginManager } from "#lib/server/plugins/manager.js";
+import { pluginSources } from "#lib/server/plugins/sources/sources.js";
 import { parseForm } from "#lib/server/validation/form.js";
 import {
-	gitHubTokenSchema,
 	pluginIdSchema,
 	pluginLinkSchema,
+	sourceSiteSchema,
+	sourceTokenSchema,
 } from "#lib/server/validation/plugins.js";
 
 const enabledSchema = pluginIdSchema.extend({ enabled: z.stringbool() });
@@ -20,7 +19,7 @@ export const load = async ({ parent }) => {
 	await parent();
 	return {
 		plugins: pluginManager.summaries(),
-		hasGitHubToken: getSetting("githubToken") !== null,
+		tokenSites: pluginSources.tokenSites(),
 	};
 };
 
@@ -85,26 +84,35 @@ export const actions = {
 		if (!("id" in admin)) {
 			return admin;
 		}
-		const parsed = parseForm(gitHubTokenSchema, await request.formData());
+		const parsed = parseForm(sourceTokenSchema, await request.formData());
 		if (!parsed.success) {
 			return fail(400, { errors: parsed.errors });
 		}
 		try {
-			await gitHub.checkToken(parsed.data.token);
+			return {
+				saved: await pluginSources.saveToken(
+					parsed.data.site,
+					parsed.data.token,
+				),
+			};
 		} catch (failure) {
 			return fail(400, { errors: { token: [devices.message(failure)] } });
 		}
-		setSetting("githubToken", {
-			encryptedToken: secrets.encrypt(parsed.data.token),
-		});
-		return { saved: true };
 	},
-	removeToken: ({ locals }) => {
+	removeToken: async ({ locals, request }) => {
 		const admin = access.adminFrom(locals);
 		if (!("id" in admin)) {
 			return admin;
 		}
-		setSetting("githubToken", null);
+		const parsed = parseForm(sourceSiteSchema, await request.formData());
+		if (!parsed.success) {
+			return fail(400, { error: "Pick a site." });
+		}
+		try {
+			pluginSources.removeToken(parsed.data.site);
+		} catch (failure) {
+			return fail(400, { error: devices.message(failure) });
+		}
 		return { removed: true };
 	},
 	check: async ({ locals }) => {

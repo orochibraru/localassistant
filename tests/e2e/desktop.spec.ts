@@ -46,6 +46,6 @@ test("the Integrations tab lists the official plugins and explains a bad link", 
 	await page.getByLabel("Link").fill("not a link");
 	await page.getByRole("button", { name: "Look it up" }).click();
 	await expect(
-		page.getByText(/isn't a link to a GitHub repository/),
+		page.getByText(/isn't a link to a repository or a folder/),
 	).toBeVisible();
 });

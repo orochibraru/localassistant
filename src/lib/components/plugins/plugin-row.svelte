@@ -97,13 +97,16 @@
 				><PowerIcon />{plugin.enabled ? "Turn off" : "Turn on"}</Button
 			>
 		</form>
-		<Button
-			href={plugin.url}
-			target="_blank"
-			rel="noreferrer"
-			variant="ghost"
-			class="h-11 rounded-xl px-4"><ExternalLinkIcon />On GitHub</Button
-		>
+		{#if plugin.url}
+			<Button
+				href={plugin.url}
+				target="_blank"
+				rel="noreferrer"
+				variant="ghost"
+				class="h-11 rounded-xl px-4"
+				><ExternalLinkIcon />On {plugin.site}</Button
+			>
+		{/if}
 		{#if !plugin.official && !confirmingRemove}
 			<Button
 				variant="ghost"

@@ -65,13 +65,21 @@
 						version
 						{preview.status.latestVersion ?? preview.manifest.version}
 					</p>
-					<a
-						href={preview.url}
-						target="_blank"
-						rel="noreferrer"
-						class="text-primary inline-flex min-h-11 items-center truncate"
-						>{preview.repository}{preview.path ? `/${preview.path}` : ""}</a
-					>
+					{#if preview.url}
+						<a
+							href={preview.url}
+							target="_blank"
+							rel="noreferrer"
+							class="text-primary inline-flex min-h-11 items-center truncate"
+							>{preview.site}/{preview.repository}{preview.path
+								? `/${preview.path}`
+								: ""}</a
+						>
+					{:else}
+						<p class="text-muted-foreground min-h-11 truncate leading-11">
+							{preview.repository}, on {preview.site}
+						</p>
+					{/if}
 				</div>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">

@@ -74,8 +74,9 @@
 			<div>
 				<h2 class="font-semibold">Add an integration</h2>
 				<p class="text-muted-foreground mt-1 text-sm">
-					Paste the link its author gave you. No GitHub account needed: you see
-					what it adds and how maintained it is before installing.
+					Paste the link its author gave you, from GitHub, GitLab, Gitea,
+					Forgejo or Codeberg, or a folder on this server. No account needed:
+					you see what it adds and how maintained it is before installing.
 				</p>
 			</div>
 			<Field.Field>
@@ -83,7 +84,7 @@
 				<Input
 					id="plugin-link"
 					bind:value={link}
-					placeholder="github.com/someone/localassistant-something"
+					placeholder="github.com/someone/localassistant-something or /plugins/mine"
 					inputmode="url"
 					autocomplete="off"
 					required
@@ -106,7 +107,8 @@
 			<div>
 				<h2 class="font-semibold">Find integrations</h2>
 				<p class="text-muted-foreground mt-1 text-sm">
-					Community integrations on GitHub, most liked first.
+					Community integrations on GitHub, GitLab and Codeberg, most liked
+					first.
 				</p>
 			</div>
 			{#if listings === null}
@@ -137,6 +139,9 @@
 								</p>
 								<div class="mt-1 flex flex-wrap items-center gap-2">
 									<HealthBadge health={listing.health} />
+									<span class="text-muted-foreground text-xs"
+										>{listing.site}</span
+									>
 									<span
 										class="text-muted-foreground inline-flex items-center gap-1 text-xs"
 										><StarIcon class="size-3" />{listing.stars}</span
@@ -164,8 +169,9 @@
 			action="?/saveToken"
 			class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6"
 			use:enhance={enhanceToast({
-				loading: "Checking the token with GitHub",
-				success: "Token saved. Private integrations can be added now.",
+				loading: "Checking the token with the site",
+				success: (result) =>
+					`Token saved for ${String(result?.saved ?? "the site")}. Its private integrations can be added now.`,
 				reset: true,
 				onFailure: (result) => {
 					tokenErrors = (result?.errors as Record<string, string[]>) ?? {};
@@ -176,28 +182,43 @@
 			})}
 		>
 			<div>
-				<h2 class="font-semibold">GitHub access</h2>
+				<h2 class="font-semibold">Private integrations</h2>
 				<p class="text-muted-foreground mt-1 text-sm">
-					{data.hasGitHubToken
-						? "A token is saved: private integrations it may read can be added, and GitHub allows more checks an hour."
-						: "Only for integrations in a private repository: a read-only GitHub token lets LocalAssistant download them."}
+					For an integration in a private repository: a read-only access token
+					from its site lets LocalAssistant download it. One token per site.
 				</p>
 			</div>
 			<Field.Field>
-				<Field.Label for="github-token">Token</Field.Label>
+				<Field.Label for="token-site">Site</Field.Label>
 				<Input
-					id="github-token"
-					name="token"
-					type="password"
+					id="token-site"
+					name="site"
+					value="github.com"
+					inputmode="url"
 					autocomplete="off"
-					placeholder={data.hasGitHubToken ? "Saved" : "github_pat_..."}
 					required
 					class="h-11"
 				/>
 				<Field.Description
-					>Stored encrypted.{data.hasGitHubToken
-						? " Paste a new one to replace it."
-						: ""}</Field.Description
+					>github.com, gitlab.com, codeberg.org, or your own GitLab, Gitea or
+					Forgejo address.</Field.Description
+				>
+				<Field.Error
+					errors={tokenErrors.site?.map((message) => ({ message }))}
+				/>
+			</Field.Field>
+			<Field.Field>
+				<Field.Label for="token-value">Token</Field.Label>
+				<Input
+					id="token-value"
+					name="token"
+					type="password"
+					autocomplete="off"
+					required
+					class="h-11"
+				/>
+				<Field.Description
+					>Stored encrypted. Saving one for a site that has a token replaces it.</Field.Description
 				>
 				<Field.Error
 					errors={tokenErrors.token?.map((message) => ({ message }))}
@@ -207,24 +228,34 @@
 				><KeyRoundIcon />Save the token</Button
 			>
 		</form>
-		{#if data.hasGitHubToken}
-			<form
-				method="POST"
-				action="?/removeToken"
-				class="-mt-3 px-4 md:px-6"
-				use:enhance={enhanceToast({
-					loading: "Removing the token",
-					success:
-						"Token removed. Installed private integrations stop updating.",
-				})}
+		{#if data.tokenSites.length > 0}
+			<ul
+				class="glass divide-border flex flex-col divide-y rounded-2xl px-4 md:px-6"
+				aria-label="Saved tokens"
 			>
-				<Button
-					type="submit"
-					variant="ghost"
-					class="text-destructive h-11 rounded-xl px-5"
-					><Trash2Icon />Remove the token</Button
-				>
-			</form>
+				{#each data.tokenSites as site (site)}
+					<li class="flex min-h-14 items-center gap-3">
+						<KeyRoundIcon class="text-muted-foreground size-4 shrink-0" />
+						<span class="min-w-0 flex-1 truncate text-sm">{site}</span>
+						<form
+							method="POST"
+							action="?/removeToken"
+							use:enhance={enhanceToast({
+								loading: "Removing the token",
+								success: `Token for ${site} removed. Its private integrations stop updating.`,
+							})}
+						>
+							<input type="hidden" name="site" value={site} />
+							<Button
+								type="submit"
+								variant="ghost"
+								class="text-destructive h-11 rounded-xl px-4"
+								><Trash2Icon />Remove</Button
+							>
+						</form>
+					</li>
+				{/each}
+			</ul>
 		{/if}
 	</div>
 
@@ -235,7 +266,7 @@
 				method="POST"
 				action="?/check"
 				use:enhance={enhanceToast({
-					loading: "Asking GitHub",
+					loading: "Checking every source",
 					success: "Checked for updates.",
 				})}
 			>

@@ -17,6 +17,7 @@
 		"default" | "secondary" | "outline" | "destructive"
 	> = {
 		official: "default",
+		local: "outline",
 		maintained: "secondary",
 		quiet: "outline",
 		unmaintained: "destructive",
