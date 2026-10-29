@@ -13,6 +13,7 @@
 	import DeviceGrid from "#lib/components/devices/device-grid.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import Fab from "#lib/components/fab.svelte";
+	import PeopleStrip from "#lib/components/house/people-strip.svelte";
 	import WeatherCard from "#lib/components/house/weather-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { refill } from "#lib/devices.js";
@@ -103,8 +104,9 @@
 	);
 </script>
 
-<div class="mb-8">
+<div class="mb-8 flex flex-col gap-4">
 	<WeatherCard home={data.home} isAdmin={data.isAdmin} />
+	<PeopleStrip people={data.presence} now={live.now} />
 </div>
 
 {#if data.devices.length === 0}
