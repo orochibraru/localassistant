@@ -4,6 +4,7 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { onDestroy } from "svelte";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { readAgo, type ValveState } from "#lib/devices.js";
@@ -70,6 +71,7 @@
 		{#if pending.sending}
 			<Spinner class="text-muted-foreground" aria-label="Sending to {name}" />
 		{/if}
+		<DeviceSettings {id} {name} />
 	</header>
 	<div class="flex items-center justify-between gap-3">
 		<IconButton

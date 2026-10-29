@@ -4,9 +4,11 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import UnplugIcon from "@lucide/svelte/icons/unplug";
 
+	import { addDeviceOptions } from "#lib/components/devices/device-kinds.js";
 	import Picker from "#lib/components/picker.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -80,6 +82,22 @@
 		"frigate-camera": "rename",
 		"esphome-climate": "editEspHome",
 	};
+	const integrations: Partial<
+		Record<Device["kind"], { sheet: AddDeviceSheet; label: string }>
+	> = {
+		"melcloud-ata": { sheet: "melcloud", label: "Manage MELCloud" },
+		"melcloud-atw": { sheet: "melcloud", label: "Manage MELCloud" },
+		"dreame-vacuum": { sheet: "dreame", label: "Manage the Dreame account" },
+		"zigbee-contact": { sheet: "zigbee", label: "Manage the MQTT broker" },
+		"zigbee-valve": { sheet: "zigbee", label: "Manage the MQTT broker" },
+		"zigbee-switch": { sheet: "zigbee", label: "Manage the MQTT broker" },
+		"zigbee-meter": { sheet: "zigbee", label: "Manage the MQTT broker" },
+		"shelly-meter": { sheet: "zigbee", label: "Manage the MQTT broker" },
+		"frigate-camera": { sheet: "frigate", label: "Manage Frigate" },
+	};
+	const integration = $derived(
+		editing ? integrations[editing.kind] : undefined,
+	);
 	const regionOptions = [
 		{ value: "eu", label: "Europe" },
 		{ value: "us", label: "Americas" },
@@ -288,6 +306,42 @@
 		>
 	</Field.Field>
 {/snippet}
+
+<ResponsiveSheet
+	bind:open={sheets.pickDevice}
+	title="Add a device"
+	description="Pick what to connect. Each one walks you through what it needs."
+	wide
+>
+	<ul class="grid gap-2 pb-6 sm:grid-cols-2">
+		{#each addDeviceOptions as option (option.title)}
+			<li>
+				<button
+					type="button"
+					class="hover:bg-muted/60 border-border flex h-full min-h-16 w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors"
+					onclick={() => {
+						sheets.pickDevice = false;
+						errors = {};
+						sheets.addDevice = option.sheet;
+					}}
+				>
+					<span
+						class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+						aria-hidden="true"
+					>
+						<option.icon class="size-5" />
+					</span>
+					<span class="min-w-0">
+						<span class="block font-medium">{option.title}</span>
+						<span class="text-muted-foreground block text-sm"
+							>{option.description}</span
+						>
+					</span>
+				</button>
+			</li>
+		{/each}
+	</ul>
+</ResponsiveSheet>
 
 <ResponsiveSheet
 	bind:open={blindSheet.open}
@@ -584,7 +638,7 @@
 <ResponsiveSheet
 	bind:open={linkySheet.open}
 	title="Linky (Enedis online)"
-	description="No hardware: Enedis's daily use, a day behind, through conso.boris.sh. Sign in there with your Enedis account, allow it, and copy the token. For live power, use the ZLinky_TIC Zigbee reader instead."
+	description="No hardware: Enedis's daily use, a day behind, through conso.boris.sh. Sign in there with your Enedis account (Enedis holds every Linky's readings, whoever your supplier is, Engie included), allow it, and copy the token. For live power, use the ZLinky_TIC Zigbee reader instead."
 >
 	<form
 		method="POST"
@@ -821,9 +875,22 @@
 					description: "Leave empty to keep the current one.",
 				})}
 			{/if}
-			<Button type="submit" class="h-11 rounded-xl px-5"
-				><CheckIcon />Save</Button
-			>
+			<div class="flex flex-wrap gap-3">
+				<Button type="submit" class="h-11 rounded-xl px-5"
+					><CheckIcon />Save</Button
+				>
+				{#if integration}
+					<Button
+						variant="outline"
+						class="h-11 rounded-xl px-5"
+						onclick={() => {
+							const target = integration?.sheet ?? null;
+							editSheet.open = false;
+							sheets.addDevice = target;
+						}}><SettingsIcon />{integration?.label}</Button
+					>
+				{/if}
+			</div>
 		</form>
 		<div class="border-border mt-6 border-t pt-4 pb-6">
 			{#if confirmingRemove}

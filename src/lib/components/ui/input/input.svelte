@@ -25,6 +25,18 @@
 		"data-slot": dataSlot = "input",
 		...restProps
 	}: Props = $props();
+
+	const unmanaged = $derived(
+		restProps.autocomplete === undefined || restProps.autocomplete === "off"
+			? {
+					autocomplete: "off" as const,
+					"data-1p-ignore": "",
+					"data-lpignore": "true",
+					"data-bwignore": "",
+					"data-form-type": "other",
+				}
+			: {},
+	);
 </script>
 
 {#if type === "file"}
@@ -39,6 +51,7 @@
 		bind:files
 		bind:value
 		{...restProps}
+		{...unmanaged}
 	/>
 {:else}
 	<input
@@ -51,5 +64,6 @@
 		{type}
 		bind:value
 		{...restProps}
+		{...unmanaged}
 	/>
 {/if}

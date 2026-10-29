@@ -74,4 +74,29 @@ describe("Logger", () => {
 		expect(infoCalls).toBe(2);
 		expect(lastError).toMatchObject({ level: "error", status: 500, path: "/" });
 	});
+
+	test("banners box their lines in console and flatten in JSON, art prints only in console", () => {
+		configuration.get().logLevel = "info";
+		const output = spyOn(console, "log").mockImplementation(() => {});
+		const errors = spyOn(console, "error").mockImplementation(() => {});
+		const logger = new Logger("Test");
+		configuration.get().logFormat = "console";
+		logger.banner("warn", ["Code: 123", "Longer second line"]);
+		logger.art("ART");
+		configuration.get().logFormat = "json";
+		logger.banner("warn", ["Code: 123", "Longer second line"]);
+		logger.art("ART");
+		const boxed = String(errors.mock.calls[0]?.at(-1));
+		const flat = JSON.parse(String(errors.mock.calls[1]?.[0]));
+		const printed = output.mock.calls.map((call) => String(call[0]));
+		output.mockRestore();
+		errors.mockRestore();
+		const rows = boxed.split("\n").slice(1);
+		expect(rows[0]).toBe("#".repeat(24));
+		expect(rows).toContain("#  Code: 123           #");
+		expect(new Set(rows.map((row) => row.length))).toEqual(new Set([24]));
+		expect(flat.message).toBe("Code: 123 Longer second line");
+		expect(printed).toHaveLength(1);
+		expect(printed[0]).toContain("ART");
+	});
 });

@@ -28,8 +28,8 @@ your phone like an app.
   notifications. The Bambu printer's camera on its card.
 - **Bambu Lab printers over your network** and **Dreame robot vacuums** through
   the Dreamehome cloud.
-- **Weather and a wall panel**: the forecast on Home, and a screen for a wall
-  tablet or a Shelly Wall Display that stays on.
+- **Weather and a wall panel**: the time and forecast on Home, and a screen for
+  a wall tablet or a Shelly Wall Display that stays on.
 - **Phones as devices**: each phone in the house with its owner, battery and, if
   shared, where it is.
 - **AI apps**: Claude, ChatGPT or Gemini drive the house over MCP, each person

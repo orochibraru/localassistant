@@ -1,3 +1,5 @@
+import { createCipheriv } from "node:crypto";
+
 import type {
 	DreameRegion,
 	VacuumCommand,
@@ -9,9 +11,11 @@ import { getSetting } from "#lib/dto/setting.js";
 import { secrets } from "#lib/server/core/secrets.js";
 
 const requestTimeoutMs = 15_000;
-const appAuthorization = "Basic ZHJlYW1lX2FwcGJ2OkFQXmR2QHpAU1FZVnhOODg=";
+const appAuthorization = "Basic ZHJlYW1lX2FwcHYxOkFQXmR2QHpAU1FZVnhOODg=";
 const passwordSalt = "RAylYC%fmSKp7%Tq";
-const userAgent = "Dreame_Smarthome/2.1.9 (iPhone; iOS 18.4.1; Scale/3.00)";
+const clientKey = "EETjszu*XI5znHsI";
+const appVersion = "cv=a_102060300";
+const userAgent = "Dart/3.9 (dart:io)";
 
 const properties = {
 	status: { siid: 2, piid: 1 },
@@ -54,6 +58,8 @@ interface Session {
 	email: string;
 	accessToken: string;
 	expiresAt: number;
+	tenantId: string;
+	locale: string | null;
 }
 
 interface Answer<Data> {
@@ -76,6 +82,7 @@ interface PropertyResult {
 class DreameCloud {
 	#session: Session | undefined;
 	#requestId = 1;
+	readonly #visitor = this.#md5(crypto.randomUUID());
 
 	/** Whether an admin connected a Dreamehome account. */
 	configured(): boolean {
@@ -94,27 +101,28 @@ class DreameCloud {
 	): Promise<void> {
 		const response = await this.#fetch(region, "/dreame-auth/oauth/token", {
 			headers: {
-				Authorization: appAuthorization,
-				"Content-Type": "application/x-www-form-urlencoded",
+				...this.#headers(email, undefined),
+				"content-type": "application/x-www-form-urlencoded",
 			},
-			body: new URLSearchParams({
-				platform: "IOS",
-				scope: "all",
-				grant_type: "password",
-				username: email,
-				password: new Bun.CryptoHasher("md5")
-					.update(password + passwordSalt)
-					.digest("hex"),
-				type: "account",
-			}).toString(),
+			body: `grant_type=password&scope=all&platform=ANDROID&type=account&username=${encodeURIComponent(email)}&password=${this.#md5(password + passwordSalt)}`,
 		});
 		const body = (await response.json().catch(() => ({}))) as {
 			access_token?: string;
 			expires_in?: number;
+			tenant_id?: string;
+			region?: string;
+			lang?: string;
+			country?: string;
 			error_description?: string;
 			msg?: string;
+			remains?: string;
 		};
 		if (!response.ok || !body.access_token) {
+			if (body.error_description?.includes("password")) {
+				throw new DreameError(
+					`Dreame refused that email and password${body.remains ? ` (${body.remains} tries left before it locks the account)` : ""}.`,
+				);
+			}
 			throw new DreameError(
 				response.status === 400 || response.status === 401
 					? "Dreame refused that email and password."
@@ -125,6 +133,11 @@ class DreameCloud {
 			email,
 			accessToken: body.access_token,
 			expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000 - 60_000,
+			tenantId: body.tenant_id ?? "000000",
+			locale:
+				body.region && body.lang && body.country
+					? `${body.region}|${body.lang}|${body.country}`
+					: null,
 		};
 	}
 
@@ -144,12 +157,7 @@ class DreameCloud {
 					deviceInfo?: { displayName?: string };
 				}[];
 			};
-		}>("/dreame-user-iot/iotuserbind/device/listV2", {
-			sharedStatus: 1,
-			current: 1,
-			size: 100,
-			lang: "en",
-		});
+		}>("/dreame-user-iot/iotuserbind/device/listV2");
 		return (data.page?.records ?? [])
 			.filter((record) => record.model?.includes(".vacuum."))
 			.map((record) => ({
@@ -229,7 +237,10 @@ class DreameCloud {
 		return data.result;
 	}
 
-	async #call<Data>(path: string, payload: unknown): Promise<Data> {
+	async #call<Data>(
+		path: string,
+		payload?: Record<string, unknown>,
+	): Promise<Data> {
 		const account = getSetting("dreame");
 		if (!account) {
 			throw new DreameError("No Dreamehome account is connected.");
@@ -246,10 +257,11 @@ class DreameCloud {
 		}
 		const response = await this.#fetch(account.region, path, {
 			headers: {
-				"Content-Type": "application/json",
-				"Dreame-Auth": `bearer ${this.#session?.accessToken}`,
+				...this.#headers(account.email, this.#session),
+				"content-type": "application/json",
+				"dreame-auth": this.#session?.accessToken ?? "",
 			},
-			body: JSON.stringify(payload),
+			body: payload ? JSON.stringify(this.#signed(payload)) : undefined,
 		});
 		if (response.status === 401) {
 			this.#session = undefined;
@@ -264,21 +276,43 @@ class DreameCloud {
 		return body.data;
 	}
 
+	/** The headers its app sends on every request, the encrypted locale once signed in. */
+	#headers(
+		email: string,
+		session: Session | undefined,
+	): Record<string, string> {
+		const meta = `${appVersion};canvasHash=${this.#md5(`${email}c`).slice(0, 8)};webglHash=${this.#md5(`${email}w`).slice(0, 8)};visitorIdHash=${this.#visitor}`;
+		return {
+			"user-agent": userAgent,
+			"dreame-meta": meta,
+			"accept-encoding": "gzip",
+			...(session?.locale && { "dreame-rlc": this.#encrypted(session.locale) }),
+			"tenant-id": session?.tenantId ?? "000000",
+			authorization: appAuthorization,
+		};
+	}
+
+	/** `payload` with the signature and timestamp its app adds. */
+	#signed(payload: Record<string, unknown>): Record<string, unknown> {
+		const timestamp = Date.now();
+		return {
+			...payload,
+			sign: this.#md5(
+				`${this.#spliced(payload, true)}${timestamp}${clientKey}`,
+			),
+			timestamp,
+		};
+	}
+
 	async #fetch(
 		region: DreameRegion,
 		path: string,
-		init: { headers: Record<string, string>; body: string },
+		init: { headers: Record<string, string>; body: string | undefined },
 	): Promise<Response> {
 		try {
 			return await fetch(`https://${region}.iot.dreame.tech:13267${path}`, {
 				method: "POST",
-				headers: {
-					Accept: "*/*",
-					"Accept-Language": "en-US;q=0.8",
-					"User-Agent": userAgent,
-					"Tenant-Id": "000000",
-					...init.headers,
-				},
+				headers: init.headers,
 				body: init.body,
 				signal: AbortSignal.timeout(requestTimeoutMs),
 			});
@@ -287,6 +321,44 @@ class DreameCloud {
 				cause: error,
 			});
 		}
+	}
+
+	/** The hex MD5 of `text`. */
+	#md5(text: string): string {
+		return new Bun.CryptoHasher("md5").update(text).digest("hex");
+	}
+
+	/** `text` encrypted with the app's key, as its locale header carries it. */
+	#encrypted(text: string): string {
+		const cipher = createCipheriv("aes-128-ecb", Buffer.from(clientKey), null);
+		return Buffer.concat([
+			cipher.update(text, "utf8"),
+			cipher.final(),
+		]).toString("base64");
+	}
+
+	/** `value` flattened the way its app signs a request. */
+	#spliced(value: Record<string, unknown>, top: boolean): string {
+		return Object.keys(value)
+			.toSorted()
+			.flatMap((key) => {
+				const entry = value[key];
+				if (Array.isArray(entry)) {
+					return top ? [`${key}=${JSON.stringify(entry)}`] : [];
+				}
+				if (entry !== null && typeof entry === "object") {
+					const inner = this.#spliced(entry as Record<string, unknown>, false);
+					return [inner ? `${key}=[${inner}]` : `${key}=]`];
+				}
+				if (entry === null || entry === undefined) {
+					return [`${key}=null`];
+				}
+				if (typeof entry === "boolean" || top) {
+					return [`${key}=${String(entry)}`];
+				}
+				return [`${key}=${JSON.stringify(entry)}`];
+			})
+			.join("&");
 	}
 }
 

@@ -46,15 +46,9 @@
 	);
 </script>
 
-{#if data.home.weather && data.home.place}
-	<div class="mb-8">
-		<WeatherCard
-			place={data.home.place}
-			timezone={data.home.timezone}
-			weather={data.home.weather}
-		/>
-	</div>
-{/if}
+<div class="mb-8">
+	<WeatherCard home={data.home} isAdmin={data.isAdmin} />
+</div>
 
 {#if data.devices.length === 0}
 	<div class="glass mx-auto mt-6 max-w-xl rounded-3xl">

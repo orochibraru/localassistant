@@ -7,6 +7,7 @@
 	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 	import { onDestroy } from "svelte";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
@@ -110,6 +111,7 @@
 				onclick={() => pending.set({ power: !shown.power })}
 			/>
 		{/if}
+		<DeviceSettings {id} {name} />
 	</header>
 
 	{#if shown}

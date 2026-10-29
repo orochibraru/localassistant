@@ -11,6 +11,7 @@ import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 import type { Component } from "svelte";
 
 import type { DeviceKind } from "#lib/dto/device.js";
+import type { AddDeviceSheet } from "#lib/sheets.svelte.js";
 
 export const deviceKindLabels: Record<DeviceKind, string> = {
 	"tuya-cover": "Tuya blind",
@@ -50,3 +51,67 @@ export const deviceKindIcons: Record<
 	"frigate-camera": CctvIcon,
 	"esphome-climate": ThermometerIcon,
 };
+
+export const addDeviceOptions: {
+	sheet: AddDeviceSheet;
+	title: string;
+	description: string;
+	icon: Component<{ class?: string }>;
+}[] = [
+	{
+		sheet: "melcloud",
+		title: "Mitsubishi (MELCloud)",
+		description: "Every heat pump on your MELCloud account.",
+		icon: ThermometerIcon,
+	},
+	{
+		sheet: "esphome",
+		title: "Mitsubishi through ESPHome",
+		description: "A CN105 board on the unit, local and cloud-free.",
+		icon: ThermometerIcon,
+	},
+	{
+		sheet: "zigbee",
+		title: "Zigbee and Shelly",
+		description:
+			"Sensors, radiator valves, relays and meters over one MQTT broker.",
+		icon: DoorOpenIcon,
+	},
+	{
+		sheet: "blind",
+		title: "Tuya blind",
+		description: "Driven over your network with its local key.",
+		icon: BlindsIcon,
+	},
+	{
+		sheet: "camera",
+		title: "Camera",
+		description: "Any RTSP camera, watched and recorded by this server.",
+		icon: CctvIcon,
+	},
+	{
+		sheet: "frigate",
+		title: "Frigate",
+		description: "Its cameras, events, clips and detection alerts.",
+		icon: CctvIcon,
+	},
+	{
+		sheet: "printer",
+		title: "Bambu Lab printer",
+		description: "Progress, light and camera over your network.",
+		icon: PrinterIcon,
+	},
+	{
+		sheet: "dreame",
+		title: "Dreame robot vacuums",
+		description: "Every robot on your Dreamehome account.",
+		icon: BotIcon,
+	},
+	{
+		sheet: "linky",
+		title: "Linky online",
+		description:
+			"The whole house's daily use, whoever your supplier is, no hardware.",
+		icon: GaugeIcon,
+	},
+];

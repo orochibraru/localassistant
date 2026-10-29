@@ -447,6 +447,14 @@ try {
 	await wide.keyboard.press("Escape");
 	await wide.goto(`${origin}/devices`);
 	await shoot(wide, "devices-desktop");
+	await wide.getByRole("button", { name: "Add a device" }).last().click();
+	await Bun.sleep(400);
+	await Bun.write(
+		join(images, "add-device-desktop.webp"),
+		await new Image(await wide.screenshot()).webp({ quality: 90 }).bytes(),
+	);
+	process.stdout.write("docs/images/add-device-desktop.webp\n");
+	await wide.keyboard.press("Escape");
 	await wide.goto(`${origin}/admin/overview`);
 	await shoot(wide, "admin-desktop");
 

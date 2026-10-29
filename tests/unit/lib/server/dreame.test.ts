@@ -44,7 +44,14 @@ beforeEach(() => {
 	calls = [];
 	answers = {
 		"/dreame-auth/oauth/token": () =>
-			json({ access_token: "token", expires_in: 7200 }),
+			json({
+				access_token: "token",
+				expires_in: 7200,
+				tenant_id: "000001",
+				region: "eu",
+				lang: "en",
+				country: "FR",
+			}),
 	};
 	spyOn(globalThis, "fetch").mockImplementation((async (
 		input: string,
@@ -75,7 +82,11 @@ describe("Dreame cloud", () => {
 		expect(call?.url).toBe(
 			"https://eu.iot.dreame.tech:13267/dreame-auth/oauth/token",
 		);
-		expect(call?.headers["Tenant-Id"]).toBe("000000");
+		expect(call?.headers["tenant-id"]).toBe("000000");
+		expect(call?.headers.authorization).toBe(
+			"Basic ZHJlYW1lX2FwcHYxOkFQXmR2QHpAU1FZVnhOODg=",
+		);
+		expect(call?.headers["dreame-meta"]).toStartWith("cv=a_102060300;");
 		const body = new URLSearchParams(call?.body);
 		expect(body.get("username")).toBe("ada@example.com");
 		expect(body.get("password")).toBe(
@@ -89,6 +100,11 @@ describe("Dreame cloud", () => {
 		answers["/dreame-auth/oauth/token"] = () => json({}, 401);
 		expect(dreameCloud.signIn("ada@example.com", "nope", "eu")).rejects.toThrow(
 			"Dreame refused that email and password.",
+		);
+		answers["/dreame-auth/oauth/token"] = () =>
+			json({ error_description: "user password not match", remains: "3" }, 401);
+		expect(dreameCloud.signIn("ada@example.com", "nope", "eu")).rejects.toThrow(
+			"(3 tries left before it locks the account)",
 		);
 		answers["/dreame-auth/oauth/token"] = () =>
 			json({ msg: "unsupported client" }, 403);
@@ -129,7 +145,9 @@ describe("Dreame cloud", () => {
 				bindDomain: "10001.mt.eu.iot.dreame.tech:19973",
 			},
 		]);
-		expect(calls.at(-1)?.headers["Dreame-Auth"]).toBe("bearer token");
+		expect(calls.at(-1)?.headers["dreame-auth"]).toBe("token");
+		expect(calls.at(-1)?.headers["tenant-id"]).toBe("000001");
+		expect(calls.at(-1)?.headers["dreame-rlc"]).toBeString();
 	});
 
 	test("reads the stage, battery and error, and sends commands to the robot's host", async () => {
@@ -154,6 +172,14 @@ describe("Dreame cloud", () => {
 			charging: true,
 			errorCode: null,
 		});
+		const read = JSON.parse(calls.at(-1)?.body ?? "{}");
+		expect(read.sign).toBe(
+			new Bun.CryptoHasher("md5")
+				.update(
+					`data=[did="123456"&id=${read.id}&method="get_properties"]&did=123456&id=${read.id}${read.timestamp}EETjszu*XI5znHsI`,
+				)
+				.digest("hex"),
+		);
 		await devices.vacuum(robot, "start");
 		expect(JSON.parse(calls.at(-1)?.body ?? "{}").data).toMatchObject({
 			method: "action",

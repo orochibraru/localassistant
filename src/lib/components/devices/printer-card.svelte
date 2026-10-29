@@ -8,6 +8,7 @@
 	import SquareIcon from "@lucide/svelte/icons/square";
 	import { onDestroy } from "svelte";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -156,6 +157,7 @@
 			variant={watching ? "default" : "secondary"}
 			onclick={() => (watching = !watching)}
 		/>
+		<DeviceSettings {id} {name} />
 	</header>
 
 	{#if watching}

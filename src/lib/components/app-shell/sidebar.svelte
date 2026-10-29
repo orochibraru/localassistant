@@ -1,16 +1,10 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import BlindsIcon from "@lucide/svelte/icons/blinds";
-	import BotIcon from "@lucide/svelte/icons/bot";
-	import CctvIcon from "@lucide/svelte/icons/cctv";
 	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
-	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import PlusIcon from "@lucide/svelte/icons/plus";
-	import PrinterIcon from "@lucide/svelte/icons/printer";
-	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 	import type { Component } from "svelte";
 
 	import {
@@ -195,55 +189,12 @@
 						class="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
 						>Devices</a
 					>
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger>
-							{#snippet child({ props })}
-								<IconButton
-									{...props}
-									label="Add a device"
-									icon={PlusIcon}
-									class="text-muted-foreground -mr-1.5 size-7 md:size-7"
-								/>
-							{/snippet}
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Content align="start" class="w-56">
-							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "blind")}>
-								<BlindsIcon />Tuya blind
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								onSelect={() => (sheets.addDevice = "printer")}
-							>
-								<PrinterIcon />Bambu Lab printer
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								onSelect={() => (sheets.addDevice = "melcloud")}
-							>
-								<ThermometerIcon />Mitsubishi heat pumps
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								onSelect={() => (sheets.addDevice = "esphome")}
-							>
-								<ThermometerIcon />Mitsubishi through ESPHome
-							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "dreame")}>
-								<BotIcon />Dreame robot vacuums
-							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "zigbee")}>
-								<DoorOpenIcon />Zigbee devices
-							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "linky")}>
-								<GaugeIcon />Linky online
-							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => (sheets.addDevice = "camera")}>
-								<CctvIcon />Camera
-							</DropdownMenu.Item>
-							<DropdownMenu.Item
-								onSelect={() => (sheets.addDevice = "frigate")}
-							>
-								<CctvIcon />Frigate
-							</DropdownMenu.Item>
-						</DropdownMenu.Content>
-					</DropdownMenu.Root>
+					<IconButton
+						label="Add a device"
+						icon={PlusIcon}
+						class="text-muted-foreground -mr-1.5 size-7 md:size-7"
+						onclick={() => (sheets.pickDevice = true)}
+					/>
 				{:else}
 					<h2 class="text-muted-foreground text-xs font-medium">Devices</h2>
 				{/if}

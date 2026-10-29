@@ -23,9 +23,11 @@ import { cameraSchema, frigateSchema } from "#lib/server/validation/device.js";
 import { createUser, homeId, resetDatabase } from "../../database.js";
 
 const root = await mkdtemp(join(tmpdir(), "localassistant-cameras-"));
-const folder = spyOn(cameras, "folder").mockImplementation((deviceId, part) =>
-	join(root, deviceId, part),
-);
+const fakeFolder = () =>
+	spyOn(cameras, "folder").mockImplementation((deviceId, part) =>
+		join(root, deviceId, part),
+	);
+let folder = fakeFolder();
 
 afterAll(async () => {
 	folder.mockRestore();
@@ -69,7 +71,7 @@ describe("cameras", () => {
 		expect(cameras.folder("camera-1", "live")).toEndWith(
 			join("cameras", "camera-1", "live"),
 		);
-		folder.mockImplementation((deviceId, part) => join(root, deviceId, part));
+		folder = fakeFolder();
 		expect(cameras.file("camera-1", "live", "index.m3u8")).toEndWith(
 			join("live", "index.m3u8"),
 		);

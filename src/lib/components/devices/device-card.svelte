@@ -73,6 +73,7 @@
 	/>
 {:else if device.kind === "zigbee-contact" || device.kind === "zigbee-meter" || device.kind === "shelly-meter" || device.kind === "linky"}
 	<SensorCard
+		id={device.id}
 		name={device.name}
 		error={device.stateError}
 		reading={reading?.type === "contact" ||
@@ -112,6 +113,7 @@
 	/>
 {:else if device.kind === "app"}
 	<AppCard
+		id={device.id}
 		name={device.name}
 		{ownerName}
 		reading={reading?.type === "app" ? reading : null}

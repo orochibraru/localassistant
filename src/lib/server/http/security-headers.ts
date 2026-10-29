@@ -4,7 +4,7 @@ const always = {
 	"X-Content-Type-Options": "nosniff",
 	"Referrer-Policy": "same-origin",
 	"Permissions-Policy":
-		"camera=(self), microphone=(), geolocation=(), payment=(), usb=()",
+		"camera=(self), microphone=(), geolocation=(self), payment=(), usb=()",
 	"Cross-Origin-Opener-Policy": "same-origin",
 };
 

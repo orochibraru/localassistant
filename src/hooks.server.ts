@@ -11,6 +11,7 @@ import { authService } from "#lib/server/auth/auth.js";
 import { securityPolicy } from "#lib/server/auth/security-policy.js";
 import { instanceSetup } from "#lib/server/auth/setup.js";
 import { Logger } from "#lib/server/core/logger.js";
+import { logo } from "#lib/server/core/logo.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { csrfHandler } from "#lib/server/http/csrf.js";
 import { securityHeaders } from "#lib/server/http/security-headers.js";
@@ -43,6 +44,7 @@ export const init: ServerInit = () => {
 	if (globalForWorker.__localassistantWorker) {
 		return;
 	}
+	logger.art(logo);
 	instanceSetup.announce();
 	const supervisor = new WorkerSupervisor(WorkerSupervisor.command(dev));
 	supervisor.start();

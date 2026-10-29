@@ -29,9 +29,10 @@ class InstanceSetup {
 				error instanceof Error ? error.message : String(error),
 			);
 		}
-		logger.warn(
-			`Setup code: ${code.slice(0, 3)} ${code.slice(3)} (valid 15 minutes). Enter it at /auth/setup to create the admin account.`,
-		);
+		logger.banner("warn", [
+			`Setup code: ${code.slice(0, 3)} ${code.slice(3)}`,
+			"Valid 15 minutes. Enter it at /auth/setup to create the admin account.",
+		]);
 	}
 
 	/** Checks a setup code; it's consumed on success. */

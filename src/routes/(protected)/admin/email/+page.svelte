@@ -100,7 +100,7 @@
 					id="smtp-password"
 					name="password"
 					type="password"
-					autocomplete="new-password"
+					autocomplete="off"
 					placeholder={data.smtp?.hasPassword ? "Unchanged" : ""}
 					class="h-11"
 				/>

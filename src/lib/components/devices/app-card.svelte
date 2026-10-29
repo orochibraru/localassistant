@@ -6,6 +6,7 @@
 	import MapPinIcon from "@lucide/svelte/icons/map-pin";
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import {
 		type AppState,
 		describeDistance,
@@ -14,6 +15,7 @@
 	} from "#lib/devices.js";
 
 	interface Props {
+		id: string;
 		name: string;
 		ownerName: string | null;
 		reading: AppState | null;
@@ -22,7 +24,7 @@
 		now: number;
 	}
 
-	const { name, ownerName, reading, readAt, home, now }: Props = $props();
+	const { id, name, ownerName, reading, readAt, home, now }: Props = $props();
 
 	const ago = $derived(readAgo(readAt, now));
 	const location = $derived(reading?.location ?? null);
@@ -62,6 +64,7 @@
 					: ""}
 			</p>
 		</div>
+		<DeviceSettings {id} {name} />
 	</header>
 	{#if reading}
 		<dl class="grid grid-cols-2 gap-3">

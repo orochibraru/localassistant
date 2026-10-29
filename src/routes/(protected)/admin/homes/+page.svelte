@@ -2,18 +2,19 @@
 	import { enhance } from "$app/forms";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import MapPinIcon from "@lucide/svelte/icons/map-pin";
+	import MapPinOffIcon from "@lucide/svelte/icons/map-pin-off";
 	import PencilIcon from "@lucide/svelte/icons/pencil";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 
+	import LocationSheet from "#lib/components/house/location-sheet.svelte";
 	import ItemMenu from "#lib/components/item-menu.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import SettingSwitch from "#lib/components/setting-switch.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { searchPlaces } from "#lib/remote/places.remote.js";
-	import { enhanceToast, saveToast, toastError } from "#lib/toast.js";
+	import { enhanceToast, saveToast } from "#lib/toast.js";
 
 	const { data } = $props();
 
@@ -22,27 +23,6 @@
 	let errors = $state<Record<string, string[]>>({});
 	let locating = $state<{ id: string; name: string } | undefined>();
 	let locateOpen = $state(false);
-	let placeQuery = $state("");
-	let places = $state<Awaited<ReturnType<typeof searchPlaces>>>([]);
-	let searchError = $state<string | null>(null);
-	let searchTimer: ReturnType<typeof setTimeout> | undefined;
-
-	function searchSoon(text: string) {
-		clearTimeout(searchTimer);
-		searchError = null;
-		if (text.trim().length < 2) {
-			places = [];
-			return;
-		}
-		searchTimer = setTimeout(async () => {
-			try {
-				places = await searchPlaces(text.trim());
-			} catch (failure) {
-				searchError = toastError(failure);
-			}
-		}, 350);
-	}
-
 	const errorsOf = (name: string) =>
 		errors[name]?.map((message) => ({ message }));
 </script>
@@ -84,11 +64,23 @@
 								icon: MapPinIcon,
 								onSelect: () => {
 									locating = home;
-									placeQuery = "";
-									places = [];
 									locateOpen = true;
 								},
 							},
+							...(home.place
+								? [
+										{
+											label: "Clear the location",
+											icon: MapPinOffIcon,
+											form: {
+												action: "?/unlocate",
+												fields: { id: home.id },
+												loading: "Clearing the location",
+												success: `${home.name} has no location now.`,
+											},
+										},
+									]
+								: []),
 							{
 								label: "Rename",
 								icon: PencilIcon,
@@ -124,7 +116,8 @@
 						<span class="min-w-0 flex-1">
 							<span class="block truncate font-medium">{home.name}</span>
 							<span class="text-muted-foreground block truncate text-sm"
-								>{home.place ?? "No location: no weather or sun times"}</span
+								>{home.place ??
+									"No location: weather from your browser, no sun times"}</span
 							>
 						</span>
 					</ItemMenu>
@@ -201,56 +194,4 @@
 	{/if}
 </ResponsiveSheet>
 
-<ResponsiveSheet
-	bind:open={locateOpen}
-	title="Where is {locating?.name ?? ''}?"
-	description="For the weather on Home and the sunrise and sunset automations. Only the coordinates leave the server, to Open-Meteo."
->
-	{#if locating}
-		<div class="flex flex-col gap-4 pb-6">
-			<Field.Field>
-				<Field.Label for="place-search">Town or city</Field.Label>
-				<Input
-					id="place-search"
-					bind:value={placeQuery}
-					oninput={() => searchSoon(placeQuery)}
-					placeholder="Clermont-Ferrand"
-					autocomplete="off"
-					class="h-11"
-				/>
-				{#if searchError}
-					<Field.Error errors={[{ message: searchError }]} />
-				{/if}
-			</Field.Field>
-			<ul class="flex flex-col gap-2">
-				{#each places as place (`${place.latitude},${place.longitude}`)}
-					<li>
-						<form
-							method="POST"
-							action="?/locate"
-							use:enhance={enhanceToast({
-								loading: "Saving the location",
-								success: `${locating.name} is in ${place.place}.`,
-								onSuccess: () => {
-									locateOpen = false;
-								},
-							})}
-						>
-							<input type="hidden" name="id" value={locating.id} />
-							<input type="hidden" name="place" value={place.place} />
-							<input type="hidden" name="latitude" value={place.latitude} />
-							<input type="hidden" name="longitude" value={place.longitude} />
-							<input type="hidden" name="timezone" value={place.timezone} />
-							<Button
-								type="submit"
-								variant="secondary"
-								class="h-auto min-h-11 w-full justify-start rounded-xl px-4 py-2 text-left whitespace-normal"
-								><MapPinIcon />{place.place}</Button
-							>
-						</form>
-					</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
-</ResponsiveSheet>
+<LocationSheet bind:open={locateOpen} home={locating} />

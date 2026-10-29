@@ -2,6 +2,7 @@
 	import PlugIcon from "@lucide/svelte/icons/plug";
 	import { onDestroy } from "svelte";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { readAgo, type SwitchState } from "#lib/devices.js";
@@ -67,6 +68,7 @@
 			disabled={reading?.on === null}
 			onCheckedChange={(next) => pending.set({ on: next })}
 		/>
+		<DeviceSettings {id} {name} />
 	</header>
 	{#if ago}
 		<p class="text-muted-foreground text-xs">Reported {ago}</p>

@@ -76,6 +76,11 @@
 			"icon": "workflow",
 			"pages": [
 				{
+					"slug": "weather",
+					"title": "Weather",
+					"icon": "cloud-sun"
+				},
+				{
 					"slug": "automations",
 					"title": "Automations",
 					"icon": "workflow"

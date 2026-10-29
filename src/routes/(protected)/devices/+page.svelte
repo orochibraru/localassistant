@@ -23,7 +23,14 @@
 
 	const sheets = useSheets();
 
-	setPageTitle("Devices");
+	setPageTitle("Devices", undefined, [
+		{
+			label: "Add a device",
+			icon: PlusIcon,
+			primary: true,
+			onSelect: () => (sheets.pickDevice = true),
+		},
+	]);
 
 	type Device = (typeof data.devices)[number];
 

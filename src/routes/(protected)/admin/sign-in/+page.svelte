@@ -260,7 +260,7 @@
 					id="sso-client-secret"
 					name="clientSecret"
 					type="password"
-					autocomplete="new-password"
+					autocomplete="off"
 					placeholder={editing ? "Unchanged" : ""}
 					required={!editing}
 					class="h-11"

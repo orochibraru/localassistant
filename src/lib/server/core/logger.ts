@@ -56,6 +56,27 @@ export class Logger {
 		this.#write("error", message, params);
 	}
 
+	/** Writes `lines` framed in a box of `#` so they stand out in a terminal; one plain line in JSON. */
+	banner(level: LogLevel, lines: string[]): void {
+		if (this.#settings().logFormat === "json") {
+			this.#write(level, lines.join(" "), []);
+			return;
+		}
+		const width = Math.max(...lines.map((line) => line.length)) + 6;
+		const edge = "#".repeat(width);
+		const padded = ["", ...lines, ""].map(
+			(line) => `#  ${line.padEnd(width - 6)}  #`,
+		);
+		this.#write(level, ["", edge, ...padded, edge].join("\n"), []);
+	}
+
+	/** Prints `art` as it is in console format, nothing in JSON. */
+	art(art: string): void {
+		if (this.#settings().logFormat === "console") {
+			console.log(styleText("magenta", art));
+		}
+	}
+
 	/** Writes one line for a finished HTTP request, at error level for a 4xx or 5xx other than 404. */
 	request(line: RequestLine): void {
 		const level = line.status >= 400 && line.status !== 404 ? "error" : "info";

@@ -3,6 +3,7 @@
 	import CctvIcon from "@lucide/svelte/icons/cctv";
 	import CircleIcon from "@lucide/svelte/icons/circle";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import { type CameraState, readAgo } from "#lib/devices.js";
 
 	interface Props {
@@ -32,10 +33,7 @@
 	});
 </script>
 
-<a
-	href={resolve("/(protected)/cameras/[deviceId]", { deviceId: id })}
-	class="glass flex flex-col gap-3 rounded-2xl p-4 transition-transform duration-200 active:scale-[0.98]"
->
+<article class="glass relative flex flex-col gap-3 rounded-2xl p-4">
 	{#if snapshot}
 		<img
 			src={snapshot}
@@ -44,7 +42,7 @@
 			loading="lazy"
 		/>
 	{/if}
-	<div class="flex items-center gap-3">
+	<header class="flex items-center gap-3">
 		<span
 			class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
 			aria-hidden="true"
@@ -52,7 +50,12 @@
 			<CctvIcon class="size-5" />
 		</span>
 		<div class="min-w-0 flex-1">
-			<h2 class="truncate font-semibold">{name}</h2>
+			<h2 class="truncate font-semibold">
+				<a
+					href={resolve("/(protected)/cameras/[deviceId]", { deviceId: id })}
+					class="after:absolute after:inset-0 after:rounded-2xl">{name}</a
+				>
+			</h2>
 			<p class="text-muted-foreground flex items-center gap-1.5 text-sm">
 				{#if error}
 					<span class="text-destructive">{error}</span>
@@ -66,5 +69,6 @@
 				{/if}
 			</p>
 		</div>
-	</div>
-</a>
+		<DeviceSettings {id} {name} />
+	</header>
+</article>

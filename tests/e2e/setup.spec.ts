@@ -11,6 +11,13 @@ test("the first visitor sets up the admin account", async ({ page }) => {
 	await page.getByRole("button", { name: "Continue" }).click();
 	await page.getByLabel("Email").fill("ada@example.com");
 	await page.getByLabel("Your name").fill("Ada");
+	await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute(
+		"autocomplete",
+		"new-password",
+	);
+	await expect(
+		page.getByLabel("Password", { exact: true }),
+	).not.toHaveAttribute("data-1p-ignore");
 	await page
 		.getByLabel("Password", { exact: true })
 		.fill("Correct-Horse-Battery-9");

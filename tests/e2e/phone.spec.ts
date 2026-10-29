@@ -56,6 +56,8 @@ test("automations open their editor and the wall panel fits a square screen", as
 	await page.getByRole("button", { name: "New automation" }).last().click();
 	const sheet = page.getByRole("dialog").last();
 	await expect(sheet.getByRole("radio", { name: "Sunset" })).toBeVisible();
+	await expect(sheet.getByLabel("Name")).toHaveAttribute("data-1p-ignore", "");
+	await expect(sheet.getByLabel("Name")).toHaveAttribute("autocomplete", "off");
 	await page.keyboard.press("Escape");
 
 	await page.setViewportSize({ width: 720, height: 720 });

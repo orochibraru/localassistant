@@ -4,6 +4,7 @@
 	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import {
 		type ContactState,
 		type LinkyState,
@@ -12,6 +13,7 @@
 	} from "#lib/devices.js";
 
 	interface Props {
+		id: string;
 		name: string;
 		reading: ContactState | MeterState | LinkyState | null;
 		error?: string | null;
@@ -19,7 +21,7 @@
 		now: number;
 	}
 
-	const { name, reading, readAt, now, error = null }: Props = $props();
+	const { id, name, reading, readAt, now, error = null }: Props = $props();
 
 	const ago = $derived(readAgo(readAt, now));
 	const Icon = $derived.by(() => {
@@ -79,6 +81,7 @@
 				><BatteryLowIcon class="size-4" />{reading.battery}%</span
 			>
 		{/if}
+		<DeviceSettings {id} {name} />
 	</header>
 	{#if ago}
 		<p class="text-muted-foreground text-xs">Reported {ago}</p>

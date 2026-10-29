@@ -5,6 +5,7 @@
 	import SquareIcon from "@lucide/svelte/icons/square";
 	import { onDestroy } from "svelte";
 
+	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import { Slider } from "#lib/components/ui/slider/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
@@ -115,6 +116,7 @@
 		{#if pending.sending}
 			<Spinner class="text-muted-foreground" aria-label="Sending to {name}" />
 		{/if}
+		<DeviceSettings {id} {name} />
 	</header>
 
 	<Slider

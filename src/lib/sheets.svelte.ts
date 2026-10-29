@@ -15,6 +15,7 @@ export type AddDeviceSheet =
 
 /** Which setup sheet is open: the shell renders them once, and anything can open one. */
 export class Sheets {
+	pickDevice = $state(false);
 	addDevice = $state<AddDeviceSheet | null>(null);
 	editDeviceId = $state<string | null>(null);
 	room = $state<{ id: string | null; place?: string } | null>(null);
