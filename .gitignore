@@ -21,3 +21,4 @@ dev-dist/
 
 tmp/
 .playwright-mcp/
+__pycache__/

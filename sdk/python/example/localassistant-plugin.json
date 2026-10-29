@@ -1,0 +1,36 @@
+{
+	"id": "tasmota-python",
+	"name": "Tasmota plugs (Python example)",
+	"description": "Plugs running Tasmota, turned on and off over your network.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"runtime": "process",
+	"interpreter": "python3",
+	"entry": "plugin.py",
+	"files": ["localassistant_plugin.py"],
+	"icon": "plug",
+	"device": {
+		"title": "Add a Tasmota plug",
+		"description": "Give the plug a fixed IP in your router.",
+		"submit": "Add the plug",
+		"fields": [
+			{
+				"name": "host",
+				"label": "IP address",
+				"type": "text",
+				"keyboard": "decimal",
+				"pattern": "^[A-Za-z0-9.-]+$",
+				"message": "Type the plug's IP address."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "tasmota-python-plug",
+			"label": "Tasmota plug",
+			"card": "switch",
+			"icon": "plug",
+			"polled": true
+		}
+	]
+}
