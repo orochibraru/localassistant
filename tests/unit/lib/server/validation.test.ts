@@ -9,10 +9,15 @@ import {
 	signInSchema,
 } from "#lib/server/validation/auth.js";
 import {
+	buttonSchema,
 	climateChangeSchema,
 	editFloorSchema,
 	editRoomSchema,
+	fanChangeSchema,
 	floorSchema,
+	lightChangeSchema,
+	lockSchema,
+	mediaChangeSchema,
 	planChangesSchema,
 	printerChangeSchema,
 	roomSettingsSchema,
@@ -416,5 +421,38 @@ describe("password change schemas", () => {
 				moves: [],
 			}).success,
 		).toBe(false);
+	});
+});
+
+describe("device control schemas", () => {
+	const deviceId = "device-1";
+
+	test("take a change with something in it, within range", () => {
+		expect(
+			lightChangeSchema.safeParse({
+				deviceId,
+				brightness: 50,
+				temperature: 2700,
+				color: { hue: 120, saturation: 40 },
+			}).success,
+		).toBe(true);
+		expect(lightChangeSchema.safeParse({ deviceId }).success).toBe(false);
+		expect(
+			lightChangeSchema.safeParse({ deviceId, brightness: 101 }).success,
+		).toBe(false);
+		expect(fanChangeSchema.safeParse({ deviceId, speed: 30 }).success).toBe(
+			true,
+		);
+		expect(fanChangeSchema.safeParse({ deviceId }).success).toBe(false);
+		expect(
+			mediaChangeSchema.safeParse({ deviceId, action: "next", volume: 5 })
+				.success,
+		).toBe(true);
+		expect(
+			mediaChangeSchema.safeParse({ deviceId, action: "rewind" }).success,
+		).toBe(false);
+		expect(mediaChangeSchema.safeParse({ deviceId }).success).toBe(false);
+		expect(lockSchema.safeParse({ deviceId, locked: true }).success).toBe(true);
+		expect(buttonSchema.safeParse({ deviceId }).success).toBe(true);
 	});
 });

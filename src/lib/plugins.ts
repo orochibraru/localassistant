@@ -11,6 +11,12 @@ export const pluginCards = [
 	"meter",
 	"linky",
 	"camera",
+	"light",
+	"lock",
+	"fan",
+	"media",
+	"sensor",
+	"button",
 	"app",
 ] as const;
 export type PluginCard = (typeof pluginCards)[number];
@@ -23,14 +29,17 @@ export const pluginIcons = [
 	"fan",
 	"gauge",
 	"heater",
+	"droplets",
 	"lightbulb",
 	"lock",
+	"mouse-pointer-click",
 	"plug",
 	"printer",
 	"puzzle",
 	"smartphone",
 	"speaker",
 	"thermometer",
+	"tv",
 	"zap",
 ] as const;
 export type PluginIcon = (typeof pluginIcons)[number];
@@ -253,7 +262,7 @@ export interface PluginListing {
 const fallbackKind: KindInfo = {
 	plugin: "",
 	label: "Unknown device",
-	card: "meter",
+	card: "sensor",
 	icon: "puzzle",
 	size: "medium",
 	order: 9,

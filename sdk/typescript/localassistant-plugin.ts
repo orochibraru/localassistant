@@ -224,6 +224,101 @@ export interface CameraState {
 	snapshot: string | null;
 }
 
+export const lightFeatures = ["brightness", "temperature", "color"] as const;
+export type LightFeature = (typeof lightFeatures)[number];
+
+export interface LightColor {
+	hue: number;
+	saturation: number;
+}
+
+export interface LightState {
+	type: "light";
+	on: boolean | null;
+	brightness: number | null;
+	temperature: number | null;
+	minTemperature: number;
+	maxTemperature: number;
+	color: LightColor | null;
+	features: LightFeature[];
+}
+
+export interface LightChange {
+	on?: boolean;
+	brightness?: number;
+	temperature?: number;
+	color?: LightColor;
+}
+
+export interface LockState {
+	type: "lock";
+	locked: boolean | null;
+	jammed: boolean;
+	battery: number | null;
+}
+
+export interface FanState {
+	type: "fan";
+	on: boolean | null;
+	speed: number | null;
+	speedSteps: number;
+	oscillating: boolean | null;
+}
+
+export interface FanChange {
+	on?: boolean;
+	speed?: number;
+	oscillating?: boolean;
+}
+
+export const mediaActions = [
+	"play",
+	"pause",
+	"next",
+	"previous",
+	"stop",
+] as const;
+export type MediaAction = (typeof mediaActions)[number];
+
+export const mediaPlaybacks = ["playing", "paused", "idle"] as const;
+export type MediaPlayback = (typeof mediaPlaybacks)[number];
+
+export interface MediaState {
+	type: "media";
+	power: boolean | null;
+	playback: MediaPlayback | null;
+	title: string | null;
+	artist: string | null;
+	volume: number | null;
+	muted: boolean | null;
+	source: string | null;
+	sources: string[];
+}
+
+export interface MediaChange {
+	power?: boolean;
+	action?: MediaAction;
+	volume?: number;
+	muted?: boolean;
+	source?: string;
+}
+
+export interface SensorReading {
+	name: string;
+	value: number | string | boolean | null;
+	unit: string | null;
+}
+
+export interface SensorState {
+	type: "sensor";
+	readings: SensorReading[];
+}
+
+export interface ButtonState {
+	type: "button";
+	pressedAt: string | null;
+}
+
 export type DeviceState =
 	| CoverState
 	| ClimateState
@@ -235,7 +330,13 @@ export type DeviceState =
 	| SwitchState
 	| MeterState
 	| LinkyState
-	| CameraState;
+	| CameraState
+	| LightState
+	| LockState
+	| FanState
+	| MediaState
+	| SensorState
+	| ButtonState;
 
 export interface ClimateChange {
 	power?: boolean;
@@ -257,6 +358,12 @@ export const pluginCards = [
 	"meter",
 	"linky",
 	"camera",
+	"light",
+	"lock",
+	"fan",
+	"media",
+	"sensor",
+	"button",
 	"app",
 ] as const;
 
@@ -270,14 +377,17 @@ export const pluginIcons = [
 	"fan",
 	"gauge",
 	"heater",
+	"droplets",
 	"lightbulb",
 	"lock",
+	"mouse-pointer-click",
 	"plug",
 	"printer",
 	"puzzle",
 	"smartphone",
 	"speaker",
 	"thermometer",
+	"tv",
 	"zap",
 ] as const;
 
@@ -389,7 +499,12 @@ export type DeviceCommand =
 	| { type: "printer"; change: PrinterChange }
 	| { type: "vacuum"; change: VacuumChange }
 	| { type: "valve"; target: number }
-	| { type: "switch"; on: boolean };
+	| { type: "switch"; on: boolean }
+	| { type: "light"; change: LightChange }
+	| { type: "lock"; locked: boolean }
+	| { type: "fan"; change: FanChange }
+	| { type: "media"; change: MediaChange }
+	| { type: "button" };
 
 export interface PluginDevice {
 	id: string;

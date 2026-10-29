@@ -2,6 +2,9 @@ import type {
 	ClimateChange,
 	CoverMove,
 	DeviceState,
+	FanChange,
+	LightChange,
+	MediaChange,
 	PrinterChange,
 	VacuumChange,
 } from "#lib/devices.js";
@@ -13,7 +16,12 @@ export type DeviceCommand =
 	| { type: "printer"; change: PrinterChange }
 	| { type: "vacuum"; change: VacuumChange }
 	| { type: "valve"; target: number }
-	| { type: "switch"; on: boolean };
+	| { type: "switch"; on: boolean }
+	| { type: "light"; change: LightChange }
+	| { type: "lock"; locked: boolean }
+	| { type: "fan"; change: FanChange }
+	| { type: "media"; change: MediaChange }
+	| { type: "button" };
 
 export interface PluginDevice {
 	id: string;

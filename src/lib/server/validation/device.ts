@@ -4,6 +4,7 @@ import {
 	cardSizes,
 	climateModes,
 	coverActions,
+	mediaActions,
 	printerCommands,
 	printerSpeeds,
 	vacuumCommands,
@@ -96,6 +97,53 @@ export const valveTargetSchema = z.object({
 });
 
 export const switchPowerSchema = z.object({ deviceId, on: z.boolean() });
+
+const percent = z.number().min(0).max(100);
+
+export const lightChangeSchema = z
+	.object({
+		deviceId,
+		on: z.boolean().optional(),
+		brightness: percent.optional(),
+		temperature: z.number().int().min(1000).max(10_000).optional(),
+		color: z
+			.object({ hue: z.number().min(0).max(360), saturation: percent })
+			.optional(),
+	})
+	.refine(
+		(change) => Object.keys(change).some((key) => key !== "deviceId"),
+		"Say what to change.",
+	);
+
+export const lockSchema = z.object({ deviceId, locked: z.boolean() });
+
+export const fanChangeSchema = z
+	.object({
+		deviceId,
+		on: z.boolean().optional(),
+		speed: percent.optional(),
+		oscillating: z.boolean().optional(),
+	})
+	.refine(
+		(change) => Object.keys(change).some((key) => key !== "deviceId"),
+		"Say what to change.",
+	);
+
+export const mediaChangeSchema = z
+	.object({
+		deviceId,
+		power: z.boolean().optional(),
+		action: z.enum(mediaActions).optional(),
+		volume: percent.optional(),
+		muted: z.boolean().optional(),
+		source: z.string().trim().min(1).max(120).optional(),
+	})
+	.refine(
+		(change) => Object.keys(change).some((key) => key !== "deviceId"),
+		"Say what to change.",
+	);
+
+export const buttonSchema = z.object({ deviceId });
 
 const place = z
 	.string()

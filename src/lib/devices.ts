@@ -276,6 +276,101 @@ export interface CameraState {
 	snapshot: string | null;
 }
 
+export const lightFeatures = ["brightness", "temperature", "color"] as const;
+export type LightFeature = (typeof lightFeatures)[number];
+
+export interface LightColor {
+	hue: number;
+	saturation: number;
+}
+
+export interface LightState {
+	type: "light";
+	on: boolean | null;
+	brightness: number | null;
+	temperature: number | null;
+	minTemperature: number;
+	maxTemperature: number;
+	color: LightColor | null;
+	features: LightFeature[];
+}
+
+export interface LightChange {
+	on?: boolean;
+	brightness?: number;
+	temperature?: number;
+	color?: LightColor;
+}
+
+export interface LockState {
+	type: "lock";
+	locked: boolean | null;
+	jammed: boolean;
+	battery: number | null;
+}
+
+export interface FanState {
+	type: "fan";
+	on: boolean | null;
+	speed: number | null;
+	speedSteps: number;
+	oscillating: boolean | null;
+}
+
+export interface FanChange {
+	on?: boolean;
+	speed?: number;
+	oscillating?: boolean;
+}
+
+export const mediaActions = [
+	"play",
+	"pause",
+	"next",
+	"previous",
+	"stop",
+] as const;
+export type MediaAction = (typeof mediaActions)[number];
+
+export const mediaPlaybacks = ["playing", "paused", "idle"] as const;
+export type MediaPlayback = (typeof mediaPlaybacks)[number];
+
+export interface MediaState {
+	type: "media";
+	power: boolean | null;
+	playback: MediaPlayback | null;
+	title: string | null;
+	artist: string | null;
+	volume: number | null;
+	muted: boolean | null;
+	source: string | null;
+	sources: string[];
+}
+
+export interface MediaChange {
+	power?: boolean;
+	action?: MediaAction;
+	volume?: number;
+	muted?: boolean;
+	source?: string;
+}
+
+export interface SensorReading {
+	name: string;
+	value: number | string | boolean | null;
+	unit: string | null;
+}
+
+export interface SensorState {
+	type: "sensor";
+	readings: SensorReading[];
+}
+
+export interface ButtonState {
+	type: "button";
+	pressedAt: string | null;
+}
+
 export type AppReport = Omit<AppState, "type" | "location"> & {
 	location?: Omit<AppLocation, "at"> | null;
 };
@@ -291,7 +386,13 @@ export type DeviceState =
 	| SwitchState
 	| MeterState
 	| LinkyState
-	| CameraState;
+	| CameraState
+	| LightState
+	| LockState
+	| FanState
+	| MediaState
+	| SensorState
+	| ButtonState;
 
 /** How far apart two points are, in metres, along the Earth's surface. */
 export function distanceMetres(

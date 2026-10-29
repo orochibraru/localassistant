@@ -9,6 +9,7 @@ import { devices } from "#lib/server/devices/devices.js";
 import { homes } from "#lib/server/house/homes.js";
 import {
 	appReportSchema,
+	buttonSchema,
 	cardDetailsSchema,
 	cardOrderSchema,
 	cardSizeSchema,
@@ -16,6 +17,10 @@ import {
 	coverActionSchema,
 	coverGroupSchema,
 	coverPositionSchema,
+	fanChangeSchema,
+	lightChangeSchema,
+	lockSchema,
+	mediaChangeSchema,
 	printerChangeSchema,
 	switchPowerSchema,
 	vacuumChangeSchema,
@@ -116,6 +121,45 @@ export const controlSwitch = command(
 		await attempt(() => devices.command(device, { type: "switch", on }));
 	},
 );
+
+export const controlLight = command(
+	lightChangeSchema,
+	async ({ deviceId, ...change }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.command(device, { type: "light", change }));
+	},
+);
+
+export const controlLock = command(lockSchema, async ({ deviceId, locked }) => {
+	access.requireUser();
+	const device = deviceFor(deviceId);
+	await attempt(() => devices.command(device, { type: "lock", locked }));
+});
+
+export const controlFan = command(
+	fanChangeSchema,
+	async ({ deviceId, ...change }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.command(device, { type: "fan", change }));
+	},
+);
+
+export const controlMedia = command(
+	mediaChangeSchema,
+	async ({ deviceId, ...change }) => {
+		access.requireUser();
+		const device = deviceFor(deviceId);
+		await attempt(() => devices.command(device, { type: "media", change }));
+	},
+);
+
+export const pressButton = command(buttonSchema, async ({ deviceId }) => {
+	access.requireUser();
+	const device = deviceFor(deviceId);
+	await attempt(() => devices.command(device, { type: "button" }));
+});
 
 export const controlBlinds = command(
 	coverGroupSchema,

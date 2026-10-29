@@ -57,6 +57,7 @@ type Command struct {
 	Change json.RawMessage `json:"change,omitempty"`
 	Target *float64        `json:"target,omitempty"`
 	On     *bool           `json:"on,omitempty"`
+	Locked *bool           `json:"locked,omitempty"`
 }
 
 // ClimateChange is a climate command's change.
@@ -119,6 +120,97 @@ type ValveState struct {
 	Max         float64  `json:"max"`
 	HeldBy      *string  `json:"heldBy"`
 	HeldTarget  *float64 `json:"heldTarget"`
+}
+
+// LightColor is a hue in degrees and a saturation from 0 to 100.
+type LightColor struct {
+	Hue        float64 `json:"hue"`
+	Saturation float64 `json:"saturation"`
+}
+
+// LightState is what a light reports; Features lists brightness, temperature and color when it has them.
+type LightState struct {
+	Type           string      `json:"type"`
+	On             *bool       `json:"on"`
+	Brightness     *float64    `json:"brightness"`
+	Temperature    *float64    `json:"temperature"`
+	MinTemperature float64     `json:"minTemperature"`
+	MaxTemperature float64     `json:"maxTemperature"`
+	Color          *LightColor `json:"color"`
+	Features       []string    `json:"features"`
+}
+
+// LightChange is a light command's change.
+type LightChange struct {
+	On          *bool       `json:"on,omitempty"`
+	Brightness  *float64    `json:"brightness,omitempty"`
+	Temperature *float64    `json:"temperature,omitempty"`
+	Color       *LightColor `json:"color,omitempty"`
+}
+
+// LockState is what a door lock reports.
+type LockState struct {
+	Type    string   `json:"type"`
+	Locked  *bool    `json:"locked"`
+	Jammed  bool     `json:"jammed"`
+	Battery *float64 `json:"battery"`
+}
+
+// FanState is what a fan reports, its speed from 0 to 100 in SpeedSteps steps.
+type FanState struct {
+	Type        string   `json:"type"`
+	On          *bool    `json:"on"`
+	Speed       *float64 `json:"speed"`
+	SpeedSteps  int      `json:"speedSteps"`
+	Oscillating *bool    `json:"oscillating"`
+}
+
+// FanChange is a fan command's change.
+type FanChange struct {
+	On          *bool    `json:"on,omitempty"`
+	Speed       *float64 `json:"speed,omitempty"`
+	Oscillating *bool    `json:"oscillating,omitempty"`
+}
+
+// MediaState is what a speaker or TV reports; Playback is playing, paused or idle.
+type MediaState struct {
+	Type     string   `json:"type"`
+	Power    *bool    `json:"power"`
+	Playback *string  `json:"playback"`
+	Title    *string  `json:"title"`
+	Artist   *string  `json:"artist"`
+	Volume   *float64 `json:"volume"`
+	Muted    *bool    `json:"muted"`
+	Source   *string  `json:"source"`
+	Sources  []string `json:"sources"`
+}
+
+// MediaChange is a media command's change; Action is play, pause, next, previous or stop.
+type MediaChange struct {
+	Power  *bool    `json:"power,omitempty"`
+	Action *string  `json:"action,omitempty"`
+	Volume *float64 `json:"volume,omitempty"`
+	Muted  *bool    `json:"muted,omitempty"`
+	Source *string  `json:"source,omitempty"`
+}
+
+// SensorReading is one named value a sensor reports, with its unit when it has one.
+type SensorReading struct {
+	Name  string  `json:"name"`
+	Value any     `json:"value"`
+	Unit  *string `json:"unit"`
+}
+
+// SensorState is what a sensor reports.
+type SensorState struct {
+	Type     string          `json:"type"`
+	Readings []SensorReading `json:"readings"`
+}
+
+// ButtonState is what a button or scene reports: when it was last pressed.
+type ButtonState struct {
+	Type      string  `json:"type"`
+	PressedAt *string `json:"pressedAt"`
 }
 
 // CameraLive says where a camera's live view is, under the device's media path.

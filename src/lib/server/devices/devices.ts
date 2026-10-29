@@ -20,6 +20,11 @@ const commandNouns: Record<DeviceCommand["type"], string> = {
 	vacuum: "a robot vacuum",
 	valve: "a radiator valve",
 	switch: "a switch",
+	light: "a light",
+	lock: "a lock",
+	fan: "a fan",
+	media: "a media player",
+	button: "a button",
 };
 
 /** Reads and drives every device through the plugin that provides its kind. */
@@ -160,6 +165,30 @@ class Devices {
 		}
 		if (command.type === "switch" && state.type === "switch") {
 			return { ...state, on: command.on };
+		}
+		if (command.type === "light" && state.type === "light") {
+			return { ...state, ...command.change };
+		}
+		if (command.type === "lock" && state.type === "lock") {
+			return { ...state, locked: command.locked, jammed: false };
+		}
+		if (command.type === "fan" && state.type === "fan") {
+			return { ...state, ...command.change };
+		}
+		if (command.type === "media" && state.type === "media") {
+			const { action, ...rest } = command.change;
+			const playback =
+				action === "play"
+					? "playing"
+					: action === "pause"
+						? "paused"
+						: action === "stop"
+							? "idle"
+							: state.playback;
+			return { ...state, ...rest, playback };
+		}
+		if (command.type === "button" && state.type === "button") {
+			return { ...state, pressedAt: new Date().toISOString() };
 		}
 		return null;
 	}

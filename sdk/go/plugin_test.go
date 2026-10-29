@@ -247,3 +247,28 @@ func TestMatches(t *testing.T) {
 		t.Fatal("pointers")
 	}
 }
+
+func TestNewStateShapes(t *testing.T) {
+	on := true
+	encoded, err := json.Marshal(LightState{Type: "light", On: &on, MinTemperature: 2000, MaxTemperature: 6500, Features: []string{"brightness"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `{"type":"light","on":true,"brightness":null,"temperature":null,"minTemperature":2000,"maxTemperature":6500,"color":null,"features":["brightness"]}` {
+		t.Fatalf("light encoded as %s", encoded)
+	}
+	var command Command
+	if err := json.Unmarshal([]byte(`{"type":"lock","locked":false}`), &command); err != nil {
+		t.Fatal(err)
+	}
+	if command.Locked == nil || *command.Locked {
+		t.Fatalf("lock command decoded as %+v", command)
+	}
+	var change MediaChange
+	if err := json.Unmarshal([]byte(`{"action":"next","volume":40}`), &change); err != nil {
+		t.Fatal(err)
+	}
+	if *change.Action != "next" || *change.Volume != 40 {
+		t.Fatalf("media change decoded as %+v", change)
+	}
+}
