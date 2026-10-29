@@ -11,14 +11,14 @@ test("an admin adds a blind and finds it on Home", async ({ page }) => {
 		.click();
 	await expect(page).toHaveURL(/\/devices$/);
 
-	await page.getByRole("button", { name: "Add a blind" }).click();
+	await page.getByRole("button", { name: /Tuya blinds/ }).click();
 	const sheet = page.getByRole("dialog");
 	await sheet.getByLabel("Name").fill("Office blind");
 	await sheet.getByLabel("IP address").fill("127.0.0.1");
 	await sheet.getByLabel("Device ID").fill("bfabcdabcdabcdabcdgh");
 	await sheet.getByLabel("Local key").fill("abcdabcdabcdabcd");
-	await sheet.getByRole("button", { name: "Add blind" }).click();
-	await expect(page.getByText("Blind added.")).toBeVisible();
+	await sheet.getByRole("button", { name: "Add the blind" }).click();
+	await expect(page.getByText("Added. It's read in a moment.")).toBeVisible();
 	await expect(page.getByRole("main").getByText("Office blind")).toBeVisible();
 
 	await page.getByRole("link", { name: "Home" }).first().click();
@@ -33,4 +33,19 @@ test("an admin adds a blind and finds it on Home", async ({ page }) => {
 	});
 	await expect(card.getByText("Opening")).toHaveCount(0);
 	await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+});
+
+test("the Integrations tab lists the official plugins and explains a bad link", async ({
+	page,
+}) => {
+	await page.goto("/admin/plugins");
+	await expect(
+		page.getByRole("heading", { name: "Tuya blinds" }),
+	).toBeVisible();
+	await expect(page.getByText("Official").first()).toBeVisible();
+	await page.getByLabel("Link").fill("not a link");
+	await page.getByRole("button", { name: "Look it up" }).click();
+	await expect(
+		page.getByText(/isn't a link to a GitHub repository/),
+	).toBeVisible();
 });
