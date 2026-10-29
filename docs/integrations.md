@@ -28,16 +28,20 @@ Two official integrations open the Home Assistant ecosystem:
 
 - **MQTT discovery** brings in every device that announces itself for Home
   Assistant on the MQTT broker (Tasmota, ESPHome, Zigbee2MQTT, Shelly,
-  OpenMQTTGateway and many DIY builds), without Home Assistant. Switches and
-  lights, covers, door and window sensors, power and energy sensors and
-  thermostats show up on their own and stay live.
+  OpenMQTTGateway and many DIY builds), without Home Assistant. Switches,
+  lights, locks, fans, buttons, covers, door and window sensors, power, energy
+  and other sensors, and thermostats show up on their own and stay live.
 - **Home Assistant** uses a running Home Assistant as a backend, for devices
   only it integrates: its address and a long-lived access token (your profile,
-  Security, in Home Assistant). The same kinds of entities, plus cameras, follow
-  it live, and taps become Home Assistant service calls.
+  Security, in Home Assistant). The same kinds of entities, plus speakers and
+  TVs, scenes, scripts and cameras, follow it live, and taps become Home
+  Assistant service calls.
 
 Either way, a device only shows when it fits one of LocalAssistant's cards:
-media players, locks, fans with speeds and vacuums with maps don't yet. A device
+vacuums with maps and alarm panels don't yet, and only sensors that measure
+something (temperature, humidity, motion and the like) come in, not every
+diagnostic value. A light added as a switch before lights had their own card
+stays a switch: remove it and find devices again to get the light card. A device
 reached two ways shows twice: with the Zigbee integration on, turn off Home
 Assistant discovery in Zigbee2MQTT, and don't bridge from Home Assistant what
 LocalAssistant already talks to directly.

@@ -110,11 +110,20 @@ matching state:
 | `printer` | `{ type: "printer", stage, progress, ..., camera }`                                | `printer`         |
 | `vacuum`  | `{ type: "vacuum", stage, battery, ... }`                                          | `vacuum`          |
 | `camera`  | `{ type: "camera", streaming, recording, live, snapshot, source, ... }`            |                   |
+| `light`   | `{ type: "light", on, brightness, temperature, color, features, ... }`             | `light`           |
+| `lock`    | `{ type: "lock", locked, jammed, battery }`                                        | `lock`            |
+| `fan`     | `{ type: "fan", on, speed, speedSteps, oscillating }`                              | `fan`             |
+| `media`   | `{ type: "media", power, playback, title, artist, volume, source, sources, ... }`  | `media`           |
+| `sensor`  | `{ type: "sensor", readings: [{ name, value, unit }] }`                            |                   |
+| `button`  | `{ type: "button", pressedAt }`; a tap presses it                                  | `button`          |
 
-The SDKs carry every state's full type. `houseMeter: true` makes a meter count
-as the whole house in Energy; `polled: true` has the worker call `read` every
-two minutes; `size` (`small`, `medium`, `large`) and `order` set the card's
-default size and place.
+A light's `features` lists `brightness` (0 to 100), `temperature` (kelvin,
+between `minTemperature` and `maxTemperature`) and `color`
+(`{ hue, saturation }`) when it has them; a fan's `speedSteps` is 0 when it has
+no speeds. The SDKs carry every state's full type. `houseMeter: true` makes a
+meter count as the whole house in Energy; `polled: true` has the worker call
+`read` every two minutes; `size` (`small`, `medium`, `large`) and `order` set
+the card's default size and place.
 
 ## Hooks
 
