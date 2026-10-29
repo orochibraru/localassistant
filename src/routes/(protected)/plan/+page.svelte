@@ -1,23 +1,31 @@
 <script lang="ts">
 	import { beforeNavigate, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import DownloadIcon from "@lucide/svelte/icons/download";
+	import FileCodeIcon from "@lucide/svelte/icons/file-code";
+	import FileJsonIcon from "@lucide/svelte/icons/file-json";
+	import ImageIcon from "@lucide/svelte/icons/image";
 	import MapIcon from "@lucide/svelte/icons/map";
 	import PencilRulerIcon from "@lucide/svelte/icons/pencil-ruler";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SquarePlusIcon from "@lucide/svelte/icons/square-plus";
 	import UndoIcon from "@lucide/svelte/icons/undo-2";
+	import { toast } from "svelte-sonner";
 
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import Fab from "#lib/components/fab.svelte";
 	import HousePlan from "#lib/components/house/house-plan.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import Picker from "#lib/components/picker.svelte";
+	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as ToggleGroup from "#lib/components/ui/toggle-group/index.js";
 	import {
 		freePlanSpot,
 		houseGroups,
 		planBaseFloor,
+		planSvg,
 		type RoomPlan,
 	} from "#lib/house.js";
 	import { setPageTitle } from "#lib/page-title.svelte.js";
@@ -93,13 +101,99 @@
 				})
 			: [],
 	);
+	let exporting = $state(false);
+	const drawing = $derived(
+		group
+			? planSvg({
+					title: `${group.name}, ${data.home.name}`,
+					rooms: groupRooms.flatMap((room) =>
+						room.plan
+							? [{ id: room.id, name: room.name, plan: room.plan }]
+							: [],
+					),
+					outline: outline.map((base) => base.plan),
+					devices: groupDevices.map((device) => ({
+						name: device.name,
+						roomId: device.roomId,
+						pin: device.pin?.place === group.id ? device.pin : null,
+					})),
+				})
+			: null,
+	);
+	const fileName = $derived(
+		`${(group?.name ?? "plan").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-plan`,
+	);
+
+	function download(blob: Blob, name: string) {
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = name;
+		link.click();
+		URL.revokeObjectURL(url);
+	}
+
+	function exportSvg() {
+		if (drawing) {
+			download(
+				new Blob([drawing.svg], { type: "image/svg+xml" }),
+				`${fileName}.svg`,
+			);
+			exporting = false;
+		}
+	}
+
+	async function pngCallback() {
+		if (!drawing) {
+			return;
+		}
+		const image = new Image();
+		image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(drawing.svg)}`;
+		await image.decode();
+		const canvas = document.createElement("canvas");
+		canvas.width = drawing.width * 2;
+		canvas.height = drawing.height * 2;
+		const context = canvas.getContext("2d");
+		if (!context) {
+			throw new Error("This browser can't draw the image.");
+		}
+		context.scale(2, 2);
+		context.drawImage(image, 0, 0);
+		const blob = await new Promise<Blob | null>((done) =>
+			canvas.toBlob(done, "image/png"),
+		);
+		if (!blob) {
+			throw new Error("This browser can't make the image.");
+		}
+		download(blob, `${fileName}.png`);
+		exporting = false;
+	}
+
+	function handlePng() {
+		toast.promise(pngCallback(), {
+			loading: "Drawing the plan",
+			success: "Plan exported.",
+			error: (failure) => toastError(failure),
+		});
+	}
+
 	const isFloor = $derived(data.floors.some((floor) => floor.id === group?.id));
 
 	setPageTitle("Plan", undefined, () => {
+		const exportAction = group
+			? [
+					{
+						label: "Export the plan",
+						icon: DownloadIcon,
+						onSelect: () => (exporting = true),
+					},
+				]
+			: [];
 		if (!data.isAdmin) {
-			return [];
+			return exportAction;
 		}
 		return [
+			...exportAction,
 			{
 				label: editing ? "Done" : "Edit the plan",
 				icon: editing ? CheckIcon : PencilRulerIcon,
@@ -349,6 +443,40 @@
 		</HousePlan>
 	</div>
 {/if}
+
+<ResponsiveSheet
+	bind:open={exporting}
+	wide
+	title="Export the plan"
+	description="{group?.name ??
+		'This floor'} as drawn, with its rooms, devices and the base floor's outline."
+>
+	<div class="flex flex-col gap-3 pb-6">
+		<div class="grid gap-3 sm:grid-cols-3">
+			<Button class="h-11 rounded-xl" onclick={handlePng}
+				><ImageIcon />PNG image</Button
+			>
+			<Button variant="secondary" class="h-11 rounded-xl" onclick={exportSvg}
+				><FileCodeIcon />SVG drawing</Button
+			>
+			{#if data.isAdmin}
+				<Button
+					variant="secondary"
+					class="h-11 rounded-xl"
+					href={resolve("/(protected)/admin/configuration/export")}
+					download><FileJsonIcon />LocalAssistant file</Button
+				>
+			{/if}
+		</div>
+		{#if data.isAdmin}
+			<p class="text-muted-foreground text-sm">
+				The LocalAssistant file holds the whole house: floors, rooms with their
+				plan, devices with their pins. Import it in Admin, Configuration on any
+				instance.
+			</p>
+		{/if}
+	</div>
+</ResponsiveSheet>
 
 {#if data.isAdmin && group}
 	<Fab

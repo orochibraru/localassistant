@@ -15,6 +15,7 @@
 	import ValveCard from "#lib/components/devices/valve-card.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
 	import * as ToggleGroup from "#lib/components/ui/toggle-group/index.js";
 	import {
 		type CardSize,
@@ -22,7 +23,7 @@
 		cardSizes,
 		type DeviceState,
 	} from "#lib/devices.js";
-	import { resizeCard } from "#lib/remote/devices.remote.js";
+	import { resizeCard, showCardDetails } from "#lib/remote/devices.remote.js";
 	import { useSheets } from "#lib/sheets.svelte.js";
 	import { toastError } from "#lib/toast.js";
 
@@ -90,6 +91,24 @@
 		});
 	}
 
+	const hasDetails = $derived(device.kind === "linky");
+	const detailsShown = $derived(
+		!(page.data.cardLayout?.brief ?? []).includes(device.id),
+	);
+
+	async function detailsCallback(shown: boolean) {
+		await showCardDetails({ deviceId: device.id, shown });
+		await invalidateAll();
+	}
+
+	function handleDetails(shown: boolean) {
+		toast.promise(detailsCallback(shown), {
+			loading: shown ? "Showing the details" : "Hiding the details",
+			success: shown ? "Details shown." : "Details hidden.",
+			error: (failure) => toastError(failure),
+		});
+	}
+
 	function openSetup() {
 		menuOpen = false;
 		sheets.editDeviceId = device.id;
@@ -132,6 +151,9 @@
 		/>
 	{:else if device.kind === "zigbee-contact" || device.kind === "zigbee-meter" || device.kind === "shelly-meter" || device.kind === "linky"}
 		<SensorCard
+			details={detailsShown
+				? (page.data.energySummaries?.[device.id] ?? null)
+				: null}
 			id={device.id}
 			name={device.name}
 			error={device.stateError}
@@ -210,6 +232,22 @@
 	<div class="flex flex-col gap-4 pb-6">
 		{#if size === "small"}
 			{@render card(false)}
+		{/if}
+		{#if hasDetails}
+			<div class="bg-muted/60 flex min-h-14 items-center gap-3 rounded-xl px-3">
+				<label for="{device.id}-details" class="min-w-0 flex-1 py-2">
+					<span class="block font-medium">Show the details</span>
+					<span class="text-muted-foreground block text-sm"
+						>The last 7 days, this month against last month and the daily
+						average.</span
+					>
+				</label>
+				<Switch
+					id="{device.id}-details"
+					checked={detailsShown}
+					onCheckedChange={handleDetails}
+				/>
+			</div>
 		{/if}
 		<div class="flex flex-col gap-2">
 			<p class="text-sm font-medium">Card size</p>

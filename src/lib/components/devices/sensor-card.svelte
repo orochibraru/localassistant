@@ -5,12 +5,14 @@
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 
 	import CardMore from "#lib/components/devices/card-more.svelte";
+	import EnergyBars from "#lib/components/energy/energy-bars.svelte";
 	import {
 		type ContactState,
 		type LinkyState,
 		type MeterState,
 		readAgo,
 	} from "#lib/devices.js";
+	import { bucketLabel, type EnergySummary } from "#lib/energy.js";
 
 	interface Props {
 		id: string;
@@ -21,6 +23,7 @@
 		now: number;
 		compact?: boolean;
 		onMore?: () => void;
+		details?: EnergySummary | null;
 	}
 
 	const {
@@ -32,7 +35,18 @@
 		error = null,
 		compact = false,
 		onMore,
+		details = null,
 	}: Props = $props();
+
+	const kilowattHours = (value: number) =>
+		`${value.toLocaleString(undefined, { maximumFractionDigits: value < 10 ? 1 : 0 })} kWh`;
+	const change = $derived(
+		details && details.lastMonth > 0
+			? Math.round(
+					((details.thisMonth - details.lastMonth) / details.lastMonth) * 100,
+				)
+			: null,
+	);
 
 	const ago = $derived(readAgo(readAt, now));
 	const Icon = $derived.by(() => {
@@ -96,6 +110,36 @@
 		{/if}
 		<CardMore {name} onclick={onMore} />
 	</header>
+	{#if details && !compact}
+		<dl class="grid grid-cols-2 gap-3 text-sm">
+			<div class="bg-muted/60 rounded-xl px-3 py-2">
+				<dt class="text-muted-foreground text-xs">This month so far</dt>
+				<dd class="font-medium tabular-nums">
+					{kilowattHours(details.thisMonth)}
+				</dd>
+				<dd class="text-muted-foreground text-xs tabular-nums">
+					{kilowattHours(details.lastMonth)} last month{change === null
+						? ""
+						: `, ${change > 0 ? "+" : ""}${change}%`}
+				</dd>
+			</div>
+			<div class="bg-muted/60 rounded-xl px-3 py-2">
+				<dt class="text-muted-foreground text-xs">A day on average</dt>
+				<dd class="font-medium tabular-nums">
+					{kilowattHours(details.averagePerDay)}
+				</dd>
+				<dd class="text-muted-foreground text-xs">this month</dd>
+			</div>
+		</dl>
+		<EnergyBars
+			title="Last 7 days"
+			bars={details.days.map((day) => ({
+				key: day.key,
+				label: bucketLabel(day.key, "day"),
+				value: day.kilowattHours,
+			}))}
+		/>
+	{/if}
 	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Reported {ago}</p>
 	{/if}

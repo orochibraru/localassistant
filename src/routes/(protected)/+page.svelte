@@ -1,23 +1,79 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import HouseIcon from "@lucide/svelte/icons/house";
+	import LayoutGridIcon from "@lucide/svelte/icons/layout-grid";
 	import PlugIcon from "@lucide/svelte/icons/plug";
+	import XIcon from "@lucide/svelte/icons/x";
 	import { onMount } from "svelte";
+	import { toast } from "svelte-sonner";
 
 	import DeviceGrid from "#lib/components/devices/device-grid.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
+	import Fab from "#lib/components/fab.svelte";
 	import WeatherCard from "#lib/components/house/weather-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { refill, sortCards } from "#lib/devices.js";
 	import { houseGroups, roomLabels } from "#lib/house.js";
 	import { LiveRefresh } from "#lib/live-refresh.svelte.js";
 	import { setPageTitle } from "#lib/page-title.svelte.js";
 	import { panelMode } from "#lib/panel-mode.js";
+	import { arrangeCards } from "#lib/remote/devices.remote.js";
+	import { toastError } from "#lib/toast.js";
 
 	const { data } = $props();
 
-	setPageTitle("Home");
+	let arranging = $state(false);
+	let draft = $state<string[]>([]);
+
+	setPageTitle("Home", undefined, () =>
+		data.devices.length === 0
+			? []
+			: arranging
+				? [
+						{
+							label: "Done",
+							icon: CheckIcon,
+							onSelect: handleArrange,
+							primary: true,
+						},
+						{
+							label: "Cancel",
+							icon: XIcon,
+							onSelect: () => (arranging = false),
+						},
+					]
+				: [
+						{
+							label: "Arrange cards",
+							icon: LayoutGridIcon,
+							onSelect: startArranging,
+						},
+					],
+	);
+
+	function startArranging() {
+		draft = sortCards(data.devices, data.cardLayout.order).map(
+			(device) => device.id,
+		);
+		arranging = true;
+	}
+
+	async function arrangeCallback() {
+		await arrangeCards({ deviceIds: draft });
+		await invalidateAll();
+		arranging = false;
+	}
+
+	function handleArrange() {
+		toast.promise(arrangeCallback(), {
+			loading: "Saving the layout",
+			success: "Layout saved.",
+			error: (failure) => toastError(failure),
+		});
+	}
 
 	onMount(() => {
 		if (panelMode()) {
@@ -86,8 +142,18 @@
 						<ChevronRightIcon class="size-4" />
 					</a>
 				</h2>
-				<DeviceGrid devices={section.devices} now={live.now} />
+				<DeviceGrid
+					devices={section.devices}
+					now={live.now}
+					order={arranging ? draft : undefined}
+					{arranging}
+					onArrange={(ids) => (draft = refill(draft, ids))}
+				/>
 			</section>
 		{/each}
 	</div>
+{/if}
+
+{#if arranging}
+	<Fab label="Done" icon={CheckIcon} onclick={handleArrange} />
 {/if}

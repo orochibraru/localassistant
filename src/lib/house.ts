@@ -350,3 +350,165 @@ export function roomLabels(
 		}),
 	);
 }
+
+const exportCell = 32;
+const exportTitle = 56;
+
+function escapeXml(text: string): string {
+	return text.replace(
+		/[<>&"']/g,
+		(character) =>
+			({
+				"<": "&lt;",
+				">": "&gt;",
+				"&": "&amp;",
+				'"': "&quot;",
+				"'": "&apos;",
+			})[character] ?? character,
+	);
+}
+
+function exportBounds(
+	parts: RoomPlan[],
+	pins: { x: number; y: number }[],
+): { left: number; top: number; columns: number; rows: number } {
+	if (parts.length === 0 && pins.length === 0) {
+		return { left: 0, top: 0, columns: planSize.columns, rows: planSize.rows };
+	}
+	const left = Math.max(
+		0,
+		Math.min(
+			...parts.map((part) => part.x),
+			...pins.map((pin) => pin.x),
+			planSize.columns,
+		) - 1,
+	);
+	const top = Math.max(
+		0,
+		Math.min(
+			...parts.map((part) => part.y),
+			...pins.map((pin) => pin.y),
+			planSize.rows,
+		) - 1,
+	);
+	const right = Math.min(
+		planSize.columns,
+		Math.max(
+			...parts.map((part) => part.x + part.width),
+			...pins.map((pin) => pin.x),
+			0,
+		) + 1,
+	);
+	const bottom = Math.min(
+		planSize.rows,
+		Math.max(
+			...parts.map((part) => part.y + part.height),
+			...pins.map((pin) => pin.y),
+			0,
+		) + 1,
+	);
+	const columns = Math.max(right - left, 4);
+	const rows = Math.max(bottom - top, 4);
+	return { left, top, columns, rows };
+}
+
+function roomLabelSvg(
+	room: { id: string; name: string; plan: RoomPlan[] },
+	devices: { name: string; roomId: string | null }[],
+	at: (x: number, y: number) => readonly [number, number],
+): string[] {
+	const largest = room.plan.reduce<RoomPlan | undefined>(
+		(best, part) =>
+			!best || part.width * part.height > best.width * best.height
+				? part
+				: best,
+		undefined,
+	);
+	if (!largest) {
+		return [];
+	}
+	const [x, y] = at(
+		largest.x + largest.width / 2,
+		largest.y + largest.height / 2,
+	);
+	const inside = devices.filter((device) => device.roomId === room.id);
+	const listed = inside.slice(0, 3).map((device) => device.name);
+	if (inside.length > 3) {
+		listed.push(`+${inside.length - 3} more`);
+	}
+	const first = y - (listed.length * 14) / 2;
+	return [
+		`<text x="${x}" y="${first}" text-anchor="middle" font-size="14" font-weight="600" fill="#1f1f1f">${escapeXml(room.name)}</text>`,
+		...listed.map(
+			(name, index) =>
+				`<text x="${x}" y="${first + 16 + index * 14}" text-anchor="middle" font-size="11" fill="#555555">${escapeXml(name)}</text>`,
+		),
+	];
+}
+
+/**
+ * A floor's plan as a standalone SVG drawing, cropped to what is drawn: its rooms with their walls, names and devices,
+ * the devices pinned outside rooms, and the base floor's outline dashed underneath.
+ */
+export function planSvg(plan: {
+	title: string;
+	rooms: { id: string; name: string; plan: RoomPlan[] }[];
+	outline: RoomPlan[][];
+	devices: {
+		name: string;
+		roomId: string | null;
+		pin: { x: number; y: number } | null;
+	}[];
+}): { svg: string; width: number; height: number } {
+	const { left, top, columns, rows } = exportBounds(
+		[...plan.rooms.flatMap((room) => room.plan), ...plan.outline.flat()],
+		plan.devices.flatMap((device) => (device.pin ? [device.pin] : [])),
+	);
+	const width = columns * exportCell;
+	const height = rows * exportCell + exportTitle;
+	const at = (x: number, y: number) =>
+		[(x - left) * exportCell, (y - top) * exportCell + exportTitle] as const;
+	const line = 1 / exportCell;
+	const shapes = [
+		...plan.outline.map(
+			(base) =>
+				`<path d="${planOutline(base)}" fill="none" stroke="#9a9a9a" stroke-width="${1.5 * line}" stroke-dasharray="${6 * line} ${4 * line}"/>`,
+		),
+		...plan.rooms.flatMap((room) =>
+			room.plan.map(
+				(part) =>
+					`<rect x="${part.x}" y="${part.y}" width="${part.width}" height="${part.height}" fill="#f7f4f2"/>`,
+			),
+		),
+		...plan.rooms.map(
+			(room) =>
+				`<path d="${planOutline(room.plan)}" fill="none" stroke="#7a7a7a" stroke-width="${1.5 * line}" stroke-linecap="square"/>`,
+		),
+		`<path d="${planOutline(plan.rooms.flatMap((room) => room.plan))}" fill="none" stroke="#1f1f1f" stroke-width="${5 * line}" stroke-linecap="square"/>`,
+	];
+	const labels = plan.rooms.flatMap((room) =>
+		roomLabelSvg(room, plan.devices, at),
+	);
+	const pinned = plan.devices.flatMap((device) => {
+		if (!device.pin) {
+			return [];
+		}
+		const [x, y] = at(device.pin.x, device.pin.y);
+		return [
+			`<circle cx="${x}" cy="${y}" r="5" fill="#1f1f1f"/>`,
+			`<text x="${x + 9}" y="${y + 4}" font-size="11" fill="#1f1f1f">${escapeXml(device.name)}</text>`,
+		];
+	});
+	const svg = [
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="system-ui, sans-serif">`,
+		`<rect width="${width}" height="${height}" fill="#ffffff"/>`,
+		`<text x="16" y="34" font-size="20" font-weight="700" fill="#1f1f1f">${escapeXml(plan.title)}</text>`,
+		`<g transform="translate(${-left * exportCell} ${exportTitle - top * exportCell}) scale(${exportCell})">`,
+		...shapes,
+		"</g>",
+		...labels,
+		...pinned,
+		"</svg>",
+	].join("\n");
+	return { svg, width, height };
+}

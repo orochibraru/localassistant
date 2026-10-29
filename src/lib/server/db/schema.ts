@@ -342,6 +342,14 @@ export const energyReading = sqliteTable(
 	(table) => [primaryKey({ columns: [table.deviceId, table.hour] })],
 );
 
+export const cardLayout = sqliteTable("card_layout", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	order: text("order", { mode: "json" }).$type<string[]>().notNull(),
+	brief: text("brief", { mode: "json" }).$type<string[]>().notNull(),
+});
+
 export const cardSize = sqliteTable(
 	"card_size",
 	{

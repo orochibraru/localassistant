@@ -487,3 +487,9 @@ export const planChangesSchema = z.object({
 		.default([]),
 	baseFloorId: z.string().trim().min(1).nullable().optional(),
 });
+
+export const cardOrderSchema = z.object({
+	deviceIds: z.array(deviceId).max(1000),
+});
+
+export const cardDetailsSchema = z.object({ deviceId, shown: z.boolean() });

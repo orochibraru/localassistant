@@ -4,6 +4,7 @@ import type { HomeDTO } from "#lib/dto/home.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { getSetting, setSetting } from "#lib/dto/setting.js";
+import { noFloorPlace, outsidePlace, planBaseFloor } from "#lib/house.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import type { HouseConfig } from "#lib/server/validation/house-config.js";
@@ -16,7 +17,7 @@ export interface ImportCounts {
 	devices: number;
 }
 
-/** A home's floors, rooms, devices and MELCloud account as a JSON file, and back. */
+/** A home's floors, rooms with their plan, devices with their pins and MELCloud account as a JSON file, and back. */
 class HouseConfiguration {
 	/** The file for `home`; device keys, access codes and the MELCloud password only when `withSecrets`. */
 	export(home: HomeDTO, withSecrets: boolean): HouseConfig {
@@ -33,16 +34,31 @@ class HouseConfiguration {
 					}
 				: null;
 		};
+		const base = planBaseFloor(floors, home.toJSON().planBaseFloorId);
+		const pinOf = (pin: { place: string; x: number; y: number } | undefined) =>
+			pin
+				? {
+						floor: floorNames.get(pin.place) ?? null,
+						outdoor: pin.place === outsidePlace,
+						x: pin.x,
+						y: pin.y,
+					}
+				: null;
 		const account = getSetting("melcloud");
 		return {
 			format: "localassistant-house",
 			version: 1,
 			exportedAt: new Date().toISOString(),
 			home: { name: home.toJSON().name },
-			floors: floors.map(({ name, level }) => ({ name, level })),
+			floors: floors.map(({ id, name, level }) => ({
+				name,
+				level,
+				planBase: id === base?.id,
+			})),
 			rooms: rooms.map((room) => ({
 				...(reference(room.id) as RoomReference),
 				icon: room.icon as HouseConfig["rooms"][number]["icon"],
+				plan: room.plan,
 			})),
 			devices: DeviceDTO.inHome(home.id).flatMap((device) => {
 				const row = device.toJSON();
@@ -64,6 +80,7 @@ class HouseConfiguration {
 					positionDp: row.positionDp,
 					positionStateDp: row.positionStateDp,
 					...(key ? { secret: secrets.decrypt(key) } : {}),
+					pin: pinOf(device.options.pin),
 				};
 			}),
 			melcloud: account
@@ -93,6 +110,23 @@ class HouseConfiguration {
 			);
 		}
 		return counts;
+	}
+
+	/** Pins `device` where the file says, a floor found by name, or takes its pin off with null. */
+	#pin(
+		device: DeviceDTO,
+		pin: HouseConfig["devices"][number]["pin"],
+		floorIds: Map<string, string>,
+	): void {
+		const { pin: _old, ...options } = device.options;
+		if (!pin) {
+			device.setOptions(options);
+			return;
+		}
+		const place = pin.outdoor
+			? outsidePlace
+			: ((pin.floor ? floorIds.get(pin.floor) : undefined) ?? noFloorPlace);
+		device.setOptions({ ...options, pin: { place, x: pin.x, y: pin.y } });
 	}
 
 	#merge(home: HomeDTO, config: HouseConfig): ImportCounts {
@@ -140,16 +174,18 @@ class HouseConfiguration {
 				...placeOf(entry),
 			};
 			const existing = findRoom(entry);
+			const room = existing ?? RoomDTO.create(home.id, settings);
 			if (existing) {
 				existing.update(settings);
-			} else {
-				RoomDTO.create(home.id, settings);
+			}
+			if (entry.plan !== undefined) {
+				room.place(entry.plan);
 			}
 		}
 		for (const entry of config.devices) {
-			const { room, secret, host, protocolVersion, buildingId, ...rest } =
+			const { room, secret, host, protocolVersion, buildingId, pin, ...rest } =
 				entry;
-			DeviceDTO.upsert({
+			const device = DeviceDTO.upsert({
 				...rest,
 				homeId: home.id,
 				roomId: room ? (findRoom(room)?.toJSON().id ?? null) : null,
@@ -158,6 +194,13 @@ class HouseConfiguration {
 				buildingId: buildingId ?? undefined,
 				encryptedLocalKey: secret ? secrets.encrypt(secret) : undefined,
 			});
+			if (pin !== undefined) {
+				this.#pin(device, pin, floorIds);
+			}
+		}
+		const base = config.floors.find((floor) => floor.planBase);
+		if (base) {
+			home.setPlanBase(floorIds.get(base.name) ?? null);
 		}
 		if (config.melcloud?.password) {
 			setSetting("melcloud", {

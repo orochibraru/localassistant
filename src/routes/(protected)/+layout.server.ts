@@ -1,3 +1,4 @@
+import { CardLayoutDTO } from "#lib/dto/card-layout.js";
 import { CardSizeDTO } from "#lib/dto/card-size.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
@@ -20,6 +21,7 @@ export const load = ({ cookies, locals, url }) => {
 		},
 		isAdmin: access.isAdmin(locals.user),
 		cardSizes: CardSizeDTO.forUser(locals.user.id),
+		cardLayout: CardLayoutDTO.forUser(locals.user.id),
 		people: UserDTO.people(),
 		...houseOf(homes.current(cookies)),
 		melCloudEmail: access.isAdmin(locals.user)

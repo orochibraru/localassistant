@@ -35,6 +35,13 @@ export interface EnergyBucket {
 	kilowattHours: number;
 }
 
+export interface EnergySummary {
+	days: EnergyBucket[];
+	thisMonth: number;
+	lastMonth: number;
+	averagePerDay: number;
+}
+
 export interface EnergyRange {
 	key: string;
 	from: string;

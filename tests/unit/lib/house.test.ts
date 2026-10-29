@@ -8,6 +8,7 @@ import {
 	placeOf,
 	planOutline,
 	planSize,
+	planSvg,
 	roomLabels,
 	splitPart,
 } from "#lib/house.js";
@@ -212,5 +213,35 @@ describe("the house plan", () => {
 			{ x: 0, y: 2, width: 1, height: 2 },
 		]);
 		expect(splitPart({ x: 0, y: 0, width: 1, height: 1 })).toBeNull();
+	});
+
+	test("exports a floor as a drawing cropped to what is on it", () => {
+		const drawing = planSvg({
+			title: "Ground floor & <garden>",
+			rooms: [
+				{
+					id: "kitchen",
+					name: "Kitchen",
+					plan: [{ x: 10, y: 10, width: 6, height: 4 }],
+				},
+			],
+			outline: [[{ x: 9, y: 9, width: 2, height: 2 }]],
+			devices: [
+				{ name: "Fridge", roomId: "kitchen", pin: null },
+				{ name: "Oven", roomId: "kitchen", pin: null },
+				{ name: "Kettle", roomId: "kitchen", pin: null },
+				{ name: "Toaster", roomId: "kitchen", pin: null },
+				{ name: "Front door", roomId: null, pin: { x: 17, y: 12 } },
+			],
+		});
+		expect(drawing.width).toBe(10 * 32);
+		expect(drawing.height).toBe(7 * 32 + 56);
+		expect(drawing.svg).toStartWith("<svg");
+		expect(drawing.svg).toContain("Ground floor &amp; &lt;garden&gt;");
+		expect(drawing.svg).toContain("+1 more");
+		expect(drawing.svg).toContain("Front door");
+		expect(
+			planSvg({ title: "Empty", rooms: [], outline: [], devices: [] }).width,
+		).toBe(planSize.columns * 32);
 	});
 });

@@ -134,6 +134,13 @@
       "when": 1793275456685,
       "tag": "0018_room_plan_room_to_grow",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793282748450,
+      "tag": "0019_card_layout",
+      "breakpoints": true
     }
   ]
 }

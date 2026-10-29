@@ -3,7 +3,10 @@ import { describe, expect, test } from "bun:test";
 import {
 	describeDistance,
 	distanceMetres,
+	moveCard,
 	readAgo,
+	refill,
+	sortCards,
 	timeLeft,
 } from "#lib/devices.js";
 
@@ -40,5 +43,45 @@ describe("distances", () => {
 		expect(describeDistance(640)).toBe("640 m away");
 		expect(describeDistance(3456)).toBe("3.5 km away");
 		expect(describeDistance(347_000)).toBe("347 km away");
+	});
+});
+
+describe("arranging cards", () => {
+	const card = (id: string, kind: string) => ({ id, kind, name: id });
+
+	test("follows the account's order, the rest by kind and name", () => {
+		const cards = [
+			card("lamp", "zigbee-switch"),
+			card("pump", "melcloud-ata"),
+			card("blind", "tuya-cover"),
+			card("robot", "dreame-vacuum"),
+		];
+		expect(sortCards(cards, []).map((entry) => entry.id)).toEqual([
+			"pump",
+			"blind",
+			"lamp",
+			"robot",
+		]);
+		expect(
+			sortCards(cards, ["robot", "lamp"]).map((entry) => entry.id),
+		).toEqual(["robot", "lamp", "pump", "blind"]);
+	});
+
+	test("moves a card onto another's place and puts a section back in its slots", () => {
+		expect(moveCard(["a", "b", "c", "d"], "a", "c")).toEqual([
+			"b",
+			"c",
+			"a",
+			"d",
+		]);
+		expect(moveCard(["a", "b", "c"], "c", "a")).toEqual(["c", "a", "b"]);
+		expect(moveCard(["a", "b"], "z", "a")).toEqual(["a", "b"]);
+		expect(refill(["a", "x", "b", "y", "c"], ["c", "a", "b"])).toEqual([
+			"c",
+			"x",
+			"a",
+			"y",
+			"b",
+		]);
 	});
 });

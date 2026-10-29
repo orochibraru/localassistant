@@ -197,6 +197,60 @@ export function cardSizeOf(
 	);
 }
 
+const kindOrder: Record<string, number> = {
+	"melcloud-ata": 0,
+	"melcloud-atw": 0,
+	"esphome-climate": 0,
+	"tuya-cover": 1,
+	"bambu-printer": 2,
+	"zigbee-valve": 0,
+	"zigbee-contact": 1,
+	"zigbee-switch": 3,
+	"dreame-vacuum": 3,
+	"zigbee-meter": 4,
+	"shelly-meter": 4,
+	linky: 4,
+	camera: -1,
+	"frigate-camera": -1,
+	app: 5,
+};
+
+/** Cards in the order the account arranged them; the ones it never placed follow, by kind and then name. */
+export function sortCards<
+	Card extends { id: string; kind: string; name: string },
+>(cards: Card[], order: string[]): Card[] {
+	const position = new Map(order.map((id, index) => [id, index]));
+	return cards.toSorted(
+		(first, second) =>
+			(position.get(first.id) ?? Number.MAX_SAFE_INTEGER) -
+				(position.get(second.id) ?? Number.MAX_SAFE_INTEGER) ||
+			(kindOrder[first.kind] ?? 9) - (kindOrder[second.kind] ?? 9) ||
+			first.name.localeCompare(second.name),
+	);
+}
+
+/** `ids` with `moving` taken out and put where `target` was. */
+export function moveCard(
+	ids: string[],
+	moving: string,
+	target: string,
+): string[] {
+	const rest = ids.filter((id) => id !== moving);
+	const at = ids.indexOf(target);
+	if (at === -1 || !ids.includes(moving)) {
+		return ids;
+	}
+	rest.splice(at, 0, moving);
+	return rest;
+}
+
+/** The full order with the cards of one section put back in their new order, in the slots that section used. */
+export function refill(order: string[], section: string[]): string[] {
+	const moved = new Set(section);
+	const queue = [...section];
+	return order.map((id) => (moved.has(id) ? (queue.shift() ?? id) : id));
+}
+
 export const dreameRegions = ["eu", "us", "cn", "sg", "ru"] as const;
 export type DreameRegion = (typeof dreameRegions)[number];
 

@@ -6,6 +6,7 @@ import type {
 	EnergyRange,
 	EnergyReport,
 	EnergySeason,
+	EnergySummary,
 	EnergyUnit,
 } from "#lib/energy.js";
 
@@ -269,6 +270,47 @@ class Energy {
 					)
 				: null;
 		return { cumulative, weekdays, hours };
+	}
+
+	/** Each Linky of `homeId` with its last 7 days, this month and last month so far, and this month's daily average. */
+	summaries(
+		homeId: string,
+		timeZone: string,
+		now = new Date(),
+	): Record<string, EnergySummary> {
+		const meters = DeviceDTO.inHome(homeId).filter(
+			(device) => device.kind === "linky",
+		);
+		const today = this.bucketOf(now, timeZone, "day");
+		const month = today.slice(0, 7);
+		const readings = EnergyReadingDTO.since(
+			meters.map((device) => device.id),
+			new Date(now.getTime() - 70 * dayMs),
+		).map((reading) => reading.toJSON());
+		const week = this.#days(this.#shift(today, -6), today);
+		return Object.fromEntries(
+			meters.map((device) => {
+				const own = readings.filter(
+					(reading) => reading.deviceId === device.id,
+				);
+				const [thisMonth, lastMonth] = this.#buckets(
+					own,
+					[month, this.#monthsBefore(month, 1)],
+					timeZone,
+					"month",
+				);
+				const used = thisMonth?.kilowattHours ?? 0;
+				return [
+					device.id,
+					{
+						days: this.#buckets(own, week, timeZone, "day"),
+						thisMonth: used,
+						lastMonth: lastMonth?.kilowattHours ?? 0,
+						averagePerDay: this.#round(used / Number(today.slice(8))),
+					},
+				];
+			}),
+		);
 	}
 
 	/** The dates and bar size a preset, a month, the latest of a season or a custom span covers, given the local `today` and the first reading. */

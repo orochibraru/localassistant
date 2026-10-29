@@ -85,6 +85,13 @@ describe("Linky online", () => {
 		expect(report.house.metered).toBe(true);
 		expect(report.house.total).toBe(12.5);
 		expect(report.profile.hours).toBeNull();
+		const summary = energy.summaries(homeId(), "Europe/Paris", now)[meter.id];
+		expect(summary?.days).toHaveLength(7);
+		expect(summary?.days.at(-2)).toEqual({
+			key: "2026-10-27",
+			kilowattHours: 12.5,
+		});
+		expect(summary?.thisMonth).toBe(12.5);
 
 		answer = () => daily([["2026-10-28", 9000]]);
 		const fresh = DeviceDTO.find(meter.id) as DeviceDTO;

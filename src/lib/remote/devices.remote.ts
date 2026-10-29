@@ -1,6 +1,7 @@
 import { command, getRequestEvent } from "$app/server";
 import { error } from "@sveltejs/kit";
 
+import { CardLayoutDTO } from "#lib/dto/card-layout.js";
 import { CardSizeDTO } from "#lib/dto/card-size.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { access } from "#lib/server/auth/access.js";
@@ -8,6 +9,8 @@ import { devices } from "#lib/server/devices/devices.js";
 import { homes } from "#lib/server/house/homes.js";
 import {
 	appReportSchema,
+	cardDetailsSchema,
+	cardOrderSchema,
 	cardSizeSchema,
 	climateChangeSchema,
 	coverActionSchema,
@@ -133,3 +136,17 @@ export const resizeCard = command(cardSizeSchema, ({ deviceId, size }) => {
 	deviceFor(deviceId);
 	CardSizeDTO.save(user.id, deviceId, size);
 });
+
+export const arrangeCards = command(cardOrderSchema, ({ deviceIds }) => {
+	const user = access.requireUser();
+	CardLayoutDTO.arrange(user.id, deviceIds);
+});
+
+export const showCardDetails = command(
+	cardDetailsSchema,
+	({ deviceId, shown }) => {
+		const user = access.requireUser();
+		deviceFor(deviceId);
+		CardLayoutDTO.showDetails(user.id, deviceId, shown);
+	},
+);
