@@ -50,11 +50,14 @@ test("automations open their editor and the wall panel fits a square screen", as
 		localStorage.setItem("localassistant-install-prompted", "e2e"),
 	);
 	await page.goto("/automations");
+	await expect(page.getByText("No routine yet")).toBeVisible();
+	await page.getByRole("button", { name: "New routine" }).last().click();
+	const sheet = page.getByRole("dialog").last();
+	await sheet.getByLabel("Start from").click();
 	await expect(
 		page.getByText("Radiators off while a window is open"),
 	).toBeVisible();
-	await page.getByRole("button", { name: "New automation" }).last().click();
-	const sheet = page.getByRole("dialog").last();
+	await page.keyboard.press("Escape");
 	await expect(sheet.getByRole("radio", { name: "Sunset" })).toBeVisible();
 	await expect(sheet.getByLabel("Name")).toHaveAttribute("data-1p-ignore", "");
 	await expect(sheet.getByLabel("Name")).toHaveAttribute("autocomplete", "off");
