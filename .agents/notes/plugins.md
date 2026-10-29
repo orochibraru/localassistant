@@ -20,10 +20,18 @@ the decisions behind it.
   GitHub release, else the default branch.
 - No sandbox. A plugin runs with the server's rights; the install preview says
   so. Trust comes from the maintenance badge and the admin's judgement.
-- GitHub is anonymous unless an admin saves a token (`githubToken` setting,
-  encrypted, checked against `/user` first). With one, every API call carries it
-  and files download through the contents API instead of
-  raw.githubusercontent.com, so private repositories work.
+- Sources live in `#lib/server/plugins/sources/`: one `Forge` each for GitHub,
+  GitLab (v4 API, `PRIVATE-TOKEN`), Gitea and Forgejo (v1 API, `token`) and
+  folders on the server, behind `pluginSources`, which reads any pasted link and
+  asks an unknown site `/api/v1/version` then `/api/v4/version` to tell Gitea
+  from GitLab. A plugin row stores its location as
+  `<kind>:<origin>/<repository>` (`folder:<path>`), so a LAN site with a port
+  and plain HTTP works. A folder's "commit" is a digest of its manifest and the
+  files it names: editing them offers an update.
+- Tokens are per site (`sourceTokens` setting, encrypted, checked against the
+  site's "who am I" endpoint first). With one, GitHub downloads go through the
+  contents API instead of raw.githubusercontent.com, so private repositories
+  work.
 - Maintenance comes from GitHub's repository data, checked daily
   (`plugins.check` job): archived, else pushed within six months (maintained), a
   year (little activity), or older (not maintained).

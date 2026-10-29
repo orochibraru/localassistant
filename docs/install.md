@@ -42,7 +42,8 @@ the address you typed.
 
 Printers are reached on port 8883 (MQTT over TLS). MELCloud is reached at
 `app.melcloud.com` over HTTPS. Installing or checking a community plugin reaches
-GitHub over HTTPS.
+its site (GitHub, GitLab, Gitea or Forgejo) over HTTPS, or over plain HTTP for a
+self-hosted one you link that way.
 
 ## Behind a proxy
 

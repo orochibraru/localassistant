@@ -196,14 +196,19 @@ Only the standard library is available in the Docker image.
 
 ## Publishing
 
-1. Push the repository to GitHub. Public for everyone; a private one installs
-   only where an admin saved a token that may read it
-   ([how](integrations.md#add-a-private-integration)).
-2. Tag it with the topic `localassistant-plugin` so it shows up under
-   **Browse**.
+1. Push the repository to GitHub, GitLab, Gitea, Forgejo or Codeberg. Public for
+   everyone; a private one installs only where an admin saved a token for its
+   site ([how](integrations.md#add-a-private-integration)).
+2. Tag it with the topic `localassistant-plugin` so it shows up under **Browse**
+   (GitHub, gitlab.com and Codeberg are searched).
 3. Publish releases: LocalAssistant installs and updates from the latest
    release, or from the default branch when there's none. A link to a folder
-   (`github.com/you/repo/tree/main/plugins/lamps`) installs from that folder.
+   (`github.com/you/repo/tree/main/plugins/lamps`,
+   `gitlab.com/you/repo/-/tree/main/plugins/lamps`) installs from that folder.
+
+While writing one, install it from a folder on the server instead
+([how](integrations.md#add-one-from-a-folder)): **Check for updates** picks up
+each rebuild.
 
 Admins see how maintained it is from when you last pushed: keep it alive, or
 archive it when you stop.

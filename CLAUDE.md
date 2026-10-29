@@ -5,9 +5,9 @@
 LocalAssistant is a small, self-hosted alternative to Home Assistant for one
 household: Tuya blinds, Bambu printers, ESPHome and Zigbee2MQTT devices, Shelly
 meters and RTSP cameras locally; MELCloud, Dreame, Enedis and Frigate when they
-must, each a plugin hosted on GitHub. Automations, energy charts and a wall
-panel on top. Admins add devices; everyone signed in drives them. A PWA on
-phones, a full app on desktop.
+must, each a plugin hosted on GitHub, GitLab, Gitea or a folder. Automations,
+energy charts and a wall panel on top. Admins add devices; everyone signed in
+drives them. A PWA on phones, a full app on desktop.
 
 SvelteKit 3 with Svelte 5 runes on Bun, compiled by `@sveltejs/adapter-bun` into
 `build/server`, which spawns and supervises the compiled worker `build/worker`:

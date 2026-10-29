@@ -33,9 +33,10 @@ your phone like an app.
   without it, and a running Home Assistant can be connected for everything only
   it integrates.
 - **Plugins**: every integration above is a plugin. Install community ones from
-  GitHub in **Admin, Integrations**, each with a maintenance badge, and update,
-  turn off or remove them there. Plugins can be written in TypeScript, Go or
-  Python.
+  GitHub, GitLab, Gitea, Forgejo, Codeberg (private ones with a token) or a
+  folder on the server in **Admin, Integrations**, each with a maintenance
+  badge, and update, turn off or remove them there. Plugins can be written in
+  TypeScript, Go or Python.
 - **Weather and a wall panel**: the time and forecast on Home, and a screen for
   a wall tablet or a Shelly Wall Display that stays on.
 - **Phones as devices**: each phone in the house with its owner, battery and, if
