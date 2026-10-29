@@ -346,18 +346,21 @@ AutomationDTO.create(homeId, {
 	name: "Close the blinds at sunset",
 	trigger: { type: "sun", event: "sunset", offsetMinutes: 0 },
 	period: { type: "seasons", seasons: ["autumn", "winter"] },
+	conditions: [],
 	actions: [{ type: "blinds", roomId: null, move: "close", position: null }],
 });
 AutomationDTO.create(homeId, {
 	name: "Open the blinds at sunrise",
 	trigger: { type: "sun", event: "sunrise", offsetMinutes: 15 },
 	period: { type: "seasons", seasons: ["autumn", "winter"] },
+	conditions: [{ type: "weekdays", weekdays: [0, 1, 2, 3, 4] }],
 	actions: [{ type: "blinds", roomId: null, move: "open", position: null }],
 });
 AutomationDTO.create(homeId, {
 	name: "Keep the heat out",
 	trigger: { type: "temperature", direction: "above", threshold: 28 },
 	period: { type: "dates", from: "06-01", to: "09-15" },
+	conditions: [],
 	actions: [
 		{
 			type: "blinds",
@@ -504,7 +507,7 @@ try {
 	);
 	process.stdout.write("docs/images/add-blind-mobile.webp\n");
 
-	await wide.goto(`${origin}/automations`);
+	await wide.goto(`${origin}/automations/routines`);
 	await shoot(wide, "automations-desktop");
 	await wide.getByRole("button", { name: "New automation" }).first().click();
 	await wide.getByLabel("Name").fill("Hot afternoon");
@@ -517,7 +520,7 @@ try {
 	await wide.keyboard.press("Escape");
 	await wide.goto(`${origin}/energy`);
 	await shoot(wide, "energy-desktop");
-	await phone.goto(`${origin}/automations`);
+	await phone.goto(`${origin}/automations/routines`);
 	await shoot(phone, "automations-mobile");
 	await phone.goto(`${origin}/energy`);
 	await shoot(phone, "energy-mobile");
