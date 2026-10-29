@@ -25,6 +25,9 @@ your phone like an app.
   night). They drive any device, set scenes and wait between steps, and every
   run is in their history. Presets to start from, like radiators off while a
   window is open.
+- **History and logbook**: 30 days of each device's numbers as a graph in its
+  menu, and a logbook of what turned on, opened, locked, who came home and which
+  routines ran.
 - **Cameras**: RTSP cameras watched and recorded on the server in five-minute
   files with a retention, or a Frigate NVR with its events, clips and detection
   notifications. The Bambu printer's camera on its card.

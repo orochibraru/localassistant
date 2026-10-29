@@ -91,6 +91,11 @@
 					"icon": "workflow"
 				},
 				{
+					"slug": "history",
+					"title": "History and logbook",
+					"icon": "scroll-text"
+				},
+				{
 					"slug": "energy",
 					"title": "Energy",
 					"icon": "gauge"
