@@ -4,6 +4,7 @@ import HouseIcon from "@lucide/svelte/icons/house";
 import LayersIcon from "@lucide/svelte/icons/layers";
 import MapIcon from "@lucide/svelte/icons/map";
 import PlugIcon from "@lucide/svelte/icons/plug";
+import ScrollTextIcon from "@lucide/svelte/icons/scroll-text";
 import ShieldIcon from "@lucide/svelte/icons/shield";
 import WorkflowIcon from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
@@ -29,6 +30,11 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 			icon: WorkflowIcon,
 		},
 		{ href: resolve("/(protected)/energy"), label: "Energy", icon: GaugeIcon },
+		{
+			href: resolve("/(protected)/logbook"),
+			label: "Logbook",
+			icon: ScrollTextIcon,
+		},
 	];
 	if (isAdmin) {
 		items.push({
