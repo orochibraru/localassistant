@@ -178,6 +178,12 @@ repos:
         files: ^(src|tests|scripts)/.*\.(ts|svelte)$
         exclude: ^tests/live/
 
+      - id: plugins-use-the-sdk
+        name: Keep plugins on the SDK, off the server's internals
+        language: pygrep
+        entry: from "(#lib/server/|#lib/dto/|\$app/)
+        files: ^src/plugins/
+
       - id: internal-links-resolve
         name: Resolve internal links
         language: pygrep

@@ -6,9 +6,15 @@ import {
 	moveCard,
 	readAgo,
 	refill,
-	sortCards,
 	timeLeft,
 } from "#lib/devices.js";
+import {
+	cardSizeOf,
+	type KindCatalog,
+	kindInfo,
+	sortCards,
+	withCard,
+} from "#lib/plugins.js";
 
 describe("readAgo", () => {
 	const now = Date.parse("2026-10-28T12:00:00Z");
@@ -48,6 +54,24 @@ describe("distances", () => {
 
 describe("arranging cards", () => {
 	const card = (id: string, kind: string) => ({ id, kind, name: id });
+	const info = (
+		order: number,
+		card: "switch" | "climate" | "cover" | "vacuum",
+	) => ({
+		plugin: "test",
+		label: card,
+		card,
+		icon: "puzzle" as const,
+		size: card === "vacuum" ? ("large" as const) : ("medium" as const),
+		order,
+		houseMeter: false,
+	});
+	const catalog: KindCatalog = {
+		"zigbee-switch": info(3, "switch"),
+		"melcloud-ata": info(0, "climate"),
+		"tuya-cover": info(1, "cover"),
+		"dreame-vacuum": info(3, "vacuum"),
+	};
 
 	test("follows the account's order, the rest by kind and name", () => {
 		const cards = [
@@ -56,15 +80,25 @@ describe("arranging cards", () => {
 			card("blind", "tuya-cover"),
 			card("robot", "dreame-vacuum"),
 		];
-		expect(sortCards(cards, []).map((entry) => entry.id)).toEqual([
+		expect(sortCards(cards, [], catalog).map((entry) => entry.id)).toEqual([
 			"pump",
 			"blind",
 			"lamp",
 			"robot",
 		]);
 		expect(
-			sortCards(cards, ["robot", "lamp"]).map((entry) => entry.id),
+			sortCards(cards, ["robot", "lamp"], catalog).map((entry) => entry.id),
 		).toEqual(["robot", "lamp", "pump", "blind"]);
+		expect(cardSizeOf(undefined, cards[3] ?? card("x", "x"), catalog)).toBe(
+			"large",
+		);
+		expect(cardSizeOf({ robot: "small" }, card("robot", "x"), catalog)).toBe(
+			"small",
+		);
+		expect(kindInfo(catalog, "gone").label).toBe("Unknown device");
+		expect(
+			withCard(catalog, cards, "cover", "climate").map((entry) => entry.id),
+		).toEqual(["pump", "blind"]);
 	});
 
 	test("moves a card onto another's place and puts a section back in its slots", () => {
