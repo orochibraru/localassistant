@@ -98,7 +98,7 @@
 		class="flex flex-col gap-6 pb-6"
 		use:enhance={enhanceToast({
 			loading: "Saving",
-			success: `${name || "Scene"} saved.`,
+			success: () => `${name || "Scene"} saved.`,
 			onSuccess: () => {
 				open = false;
 			},
