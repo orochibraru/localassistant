@@ -20,6 +20,8 @@
 - A docs-only PR gets the checks but no image. A release PR (`releaser/release`)
   may only touch `CHANGELOG.md` and `package.json`'s version, and builds
   nothing.
+- `code_quality.yaml` also has an `sdks` job: `gofmt`, `go vet` and `go test` in
+  `sdk/go`, `python3 -m unittest` in `sdk/python`.
 - `CI Gate` is the one required check. `pr-title.yaml` enforces a Conventional
   Commit title, which squash merges turn into the commit releaser reads.
 - `pr-cleanup.yaml` deletes `pr-<number>` from Docker Hub when a PR closes

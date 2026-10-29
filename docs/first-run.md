@@ -20,18 +20,22 @@ room belongs to the whole house; pick its room in its **Edit** sheet.
 
 ## 3. Connect MELCloud
 
-**Devices**, then sign in with the email and password the MELCloud app uses.
-Every air-to-air and air-to-water unit on the account appears; **Find new
-units** picks up ones added later. See [Mitsubishi heat pumps](mitsubishi).
+**Devices**, **Mitsubishi (MELCloud)** under **Integrations**, then sign in with
+the email and password the MELCloud app uses. Every air-to-air and air-to-water
+unit on the account appears; **Find new units** picks up ones added later. See
+[Mitsubishi heat pumps](mitsubishi).
 
 ## 4. Add the blinds
 
-**Devices, Add a blind** asks for a name, the blind's IP address, its device ID
-and its local key. Getting the last two takes a few minutes, once: see
-[Tuya blinds](tuya-blinds).
+**Devices**, **Tuya blinds** under **Integrations** opens **Add a Tuya blind**,
+which asks for a name, the blind's IP address, its device ID and its local key.
+Getting the last two takes a few minutes, once: see [Tuya blinds](tuya-blinds).
 
 ## 5. Invite the household
 
 **Admin, Invites** makes a link for each person; with email set up under
 **Admin, Email**, it's sent for you. Everyone signed in can drive every device;
 only admins add or remove them.
+
+More integrations, from the community, are in **Admin, Integrations**: see
+[Integrations](integrations).

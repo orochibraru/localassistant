@@ -16,9 +16,10 @@ Two ways, use one:
   Zigbee2MQTT. Live power, and the counter every few seconds.
 - **Online, no hardware**: Enedis's daily use through
   [conso.boris.sh](https://conso.boris.sh/). Sign in there with your Enedis
-  account, allow it, copy the token, then **Devices**, **Linky**, **Add a Linky
-  online** with the token and the 14-digit PRM (on your bill, or press + on the
-  meter until it shows). The last year comes in at once, then a day behind,
-  checked every six hours. The token is stored encrypted. It works whoever sells
-  you the electricity (Engie, EDF, TotalEnergies): Enedis runs every Linky and
-  holds the readings, the supplier only bills them.
+  account, allow it, copy the token, then **Devices**, **Linky online** under
+  **Integrations**, **Add the Linky** with the token and the 14-digit PRM (on
+  your bill, or press + on the meter until it shows). The last year comes in at
+  once, then a day behind, checked every six hours. The token is stored
+  encrypted. It works whoever sells you the electricity (Engie, EDF,
+  TotalEnergies): Enedis runs every Linky and holds the readings, the supplier
+  only bills them.

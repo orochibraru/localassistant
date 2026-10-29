@@ -28,6 +28,14 @@ your phone like an app.
   notifications. The Bambu printer's camera on its card.
 - **Bambu Lab printers over your network** and **Dreame robot vacuums** through
   the Dreamehome cloud.
+- **The Home Assistant ecosystem**: devices that announce themselves for Home
+  Assistant over MQTT (Tasmota, ESPHome, Shelly...) come in on their own,
+  without it, and a running Home Assistant can be connected for everything only
+  it integrates.
+- **Plugins**: every integration above is a plugin. Install community ones from
+  GitHub in **Admin, Integrations**, each with a maintenance badge, and update,
+  turn off or remove them there. Plugins can be written in TypeScript, Go or
+  Python.
 - **Weather and a wall panel**: the time and forecast on Home, and a screen for
   a wall tablet or a Shelly Wall Display that stays on.
 - **Phones as devices**: each phone in the house with its owner, battery and, if
@@ -82,7 +90,7 @@ docker compose up -d
 
 Run it on a machine in the same network as the blinds: the container talks to
 them directly. Keep `AUTH_SECRET` with your backups: it signs sessions and
-encrypts the Tuya keys and the MELCloud password stored in the database.
+encrypts the device keys, passwords and tokens stored in the database.
 
 Behind an HTTPS reverse proxy that sets `X-Forwarded-Proto` and
 `X-Forwarded-Host`, leave `ORIGIN` empty. On plain HTTP with no proxy, `ORIGIN`
@@ -100,8 +108,8 @@ docker compose logs localassistant | grep "Setup code"
 ```
 
 Enter it, then create your account: it's the admin. Then **House** and
-**Devices**: connect MELCloud, add each blind. See
-[First run](docs/first-run.md).
+**Devices**: open the **Mitsubishi (MELCloud)** integration to connect MELCloud,
+the **Tuya blinds** one to add each blind. See [First run](docs/first-run.md).
 
 ### Upgrades
 

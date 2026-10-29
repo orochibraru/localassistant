@@ -3,7 +3,18 @@
 The only backlog. Each entry is a `- [ ]` checkbox: put `**[WIP]**` after the
 box while it's being worked on, and delete the entry once it's done.
 
+## Small
+
+- [ ] GitHub calls for plugins go out unauthenticated (60 an hour per IP): an
+      optional token setting would lift the limit for busy instances.
+
 ## Medium
+
+- [ ] Python plugins only get the standard library in the image: support a
+      `requirements` list in the manifest, installed into the plugin's folder.
+- [ ] A plugin can only show its devices on the built-in cards: a generic
+      "sensor" card driven by manifest-declared readings would cover kinds that
+      fit no existing card.
 
 - [ ] Device controls and other remote commands answer 403 "Cross-site remote
       requests are forbidden" on a built server over plain HTTP without a proxy,

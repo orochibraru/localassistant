@@ -63,7 +63,7 @@ Read the changed files, don't just grep: these rules have narrow triggers.
   with a zod schema (never `"unchecked"`), and 404 on a device id that's gone.
 - **Device setup** (adding, renaming, removing a device, integration
   credentials) changed by an action without `access.adminFrom(locals)` is a
-  finding, and so is a Tuya local key or MELCloud password reaching a page.
+  finding, and so is a device secret or an integration password reaching a page.
 - `handleError` acts on `kind === "unknown"` only and never returns the real
   error message.
 - The public origin is `authService.publicOrigin()`: `ORIGIN`, else the one

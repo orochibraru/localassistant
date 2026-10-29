@@ -36,5 +36,6 @@ On the printer:
 3. To control it: **Settings, Network, LAN Only Mode** on, then **Developer
    Mode** on.
 
-Then **Devices, Add a printer** with the name, IP address, serial number and
-access code. **Edit** changes the address or the access code later.
+Then **Devices**, **Bambu Lab printers** under **Integrations**, with the name,
+IP address, serial number and access code. **Edit** changes the address or the
+access code later.

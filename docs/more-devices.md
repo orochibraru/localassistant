@@ -2,19 +2,21 @@
 
 ## Dreame robot vacuums
 
-**Devices**, **Dreame robot vacuums**, sign in with the Dreamehome app's email,
-password and region. The robots on the account come in with their state and
-battery, and start, pause, stop and dock from their card. LocalAssistant signs
-in the way the Dreamehome app does, over plain TLS; Dreame can refuse clients
-other than its app at any time, and the error then says so.
+**Devices**, **Dreame robot vacuums** under **Integrations**, sign in with the
+Dreamehome app's email, password and region. The robots on the account come in
+with their state and battery, and start, pause, stop and dock from their card.
+LocalAssistant signs in the way the Dreamehome app does, over plain TLS; Dreame
+can refuse clients other than its app at any time, and the error then says so.
 
 ## Mitsubishi through ESPHome
 
 For a Mitsubishi indoor unit with an ESP32 on its CN105 port running ESPHome
-with the CN105 climate and `web_server`: **Devices**, **Add through ESPHome**
-with the adapter's IP address and the climate's id (its name in the YAML, in
-lowercase with underscores). No cloud and no rate limit; it works when MELCloud
-is down. A username and password only if `web_server` has auth.
+with the CN105 climate and `web_server`: **Devices**, **Mitsubishi through
+ESPHome** under **Integrations**, with the adapter's IP address and the
+climate's id (its name in the YAML, in lowercase with underscores). No cloud and
+no rate limit; it works when MELCloud is down. A username and password only if
+`web_server` has auth. Units added before integrations became plugins need that
+username and password typed again in their settings.
 
 ## Phones and tablets
 

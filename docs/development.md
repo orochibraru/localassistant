@@ -19,7 +19,10 @@ its error on Home after the first read.
 
 ## Adding an integration
 
-A new kind is a value in `deviceKinds`, a client in `#lib/server/devices/` that
-reads a `DeviceState` and applies commands, a branch in the `devices` service, a
-card component, and an admin form. Commands go through a remote function, reads
-through the worker.
+An integration is a plugin: a folder under `src/plugins/<id>/` with a
+`localassistant-plugin.json` manifest (its kinds, its connection or add-a-device
+form) and an `index.ts` that reads a `DeviceState` and applies commands. The
+registry loads it, and the Devices page builds its setup sheet from the
+manifest. Commands go through a remote function, reads through the worker.
+Plugins outside the repo can also be written in Go or Python, with the SDKs
+under `sdk/`; see [Writing a plugin](plugins).

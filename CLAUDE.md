@@ -5,12 +5,13 @@
 LocalAssistant is a small, self-hosted alternative to Home Assistant for one
 household: Tuya blinds, Bambu printers, ESPHome and Zigbee2MQTT devices, Shelly
 meters and RTSP cameras locally; MELCloud, Dreame, Enedis and Frigate when they
-must. Automations, energy charts and a wall panel on top. Admins add devices;
-everyone signed in drives them. A PWA on phones, a full app on desktop.
+must, each a plugin hosted on GitHub. Automations, energy charts and a wall
+panel on top. Admins add devices; everyone signed in drives them. A PWA on
+phones, a full app on desktop.
 
 SvelteKit 3 with Svelte 5 runes on Bun, compiled by `@sveltejs/adapter-bun` into
 `build/server`, which spawns and supervises the compiled worker `build/worker`:
-one container, one SQLite file (Drizzle over `bun:sqlite`), ffmpeg in the image.
+one container, one SQLite file (Drizzle over `bun:sqlite`), ffmpeg and python3.
 better-auth with two-factor, passkeys, email sign-in and SSO. AI apps reach
 `/mcp` behind better-auth's OAuth provider with CIMD. Tailwind v4 and
 shadcn-svelte, `bun lint`, `bun fmt`, prek hooks, mise.
@@ -42,8 +43,8 @@ Each is a hard rule.
   Sign-in, setup and invites live under `src/routes/auth/`.
 - Redirects are thrown from `+layout.server.ts`, `+page.server.ts` and form
   actions, never from hooks. `hooks.server.ts` only populates `locals`, runs
-  migrations and starts the worker in `init`, logs requests, sets the security
-  headers, and hands better-auth its own API paths.
+  migrations, loads installed plugins and starts the worker in `init`, logs
+  requests, sets the security headers, and hands better-auth its own API paths.
 - Loads under `(protected)/` start with `await parent()`
   (`guarded-loads.test.ts`), never re-check `locals.user`. Actions keep their
   own guard; remote functions call `access.requireUser()`.
@@ -68,22 +69,21 @@ Each is a hard rule.
 - Devices belong to the household: every signed-in account reads and drives
   every device. A device sits in a room or, with no room, in the whole house
   (`/rooms/house`); rooms sit on a floor or outside. Device and integration
-  setup are admin actions on `/devices`, rooms and floors on `/house`; their
-  sheets live in the shell (`#lib/sheets.svelte.ts`) so any page can open them.
-- Secrets never reach a page. A Tuya local key lives encrypted in
-  `device.local_key`, read only through `DeviceDTO.encryptedLocalKey()`, never
-  in `toJSON()`; the MELCloud account and every instance secret live in the
-  `setting` table through `getSetting`/`setSetting`, encrypted with
-  `secrets.encrypt`, and forms say "leave empty to keep".
-- Integrations live in `#lib/server/devices/`: a client per integration reading
-  a `DeviceState` (`#lib/devices.ts`) and applying commands, routed by the
-  `devices` service. The worker polls the rest every two minutes, one after the
-  other; pushed kinds (Zigbee and Shelly through the one MQTT `broker`, phones,
-  cameras) save their own state. Printers keep one MQTT connection each, cameras
-  one supervised ffmpeg each. Commands are the one request that awaits slow work
-  (`#lib/remote/devices.remote.ts`): the person tapping needs to know. Media
-  routes outside `(protected)/` (`/cameras`, `/frigate`, `/printers`) check
-  `locals.user` themselves and only serve names they validate.
+  setup are admin actions on `/devices`, plugins on `/admin/plugins`, rooms and
+  floors on `/house`; their sheets live in the shell (`#lib/sheets.svelte.ts`)
+  so any page can open them.
+- Secrets never reach a page: device secrets in `device.secrets` only through
+  `DeviceDTO.encryptedSecrets()`, plugin connections through
+  `getPluginSettings`, instance secrets through `getSetting`, all encrypted with
+  `secrets.encrypt`; forms say "leave empty to keep".
+- Integrations are plugins (`.agents/notes/plugins.md`): a manifest and hooks
+  coded against `#lib/plugin-sdk.ts`, never `#lib/server/`. Official ones live
+  in `src/plugins/`; the `plugins` registry routes kinds, the `devices` service
+  reads and commands through it, the worker polls every two minutes. Pages pick
+  cards and roles from `page.data.kinds`, never kind names. Commands are the one
+  request that awaits slow work: the person tapping needs to know. Media goes
+  through `/media/[deviceId]/[...path]`, which checks `locals.user`; the plugin
+  validates the path.
 - A tabbed page is one real route per tab under a `TabSection` layout, each tab
   with a description. On phones the index route is `NavCards` and each tab is a
   page with a back button; on desktop the index opens the first tab and `TabNav`
@@ -149,7 +149,7 @@ Each is a hard rule.
   Everything else calls `configuration.get()`; the worker gets the same `Config`
   from the server over IPC. `process.env`, `Bun.env` and `import.meta.env` are a
   prek error.
-- CSS-only packages are devDependencies.
+- CSS-only packages are devDependencies. No abbreviated names.
 - Logging through `Logger`, structured context as a plain object; `console.*` is
   a lint error.
 - A periodic job or fire-and-forget promise always catches: Bun exits on an
@@ -164,7 +164,6 @@ Each is a hard rule.
 - Real OOP: a `#lib/server/` module is a class exported as one singleton
   (`export const devices = new Devices()`), helpers `#private`; schemas, the job
   table and `Handle`s stay plain, DTOs keep static finders.
-- No abbreviated names.
 
 ## Reference notes
 
@@ -175,6 +174,7 @@ gets its own note and row.
 | -------------------------------------------------------- | ------------------------------ |
 | Scripts, mise tasks, git hooks, tests, the worker in dev | `.agents/notes/commands.md`    |
 | The PR gate, canaries, the release PR, images, secrets   | `.agents/notes/ci-releases.md` |
+| Plugins: runtimes, installs, maintenance, the SDKs       | `.agents/notes/plugins.md`     |
 
 ## AI-assisted development
 

@@ -90,7 +90,10 @@ Plain `bun install` works without mise.
   dependency only exports a `svelte` condition Bun's runner doesn't set.
 - Integrations are tested without hardware:
   `tests/unit/lib/server/devices.test.ts` mocks `tuyapi` with `mock.module` and
-  MELCloud by spying on `fetch`. The integration suite adds a blind at
+  MELCloud by spying on `fetch`. Plugin loading and process plugins (a Python
+  fixture over JSON-RPC) have their own tests under `tests/unit/`, and the SDKs
+  are tested in their own folders: `go test ./...` in `sdk/go`,
+  `python3 -m unittest` in `sdk/python`. The integration suite adds a blind at
   `127.0.0.1` and checks the worker recorded a read (an error, since nothing
   answers there).
 

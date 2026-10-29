@@ -10,8 +10,9 @@ Mitsubishi Electric heat pumps through MELCloud.
   seconds while it's open.
 - **House** lays out floors, rooms and outside spaces; the sidebar lists them by
   floor and opens each room's page.
-- **Devices** connects the MELCloud account and adds blinds and printers; the
-  sidebar's Devices section opens each one's settings.
+- **Devices** lists the integrations (one row each, opening its setup sheet) and
+  the devices they added; the sidebar's Devices section opens each one's
+  settings. Community integrations install from **Admin, Integrations**.
 - A background worker reads every device every two minutes, and re-reads a blind
   30 seconds after a command, once it stopped moving. A device unreachable for
   an hour sends the admins a push notification, once, if they turned
