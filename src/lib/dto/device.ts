@@ -2,27 +2,21 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { DeviceState } from "#lib/devices.js";
 import { BaseDTO } from "#lib/dto/base-dto.js";
+import type { PluginValues } from "#lib/plugins.js";
 import { databaseConnection } from "#lib/server/db/database.js";
-import { device, type deviceKinds } from "#lib/server/db/schema.js";
-
-export type DeviceKind = (typeof deviceKinds)[number];
+import { device } from "#lib/server/db/schema.js";
 
 export interface DeviceRow {
 	id: string;
-	kind: DeviceKind;
+	kind: string;
 	homeId: string | null;
 	ownerId: string | null;
 	options: DeviceOptions | null;
+	fields: PluginValues;
 	name: string;
 	roomId: string | null;
 	externalId: string;
 	host: string | null;
-	protocolVersion: string | null;
-	inverted: boolean;
-	buildingId: number | null;
-	controlDp: number;
-	positionDp: number;
-	positionStateDp: number;
 	state: DeviceState | null;
 	stateError: string | null;
 	stateAt: Date | null;
@@ -31,40 +25,29 @@ export interface DeviceRow {
 }
 
 export interface DeviceOptions {
-	record?: boolean;
-	retentionDays?: number;
-	objectId?: string;
 	pin?: { place: string; x: number; y: number };
 }
 
-export interface TuyaCoverSettings {
-	name: string;
-	roomId: string | null;
-	host: string;
-	protocolVersion: string;
-	inverted: boolean;
-	controlDp: number;
-	positionDp: number;
-	positionStateDp: number;
-	encryptedLocalKey?: string;
-}
-
 export interface NewDevice {
-	kind: DeviceKind;
+	kind: string;
 	homeId: string;
 	ownerId?: string | null;
 	options?: DeviceOptions | null;
+	fields?: PluginValues;
+	encryptedSecrets?: Record<string, string>;
 	name: string;
 	roomId?: string | null;
 	externalId: string;
-	host?: string;
-	protocolVersion?: string;
-	encryptedLocalKey?: string;
-	inverted?: boolean;
-	buildingId?: number;
-	controlDp?: number;
-	positionDp?: number;
-	positionStateDp?: number;
+	host?: string | null;
+}
+
+export interface DeviceSettings {
+	name: string;
+	roomId: string | null;
+	externalId: string;
+	host: string | null;
+	fields: PluginValues;
+	encryptedSecrets: Record<string, string>;
 }
 
 const columns = {
@@ -73,16 +56,11 @@ const columns = {
 	homeId: device.homeId,
 	ownerId: device.ownerId,
 	options: device.options,
+	fields: device.fields,
 	name: device.name,
 	roomId: device.roomId,
 	externalId: device.externalId,
 	host: device.host,
-	protocolVersion: device.protocolVersion,
-	inverted: device.inverted,
-	buildingId: device.buildingId,
-	controlDp: device.controlDp,
-	positionDp: device.positionDp,
-	positionStateDp: device.positionStateDp,
 	state: device.state,
 	stateError: device.stateError,
 	stateAt: device.stateAt,
@@ -90,9 +68,10 @@ const columns = {
 	unreachableAlerted: device.unreachableAlerted,
 };
 
-type SelectedRow = Omit<DeviceRow, "state" | "options"> & {
+type SelectedRow = Omit<DeviceRow, "state" | "options" | "fields"> & {
 	state: unknown;
 	options: unknown;
+	fields: unknown;
 };
 
 export class DeviceDTO extends BaseDTO<DeviceRow> {
@@ -153,14 +132,14 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 
 	/** Adds a device, or renames and reconfigures the one already known under the same kind and external id. */
 	static upsert(values: NewDevice): DeviceDTO {
-		const { encryptedLocalKey, ...rest } = values;
+		const { encryptedSecrets, ...rest } = values;
 		const row = databaseConnection
 			.get()
 			.insert(device)
-			.values({ ...rest, localKey: encryptedLocalKey })
+			.values({ ...rest, secrets: encryptedSecrets })
 			.onConflictDoUpdate({
 				target: [device.kind, device.externalId],
-				set: { ...rest, localKey: encryptedLocalKey, updatedAt: new Date() },
+				set: { ...rest, secrets: encryptedSecrets, updatedAt: new Date() },
 			})
 			.returning(columns)
 			.get();
@@ -168,7 +147,7 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 	}
 
 	/** Removes every device of the given kinds, for when an integration is disconnected. */
-	static removeKinds(kinds: DeviceKind[]): number {
+	static removeKinds(kinds: string[]): number {
 		return databaseConnection
 			.get()
 			.delete(device)
@@ -182,6 +161,7 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 			...row,
 			state: row.state as DeviceState | null,
 			options: row.options as DeviceOptions | null,
+			fields: (row.fields as PluginValues | null) ?? {},
 		});
 	}
 
@@ -189,7 +169,7 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		return this.row.id;
 	}
 
-	get kind(): DeviceKind {
+	get kind(): string {
 		return this.row.kind;
 	}
 
@@ -201,28 +181,8 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		return this.row.host;
 	}
 
-	get protocolVersion(): string | null {
-		return this.row.protocolVersion;
-	}
-
-	get inverted(): boolean {
-		return this.row.inverted;
-	}
-
-	get buildingId(): number | null {
-		return this.row.buildingId;
-	}
-
-	get controlDp(): number {
-		return this.row.controlDp;
-	}
-
-	get positionDp(): number {
-		return this.row.positionDp;
-	}
-
-	get positionStateDp(): number {
-		return this.row.positionStateDp;
+	get fields(): PluginValues {
+		return this.row.fields;
 	}
 
 	get state(): DeviceState | null {
@@ -242,16 +202,15 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		);
 	}
 
-	/** The encrypted Tuya local key, kept off `toJSON()` so it never reaches a page. */
-	encryptedLocalKey(): string | null {
-		return (
-			databaseConnection
-				.get()
-				.select({ localKey: device.localKey })
-				.from(device)
-				.where(eq(device.id, this.row.id))
-				.get()?.localKey ?? null
-		);
+	/** The device's encrypted secrets by field name, kept off `toJSON()` so they never reach a page. */
+	encryptedSecrets(): Record<string, string> {
+		const row = databaseConnection
+			.get()
+			.select({ secrets: device.secrets })
+			.from(device)
+			.where(eq(device.id, this.row.id))
+			.get();
+		return (row?.secrets as Record<string, string> | null) ?? {};
 	}
 
 	/** Records what the device last reported, clearing any earlier error and the outage it was part of. */
@@ -321,61 +280,28 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 		Object.assign(this.row, { name, roomId });
 	}
 
-	/** Changes how a Tuya cover is reached; the local key only when a new one is given. */
-	reconfigure(values: TuyaCoverSettings): void {
-		const { encryptedLocalKey, ...rest } = values;
-		databaseConnection
-			.get()
-			.update(device)
-			.set({ ...rest, localKey: encryptedLocalKey, updatedAt: new Date() })
-			.where(eq(device.id, this.row.id))
-			.run();
-		Object.assign(this.row, rest);
-	}
-
-	/** Changes a printer's or camera's name and address, and its secret when a new one is given. */
-	reconnect(values: {
-		name: string;
-		roomId: string | null;
-		host: string;
-		encryptedLocalKey?: string;
-	}): void {
-		const { encryptedLocalKey, ...rest } = values;
-		databaseConnection
-			.get()
-			.update(device)
-			.set({ ...rest, localKey: encryptedLocalKey, updatedAt: new Date() })
-			.where(eq(device.id, this.row.id))
-			.run();
-		Object.assign(this.row, rest);
-	}
-
-	/** Points a Linky at another PRM or token, forgetting its last reading so the next one is fetched at once. */
-	relink(values: {
-		name: string;
-		roomId: string | null;
-		externalId: string;
-		encryptedLocalKey?: string;
-	}): void {
-		const { encryptedLocalKey, ...rest } = values;
+	/**
+	 * Saves what an admin set in the device's settings; a new external id forgets the last reading so the next one is
+	 * fetched at once.
+	 *
+	 * @throws When another device of the same kind already has `values.externalId`.
+	 */
+	configure(values: DeviceSettings): void {
+		const { encryptedSecrets, ...rest } = values;
+		const moved = rest.externalId !== this.row.externalId;
+		const reset = moved ? { state: null, stateError: null, stateAt: null } : {};
 		databaseConnection
 			.get()
 			.update(device)
 			.set({
 				...rest,
-				localKey: encryptedLocalKey,
-				state: null,
-				stateError: null,
-				stateAt: null,
+				...reset,
+				secrets: encryptedSecrets,
 				updatedAt: new Date(),
 			})
 			.where(eq(device.id, this.row.id))
 			.run();
-		Object.assign(this.row, rest, {
-			state: null,
-			stateError: null,
-			stateAt: null,
-		});
+		Object.assign(this.row, rest, reset);
 	}
 
 	/** Removes the device. */

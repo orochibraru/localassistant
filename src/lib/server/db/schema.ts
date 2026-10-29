@@ -276,45 +276,22 @@ export const room = sqliteTable("room", {
 	createdAt: createdAt(),
 });
 
-export const deviceKinds = [
-	"tuya-cover",
-	"melcloud-ata",
-	"melcloud-atw",
-	"bambu-printer",
-	"app",
-	"dreame-vacuum",
-	"zigbee-contact",
-	"zigbee-valve",
-	"zigbee-switch",
-	"zigbee-meter",
-	"shelly-meter",
-	"linky",
-	"camera",
-	"frigate-camera",
-	"esphome-climate",
-] as const;
-
 export const device = sqliteTable(
 	"device",
 	{
 		id: text("id")
 			.primaryKey()
 			.$defaultFn(() => crypto.randomUUID()),
-		kind: text("kind", { enum: deviceKinds }).notNull(),
+		kind: text("kind").notNull(),
 		homeId: text("home_id").references(() => home.id),
 		ownerId: text("owner_id"),
 		options: text("options", { mode: "json" }),
+		fields: text("fields", { mode: "json" }),
+		secrets: text("secrets", { mode: "json" }),
 		name: text("name").notNull(),
 		roomId: text("room_id").references(() => room.id, { onDelete: "set null" }),
 		externalId: text("external_id").notNull(),
 		host: text("host"),
-		protocolVersion: text("protocol_version"),
-		localKey: text("local_key"),
-		inverted: integer("inverted", { mode: "boolean" }).notNull().default(false),
-		buildingId: integer("building_id"),
-		controlDp: integer("control_dp").notNull().default(1),
-		positionDp: integer("position_dp").notNull().default(2),
-		positionStateDp: integer("position_state_dp").notNull().default(3),
 		state: text("state", { mode: "json" }),
 		stateError: text("state_error"),
 		stateAt: integer("state_at", { mode: "timestamp_ms" }),
@@ -329,6 +306,17 @@ export const device = sqliteTable(
 		uniqueIndex("device_kind_external_id_idx").on(table.kind, table.externalId),
 	],
 );
+
+export const plugin = sqliteTable("plugin", {
+	id: text("id").primaryKey(),
+	repository: text("repository").notNull(),
+	path: text("path").notNull().default(""),
+	ref: text("ref").notNull(),
+	manifest: text("manifest", { mode: "json" }).notNull(),
+	status: text("status", { mode: "json" }),
+	installedAt: createdAt(),
+	updatedAt: updatedAt(),
+});
 
 export const energyReading = sqliteTable(
 	"energy_reading",

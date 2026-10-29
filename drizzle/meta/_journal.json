@@ -141,6 +141,20 @@
       "when": 1793282748450,
       "tag": "0019_card_layout",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793301545508,
+      "tag": "0020_plugins",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1793301568549,
+      "tag": "0021_drop_device_integration_columns",
+      "breakpoints": true
     }
   ]
 }
