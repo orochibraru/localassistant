@@ -396,6 +396,37 @@ export const automationRun = sqliteTable(
 	],
 );
 
+export const deviceSample = sqliteTable(
+	"device_sample",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		deviceId: text("device_id")
+			.notNull()
+			.references(() => device.id, { onDelete: "cascade" }),
+		at: integer("at", { mode: "timestamp_ms" }).notNull(),
+		value: real("value").notNull(),
+	},
+	(table) => [index("device_sample_device_idx").on(table.deviceId, table.at)],
+);
+
+export const logbookEntry = sqliteTable(
+	"logbook_entry",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		homeId: text("home_id").references(() => home.id, {
+			onDelete: "cascade",
+		}),
+		deviceId: text("device_id"),
+		name: text("name").notNull(),
+		message: text("message").notNull(),
+		at: integer("at", { mode: "timestamp_ms" }).notNull(),
+	},
+	(table) => [
+		index("logbook_entry_at_idx").on(table.at),
+		index("logbook_entry_device_idx").on(table.deviceId, table.at),
+	],
+);
+
 export const presence = sqliteTable("presence", {
 	userId: text("user_id")
 		.primaryKey()

@@ -17,6 +17,7 @@ import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { JobDTO } from "#lib/dto/job.js";
+import { LogbookEntryDTO } from "#lib/dto/logbook-entry.js";
 import { PresenceDTO } from "#lib/dto/presence.js";
 import { SceneDTO } from "#lib/dto/scene.js";
 import { UserDTO } from "#lib/dto/user.js";
@@ -320,6 +321,11 @@ class Automations {
 		const error = failures.length > 0 ? failures.join(" ") : null;
 		record.finish(error);
 		automation.recordRun(error);
+		LogbookEntryDTO.add({
+			homeId: automation.homeId,
+			name: automation.name,
+			message: error ? `failed: ${error}` : "ran",
+		});
 		logger.info("Automation ran", {
 			automation: automation.id,
 			failures: failures.length,

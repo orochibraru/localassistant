@@ -5,6 +5,7 @@ import { Logger } from "#lib/server/core/logger.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { deviceEvents } from "#lib/server/devices/device-events.js";
+import { history } from "#lib/server/house/history.js";
 import { jobHandlers } from "#lib/server/jobs/handlers.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 
@@ -19,6 +20,9 @@ const shutdownDeadlineMs = 30_000;
 deviceEvents.onContact((device, next) => automations.onContact(device, next));
 deviceEvents.onChange((device, previous, next) =>
 	automations.onChange(device, previous, next),
+);
+deviceEvents.onChange((device, previous, next) =>
+	history.record(device, previous, next),
 );
 deviceEvents.onChange((device, _previous, next) => {
 	if (device.ownerId && (next.type === "presence" || next.type === "app")) {

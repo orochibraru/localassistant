@@ -1,9 +1,12 @@
 import { AutomationRunDTO } from "#lib/dto/automation-run.js";
 import { AutomationDTO } from "#lib/dto/automation.js";
+import { DeviceSampleDTO } from "#lib/dto/device-sample.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { JobDTO } from "#lib/dto/job.js";
+import { LogbookEntryDTO } from "#lib/dto/logbook-entry.js";
+import { UserDTO } from "#lib/dto/user.js";
 import { automations } from "#lib/server/automations/automations.js";
 import { Logger } from "#lib/server/core/logger.js";
 import { broker } from "#lib/server/devices/broker.js";
@@ -24,7 +27,7 @@ const refreshIntervalMs = 2 * 60 * 1000;
 const weatherIntervalMs = 15 * 60 * 1000;
 const energyIntervalMs = 15 * 60 * 1000;
 const energyKeptDays = 800;
-const runsKeptDays = 30;
+const historyKeptDays = 30;
 
 export type JobHandlers = {
 	[Type in JobType]: (payload: JobPayloads[Type]) => void | Promise<void>;
@@ -97,6 +100,13 @@ export const jobHandlers: JobHandlers = {
 		const change = presences.update(userId);
 		if (change) {
 			logger.info("Presence changed", { userId, home: change.home });
+			LogbookEntryDTO.add({
+				homeId: null,
+				name:
+					UserDTO.people().find((person) => person.id === userId)?.name ??
+					"Someone",
+				message: change.home ? "got home" : "left",
+			});
 			await automations.onPresence(change);
 		}
 	},
@@ -135,10 +145,17 @@ export const jobHandlers: JobHandlers = {
 		const readings = EnergyReadingDTO.pruneBefore(
 			new Date(Date.now() - energyKeptDays * dayMs),
 		);
-		const runs = AutomationRunDTO.prune(
-			new Date(Date.now() - runsKeptDays * dayMs),
-		);
-		logger.info("Pruned finished jobs", { removed, readings, runs });
+		const historyStart = new Date(Date.now() - historyKeptDays * dayMs);
+		const runs = AutomationRunDTO.prune(historyStart);
+		const samples = DeviceSampleDTO.pruneBefore(historyStart);
+		const lines = LogbookEntryDTO.pruneBefore(historyStart);
+		logger.info("Pruned finished jobs", {
+			removed,
+			readings,
+			runs,
+			samples,
+			lines,
+		});
 		JobDTO.enqueue(
 			"jobs.prune",
 			{ olderThanDays },
