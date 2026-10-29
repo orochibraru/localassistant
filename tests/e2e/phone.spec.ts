@@ -50,6 +50,9 @@ test("automations open their editor and the wall panel fits a square screen", as
 		localStorage.setItem("localassistant-install-prompted", "e2e"),
 	);
 	await page.goto("/automations");
+	await page.getByRole("link", { name: /Scenes/ }).click();
+	await expect(page.getByText("No scene yet")).toBeVisible();
+	await page.goto("/automations/routines");
 	await expect(page.getByText("No routine yet")).toBeVisible();
 	await page.getByRole("button", { name: "New routine" }).last().click();
 	const sheet = page.getByRole("dialog").last();
