@@ -216,7 +216,7 @@ describe("Dreame cloud", () => {
 			"it may be offline",
 		);
 		answers["/dreame-iot-com-10001/device/sendCommand"] = () =>
-			json({ code: 10007, msg: "device offline" });
+			json({ code: 10007, message: "device offline" });
 		expect(dreameCloud.command(robot, "dock")).rejects.toThrow(
 			"Dreame refused the request (device offline).",
 		);

@@ -64,7 +64,7 @@ interface Session {
 
 interface Answer<Data> {
 	code: number;
-	msg?: string;
+	message?: string;
 	data?: Data;
 }
 
@@ -270,7 +270,7 @@ class DreameCloud {
 		const body = (await response.json()) as Answer<Data>;
 		if (body.code !== 0 || !body.data) {
 			throw new DreameError(
-				`Dreame refused the request (${body.msg ?? `code ${body.code}`}).`,
+				`Dreame refused the request (${body.message ?? `code ${body.code}`}).`,
 			);
 		}
 		return body.data;
