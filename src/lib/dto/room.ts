@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { BaseDTO } from "#lib/dto/base-dto.js";
+import type { RoomPlan } from "#lib/house.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { room } from "#lib/server/db/schema.js";
 
@@ -11,9 +12,13 @@ export interface RoomRow {
 	icon: string;
 	floorId: string | null;
 	outdoor: boolean;
+	plan: RoomPlan[] | null;
 }
 
-export type RoomSettings = Omit<RoomRow, "id" | "homeId">;
+export type RoomSettings = Pick<
+	RoomRow,
+	"name" | "icon" | "floorId" | "outdoor"
+>;
 
 const columns = {
 	id: room.id,
@@ -22,6 +27,7 @@ const columns = {
 	icon: room.icon,
 	floorId: room.floorId,
 	outdoor: room.outdoor,
+	plan: room.plan,
 };
 
 export class RoomDTO extends BaseDTO<RoomRow> {
@@ -93,6 +99,17 @@ export class RoomDTO extends BaseDTO<RoomRow> {
 			.where(eq(room.id, this.row.id))
 			.run();
 		Object.assign(this.row, settings);
+	}
+
+	/** Draws the room on its floor's plan as the union of `plan`'s parts, in plan cells, or takes it off the plan with null. */
+	place(plan: RoomPlan[] | null): void {
+		databaseConnection
+			.get()
+			.update(room)
+			.set({ plan })
+			.where(eq(room.id, this.row.id))
+			.run();
+		this.row.plan = plan;
 	}
 
 	/** Removes the room; its devices move to the whole house. */

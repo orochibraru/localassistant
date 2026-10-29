@@ -7,12 +7,10 @@ import {
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
-import { presets } from "#lib/server/automations/presets.js";
 import { homes } from "#lib/server/house/homes.js";
 import {
 	automationFormSchema,
 	automationToggleSchema,
-	presetToggleSchema,
 } from "#lib/server/validation/automation.js";
 import { idSchema, parseForm } from "#lib/server/validation/form.js";
 
@@ -26,7 +24,37 @@ function brokenReference(
 	homeId: string,
 	definition: AutomationDefinition,
 ): string | null {
+	const ofKind = (deviceIds: string[], kind: string) =>
+		deviceIds.every(
+			(deviceId) => DeviceDTO.find(deviceId, homeId)?.kind === kind,
+		);
+	if (
+		definition.trigger.type === "contact" &&
+		!ofKind(definition.trigger.deviceIds, "zigbee-contact")
+	) {
+		return "A door or window sensor it watches is gone.";
+	}
 	for (const action of definition.actions) {
+		if (action.type === "valves") {
+			if (!ofKind(action.deviceIds, "zigbee-valve")) {
+				return "A radiator valve it closes is gone.";
+			}
+			continue;
+		}
+		if (action.type === "heating") {
+			const heats = action.deviceIds.every((deviceId) => {
+				const kind = DeviceDTO.find(deviceId, homeId)?.kind;
+				return (
+					kind === "zigbee-valve" ||
+					(kind !== undefined &&
+						(actionKinds.climate as readonly string[]).includes(kind))
+				);
+			});
+			if (!heats) {
+				return "A heater it turns down is gone.";
+			}
+			continue;
+		}
 		if (action.type === "blinds") {
 			if (action.roomId !== null && !RoomDTO.find(action.roomId, homeId)) {
 				return "A room it moves the blinds of is gone.";
@@ -49,7 +77,6 @@ export const load = async ({ parent }) => {
 			automation.toJSON(),
 		),
 		hasLocation: home.place !== null,
-		presets: presets.enabled(home.id),
 	};
 };
 
@@ -98,21 +125,6 @@ export const actions = {
 			return fail(404, { error: "That automation is gone." });
 		}
 		automation.setEnabled(parsed.data.enabled);
-		return { enabled: parsed.data.enabled };
-	},
-	preset: async ({ cookies, locals, request }) => {
-		if (!locals.user) {
-			return fail(401, { error: "Sign in again to continue." });
-		}
-		const parsed = parseForm(presetToggleSchema, await request.formData());
-		if (!parsed.success) {
-			return fail(400, { error: "Pick a preset." });
-		}
-		presets.set(
-			homes.current(cookies).id,
-			parsed.data.key,
-			parsed.data.enabled,
-		);
 		return { enabled: parsed.data.enabled };
 	},
 	run: async ({ cookies, locals, request }) => {

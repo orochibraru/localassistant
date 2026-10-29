@@ -4,7 +4,7 @@ import type {
 	CoverAction,
 	DeviceState,
 	PrinterChange,
-	VacuumCommand,
+	VacuumChange,
 } from "#lib/devices.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
@@ -156,15 +156,21 @@ class Devices {
 	}
 
 	/**
-	 * Starts, pauses, stops or docks a robot vacuum, then reads where it's at.
+	 * Applies a robot vacuum's cleaning settings, resets a replaced part's wear, then starts, pauses, stops or docks it, then reads where it's at.
 	 *
-	 * @throws When `device` isn't a vacuum or Dreame refuses the command.
+	 * @throws When `device` isn't a vacuum or Dreame refuses the change.
 	 */
-	async vacuum(device: DeviceDTO, command: VacuumCommand): Promise<void> {
+	async vacuum(device: DeviceDTO, change: VacuumChange): Promise<void> {
 		if (device.kind !== "dreame-vacuum") {
 			throw new Error("That device is not a robot vacuum.");
 		}
-		await dreameCloud.command(device, command);
+		await dreameCloud.configure(device, change);
+		if (change.reset) {
+			await dreameCloud.resetPart(device, change.reset);
+		}
+		if (change.command) {
+			await dreameCloud.command(device, change.command);
+		}
 		this.#refreshLater(device);
 	}
 

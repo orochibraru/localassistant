@@ -1,17 +1,48 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
+	import ArrowDownToLineIcon from "@lucide/svelte/icons/arrow-down-to-line";
+	import ArrowUpToLineIcon from "@lucide/svelte/icons/arrow-up-to-line";
 	import BlindsIcon from "@lucide/svelte/icons/blinds";
 	import BotIcon from "@lucide/svelte/icons/bot";
+	import CalendarIcon from "@lucide/svelte/icons/calendar";
+	import CalendarRangeIcon from "@lucide/svelte/icons/calendar-range";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
+	import DropletIcon from "@lucide/svelte/icons/droplet";
+	import FanIcon from "@lucide/svelte/icons/fan";
+	import FlameIcon from "@lucide/svelte/icons/flame";
+	import Flower2Icon from "@lucide/svelte/icons/flower-2";
+	import HeaterIcon from "@lucide/svelte/icons/heater";
+	import HouseIcon from "@lucide/svelte/icons/house";
+	import LeafIcon from "@lucide/svelte/icons/leaf";
+	import PauseIcon from "@lucide/svelte/icons/pause";
+	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlusIcon from "@lucide/svelte/icons/plus";
+	import PowerIcon from "@lucide/svelte/icons/power";
+	import PowerOffIcon from "@lucide/svelte/icons/power-off";
 	import PrinterIcon from "@lucide/svelte/icons/printer";
+	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
+	import SnowflakeIcon from "@lucide/svelte/icons/snowflake";
+	import SparklesIcon from "@lucide/svelte/icons/sparkles";
+	import SquareIcon from "@lucide/svelte/icons/square";
+	import SunIcon from "@lucide/svelte/icons/sun";
+	import SunriseIcon from "@lucide/svelte/icons/sunrise";
+	import SunsetIcon from "@lucide/svelte/icons/sunset";
 	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
+	import ThermometerSnowflakeIcon from "@lucide/svelte/icons/thermometer-snowflake";
+	import TrendingDownIcon from "@lucide/svelte/icons/trending-down";
+	import TrendingUpIcon from "@lucide/svelte/icons/trending-up";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { type Component, untrack } from "svelte";
 
 	import {
 		type AutomationAction,
 		type Period,
+		type PresetKey,
+		presetKeys,
+		presets,
 		type Season,
 		seasons,
 		type Trigger,
@@ -20,6 +51,7 @@
 	import IconButton from "#lib/components/icon-button.svelte";
 	import Picker from "#lib/components/picker.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
+	import ToggleChoice from "#lib/components/toggle-choice.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
@@ -38,7 +70,12 @@
 	interface Props {
 		open: boolean;
 		editing: (AutomationDefinition & { id: string }) | null;
-		devices: { id: string; kind: string; name: string }[];
+		devices: {
+			id: string;
+			kind: string;
+			name: string;
+			roomId: string | null;
+		}[];
 		rooms: HouseRoom[];
 		floors: HouseFloor[];
 		hasLocation: boolean;
@@ -53,7 +90,8 @@
 		hasLocation,
 	}: Props = $props();
 
-	type TriggerChoice = "sunrise" | "sunset" | "time" | "temperature";
+	type TriggerChoice =
+		"sunrise" | "sunset" | "time" | "temperature" | "contact";
 	type PeriodChoice = Period["type"];
 
 	let name = $state("");
@@ -68,13 +106,40 @@
 	let from = $state("2026-06-01");
 	let to = $state("2026-08-31");
 	let steps = $state<AutomationAction[]>([]);
+	let startFrom = $state<string>("blank");
+	let sensors = $state<string[]>([]);
+
+	const presetIcons: Record<PresetKey, Component<{ class?: string }>> = {
+		"blinds-sunset": SunsetIcon,
+		"blinds-sunrise": SunriseIcon,
+		"blinds-heat": SunIcon,
+		"window-valves": HeaterIcon,
+		"door-heating": DoorOpenIcon,
+	};
+	const startOptions = [
+		{ value: "blank", label: "A blank automation", icon: PlusIcon },
+		...presetKeys.map((key) => ({
+			value: key,
+			label: presets[key].title,
+			icon: presetIcons[key],
+		})),
+	];
 
 	$effect(() => {
 		const current = editing;
 		if (open) {
-			untrack(() => load(current));
+			untrack(() => {
+				startFrom = "blank";
+				load(current);
+			});
 		}
 	});
+
+	function pickStart(next: string) {
+		startFrom = next;
+		const key = presetKeys.find((entry) => entry === next);
+		load(key ? { ...presets[key].build(devices), id: "" } : null);
+	}
 
 	function load(existing: Props["editing"]) {
 		name = existing?.name ?? "";
@@ -94,6 +159,7 @@
 				: ["0", "1", "2", "3", "4", "5", "6"];
 		direction = trigger?.type === "temperature" ? trigger.direction : "above";
 		threshold = trigger?.type === "temperature" ? trigger.threshold : 28;
+		sensors = trigger?.type === "contact" ? [...trigger.deviceIds] : [];
 	}
 
 	function loadPeriod(period: Period | undefined) {
@@ -112,6 +178,11 @@
 	);
 	const printerOptions = $derived(ofKinds("bambu-printer"));
 	const vacuumOptions = $derived(ofKinds("dreame-vacuum"));
+	const sensorOptions = $derived(ofKinds("zigbee-contact"));
+	const valveOptions = $derived(ofKinds("zigbee-valve"));
+	const heaterOptions = $derived(
+		ofKinds("melcloud-ata", "melcloud-atw", "esphome-climate", "zigbee-valve"),
+	);
 	const hasBlinds = $derived(
 		devices.some((device) => device.kind === "tuya-cover"),
 	);
@@ -158,6 +229,25 @@
 				}),
 			},
 			{
+				label: "Close radiator valves",
+				icon: HeaterIcon,
+				available: triggerChoice === "contact" && valveOptions.length > 0,
+				make: (): AutomationAction => ({
+					type: "valves",
+					deviceIds: valveOptions.map((option) => option.value),
+				}),
+			},
+			{
+				label: "Turn the heating down",
+				icon: ThermometerSnowflakeIcon,
+				available: triggerChoice === "contact" && heaterOptions.length > 0,
+				make: (): AutomationAction => ({
+					type: "heating",
+					deviceIds: heaterOptions.map((option) => option.value),
+					degrees: 3,
+				}),
+			},
+			{
 				label: "Run a robot vacuum",
 				icon: BotIcon,
 				available: vacuumOptions.length > 0,
@@ -180,13 +270,15 @@
 							.map(Number)
 							.toSorted((first, second) => first - second),
 					}
-				: triggerChoice === "temperature"
-					? { type: "temperature", direction, threshold: Number(threshold) }
-					: {
-							type: "sun",
-							event: triggerChoice,
-							offsetMinutes: Number(offsetMinutes) || 0,
-						};
+				: triggerChoice === "contact"
+					? { type: "contact", deviceIds: sensors }
+					: triggerChoice === "temperature"
+						? { type: "temperature", direction, threshold: Number(threshold) }
+						: {
+								type: "sun",
+								event: triggerChoice,
+								offsetMinutes: Number(offsetMinutes) || 0,
+							};
 		const period: Period =
 			periodChoice === "seasons"
 				? { type: "seasons", seasons: chosenSeasons as Season[] }
@@ -198,6 +290,46 @@
 
 	const toggleItem =
 		"bg-secondary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-11 flex-1 rounded-xl px-3";
+	const optionIcons: Record<string, Component<{ class?: string }>> = {
+		sunrise: SunriseIcon,
+		sunset: SunsetIcon,
+		time: ClockIcon,
+		temperature: ThermometerIcon,
+		contact: DoorOpenIcon,
+		above: TrendingUpIcon,
+		below: TrendingDownIcon,
+		always: CalendarIcon,
+		seasons: LeafIcon,
+		dates: CalendarRangeIcon,
+		open: ArrowUpToLineIcon,
+		close: ArrowDownToLineIcon,
+		position: SlidersHorizontalIcon,
+		on: PowerIcon,
+		off: PowerOffIcon,
+		keep: RefreshCwIcon,
+		heat: FlameIcon,
+		dry: DropletIcon,
+		cool: SnowflakeIcon,
+		fan: FanIcon,
+		auto: SparklesIcon,
+		start: PlayIcon,
+		resume: PlayIcon,
+		pause: PauseIcon,
+		stop: SquareIcon,
+		dock: HouseIcon,
+	};
+	const seasonLabels: Record<Season, string> = {
+		spring: "Spring",
+		summer: "Summer",
+		autumn: "Autumn",
+		winter: "Winter",
+	};
+	const seasonIcons: Record<Season, Component<{ class?: string }>> = {
+		spring: Flower2Icon,
+		summer: SunIcon,
+		autumn: LeafIcon,
+		winter: SnowflakeIcon,
+	};
 	const commandLabels: Record<string, string> = {
 		pause: "Pause",
 		resume: "Resume",
@@ -210,6 +342,8 @@
 		climate: "Set a heat pump",
 		printer: "Drive a printer",
 		vacuum: "Run a robot vacuum",
+		valves: "Close radiator valves",
+		heating: "Turn the heating down",
 	};
 	const actionIcons: Record<
 		AutomationAction["type"],
@@ -219,12 +353,18 @@
 		climate: ThermometerIcon,
 		printer: PrinterIcon,
 		vacuum: BotIcon,
+		valves: HeaterIcon,
+		heating: ThermometerSnowflakeIcon,
 	};
 </script>
 
 {#snippet choices(
 	label: string,
-	options: { value: string; label: string }[],
+	options: {
+		value: string;
+		label: string;
+		icon?: Component<{ class?: string }>;
+	}[],
 	value: string,
 	onChange: (next: string) => void,
 )}
@@ -233,22 +373,40 @@
 		{value}
 		spacing={2}
 		aria-label={label}
-		class="w-full flex-wrap"
+		class="w-full"
 		onValueChange={(next) => next && onChange(next)}
 	>
 		{#each options as option (option.value)}
-			<ToggleGroup.Item value={option.value} class={toggleItem}
-				>{option.label}</ToggleGroup.Item
-			>
+			<ToggleChoice
+				value={option.value}
+				label={option.label}
+				icon={option.icon ?? optionIcons[option.value]}
+				class={toggleItem}
+			/>
 		{/each}
 	</ToggleGroup.Root>
 {/snippet}
 
 <ResponsiveSheet
 	bind:open
+	wide
 	title={editing ? `Edit ${editing.name}` : "New automation"}
-	description="Checked by the server every minute, whether or not anyone has the app open."
+	description="Run by the server, whether or not anyone has the app open."
 >
+	{#if !editing}
+		<Field.Field>
+			<Field.Label for="automation-start">Start from</Field.Label>
+			<Picker
+				id="automation-start"
+				name=""
+				label="Start from"
+				options={startOptions}
+				value={startFrom}
+				onPick={pickStart}
+				search={{ placeholder: "Search presets", empty: "No preset matches." }}
+			/>
+		</Field.Field>
+	{/if}
 	<form
 		method="POST"
 		action="?/save"
@@ -283,11 +441,14 @@
 					{ value: "sunset", label: "Sunset" },
 					{ value: "time", label: "A time" },
 					{ value: "temperature", label: "Outside temperature" },
+					...(sensorOptions.length > 0
+						? [{ value: "contact", label: "A door or window opens" }]
+						: []),
 				],
 				triggerChoice,
 				(next) => (triggerChoice = next as TriggerChoice),
 			)}
-			{#if !hasLocation && triggerChoice !== "time"}
+			{#if !hasLocation && triggerChoice !== "time" && triggerChoice !== "contact"}
 				<Field.Description>
 					Set the home's location in Admin, Homes first: sunrise, sunset and the
 					temperature come from there.
@@ -334,6 +495,25 @@
 						>
 					{/each}
 				</ToggleGroup.Root>
+			{:else if triggerChoice === "contact"}
+				<Field.Field>
+					<Field.Label for="automation-sensors"
+						>Door and window sensors</Field.Label
+					>
+					<Picker
+						id="automation-sensors"
+						name=""
+						label="Door and window sensors"
+						options={sensorOptions}
+						multiple
+						bind:values={sensors}
+						placeholder="Pick the sensors that trigger it"
+					/>
+					<Field.Description
+						>It runs when one of them opens; radiator valve steps hold until
+						every one of them in that room is shut.</Field.Description
+					>
+				</Field.Field>
 			{:else}
 				{@render choices(
 					"Direction",
@@ -379,9 +559,12 @@
 					class="grid w-full grid-cols-2 sm:grid-cols-4"
 				>
 					{#each seasons as season (season)}
-						<ToggleGroup.Item value={season} class="{toggleItem} capitalize"
-							>{season}</ToggleGroup.Item
-						>
+						<ToggleChoice
+							value={season}
+							label={seasonLabels[season]}
+							icon={seasonIcons[season]}
+							class={toggleItem}
+						/>
 					{/each}
 				</ToggleGroup.Root>
 				<Field.Description
@@ -470,6 +653,49 @@
 									/>
 								</Field.Field>
 							{/if}
+						{:else if step.type === "valves"}
+							<Picker
+								id="step-{index}-valves"
+								name=""
+								label="Radiator valves"
+								options={valveOptions}
+								multiple
+								bind:values={step.deviceIds}
+								placeholder="Pick the valves it closes"
+							/>
+							<p class="text-muted-foreground text-sm">
+								Only the ones in the room of the sensor that opened close.
+							</p>
+						{:else if step.type === "heating"}
+							<Picker
+								id="step-{index}-heaters"
+								name=""
+								label="Heat pumps and radiator valves"
+								options={heaterOptions}
+								multiple
+								bind:values={step.deviceIds}
+								placeholder="Pick what it turns down"
+							/>
+							<Field.Field>
+								<Field.Label for="step-{index}-degrees"
+									>Down by (°C)</Field.Label
+								>
+								<Input
+									id="step-{index}-degrees"
+									type="number"
+									inputmode="decimal"
+									step="0.5"
+									min={0.5}
+									max={10}
+									bind:value={step.degrees}
+									class="h-11"
+								/>
+								<Field.Description
+									>Only the ones in the room of the sensor that opened, or all
+									of them for a door in the whole house; they go back once it
+									shuts.</Field.Description
+								>
+							</Field.Field>
 						{:else if step.type === "climate"}
 							<Picker
 								id="step-{index}-device"

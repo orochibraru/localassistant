@@ -8,7 +8,7 @@
 	import SquareIcon from "@lucide/svelte/icons/square";
 	import { onDestroy } from "svelte";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -36,9 +36,20 @@
 		error: string | null;
 		readAt: Date | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, reading, error, readAt, now }: Props = $props();
+	const {
+		id,
+		name,
+		reading,
+		error,
+		readAt,
+		now,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	let expected = $state<{ change: PrinterChange; since: number | null } | null>(
 		null,
@@ -118,12 +129,14 @@
 
 <article class="glass flex flex-col gap-4 rounded-2xl p-4">
 	<header class="flex items-center gap-3">
-		<span
-			class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
-			aria-hidden="true"
-		>
-			<PrinterIcon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+				aria-hidden="true"
+			>
+				<PrinterIcon class="size-5" />
+			</span>
+		{/if}
 		<div class="min-w-0 flex-1">
 			<h2 class="truncate font-semibold">{name}</h2>
 			<p class="text-muted-foreground truncate text-sm">
@@ -141,7 +154,7 @@
 		{#if pending.sending}
 			<Spinner class="text-muted-foreground" aria-label="Sending to {name}" />
 		{/if}
-		{#if shown && shown.light !== null}
+		{#if shown && shown.light !== null && !compact}
 			<IconButton
 				label={shown.light
 					? `Turn ${name}'s light off`
@@ -151,16 +164,18 @@
 				onclick={() => pending.set({ light: !shown.light })}
 			/>
 		{/if}
-		<IconButton
-			label={watching ? `Hide ${name}'s camera` : `Show ${name}'s camera`}
-			icon={CameraIcon}
-			variant={watching ? "default" : "secondary"}
-			onclick={() => (watching = !watching)}
-		/>
-		<DeviceSettings {id} {name} />
+		{#if !compact}
+			<IconButton
+				label={watching ? `Hide ${name}'s camera` : `Show ${name}'s camera`}
+				icon={CameraIcon}
+				variant={watching ? "default" : "secondary"}
+				onclick={() => (watching = !watching)}
+			/>
+		{/if}
+		<CardMore {name} onclick={onMore} />
 	</header>
 
-	{#if watching}
+	{#if watching && !compact}
 		<img
 			src="/printers/{id}/camera.jpg?at={frame}"
 			alt="{name}'s camera"
@@ -202,18 +217,20 @@
 			</div>
 		{/if}
 
-		<dl class="grid grid-cols-2 gap-3 text-sm">
-			<div class="bg-muted/60 rounded-xl px-3 py-2">
-				<dt class="text-muted-foreground text-xs">Nozzle</dt>
-				<dd class="font-medium tabular-nums">{temperature(shown.nozzle)}</dd>
-			</div>
-			<div class="bg-muted/60 rounded-xl px-3 py-2">
-				<dt class="text-muted-foreground text-xs">Bed</dt>
-				<dd class="font-medium tabular-nums">{temperature(shown.bed)}</dd>
-			</div>
-		</dl>
+		{#if !compact}
+			<dl class="grid grid-cols-2 gap-3 text-sm">
+				<div class="bg-muted/60 rounded-xl px-3 py-2">
+					<dt class="text-muted-foreground text-xs">Nozzle</dt>
+					<dd class="font-medium tabular-nums">{temperature(shown.nozzle)}</dd>
+				</div>
+				<div class="bg-muted/60 rounded-xl px-3 py-2">
+					<dt class="text-muted-foreground text-xs">Bed</dt>
+					<dd class="font-medium tabular-nums">{temperature(shown.bed)}</dd>
+				</div>
+			</dl>
+		{/if}
 
-		{#if active}
+		{#if active && !compact}
 			<div class="flex gap-2">
 				{#if shown.stage === "paused"}
 					<Button
@@ -256,7 +273,7 @@
 		{/if}
 	{/if}
 
-	{#if ago}
+	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Read {ago}</p>
 	{/if}
 </article>

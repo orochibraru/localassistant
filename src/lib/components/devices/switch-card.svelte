@@ -2,7 +2,7 @@
 	import PlugIcon from "@lucide/svelte/icons/plug";
 	import { onDestroy } from "svelte";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { readAgo, type SwitchState } from "#lib/devices.js";
@@ -16,9 +16,19 @@
 		reading: SwitchState | null;
 		readAt: Date | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, reading, readAt, now }: Props = $props();
+	const {
+		id,
+		name,
+		reading,
+		readAt,
+		now,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	const pending = new PendingChanges<{ on: boolean }>({
 		delayMs: 200,
@@ -37,14 +47,16 @@
 
 <article class="glass flex flex-col gap-3 rounded-2xl p-4">
 	<header class="flex items-center gap-3">
-		<span
-			class="flex size-10 shrink-0 items-center justify-center rounded-xl {on
-				? 'bg-primary text-primary-foreground'
-				: 'bg-accent text-accent-foreground'}"
-			aria-hidden="true"
-		>
-			<PlugIcon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="flex size-10 shrink-0 items-center justify-center rounded-xl {on
+					? 'bg-primary text-primary-foreground'
+					: 'bg-accent text-accent-foreground'}"
+				aria-hidden="true"
+			>
+				<PlugIcon class="size-5" />
+			</span>
+		{/if}
 		<label for="{id}-power" class="min-w-0 flex-1 cursor-pointer">
 			<span class="block truncate font-semibold">{name}</span>
 			<span class="text-muted-foreground block text-sm">
@@ -68,9 +80,9 @@
 			disabled={reading?.on === null}
 			onCheckedChange={(next) => pending.set({ on: next })}
 		/>
-		<DeviceSettings {id} {name} />
+		<CardMore {name} onclick={onMore} />
 	</header>
-	{#if ago}
+	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Reported {ago}</p>
 	{/if}
 </article>

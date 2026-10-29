@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+	cardSizes,
 	climateModes,
 	coverActions,
 	dreameRegions,
@@ -8,8 +9,12 @@ import {
 	printerSpeeds,
 	tuyaProtocolVersions,
 	vacuumCommands,
+	vacuumModes,
+	vacuumParts,
+	vacuumSuctions,
+	vacuumWetness,
 } from "#lib/devices.js";
-import { noFloorPlace, outsidePlace, roomIcons } from "#lib/house.js";
+import { noFloorPlace, outsidePlace, planSize, roomIcons } from "#lib/house.js";
 
 const deviceId = z.string().trim().min(1, "Pick a device.");
 
@@ -180,10 +185,20 @@ export const dreameAccountSchema = z.object({
 	region: z.enum(dreameRegions, "Pick the region your app uses.").default("eu"),
 });
 
-export const vacuumCommandSchema = z.object({
-	deviceId,
-	command: z.enum(vacuumCommands),
-});
+export const vacuumChangeSchema = z
+	.object({
+		deviceId,
+		command: z.enum(vacuumCommands).optional(),
+		mode: z.enum(vacuumModes).optional(),
+		suction: z.enum(vacuumSuctions).optional(),
+		wetness: z.int().min(vacuumWetness.min).max(vacuumWetness.max).optional(),
+		cleanGenius: z.boolean().optional(),
+		reset: z.enum(vacuumParts).optional(),
+	})
+	.refine(
+		(change) => Object.keys(change).some((key) => key !== "deviceId"),
+		"Say what to change.",
+	);
 
 export const valveTargetSchema = z.object({
 	deviceId,
@@ -218,18 +233,33 @@ export const mqttBrokerSchema = z.object({
 		.default("zigbee2mqtt"),
 });
 
+const prm = z
+	.string()
+	.trim()
+	.regex(/^\d{14}$/, "Type the 14-digit PRM from your bill or the meter.");
+const linkyToken = z
+	.string()
+	.trim()
+	.min(20, "Paste the token conso.boris.sh gave you.")
+	.max(2000);
+
 export const linkySchema = z.object({
 	name: z.string().trim().min(1, "Name the meter.").max(60).default("Linky"),
 	roomId,
-	externalId: z
-		.string()
-		.trim()
-		.regex(/^\d{14}$/, "Type the 14-digit PRM from your bill or the meter."),
+	externalId: prm,
+	token: linkyToken,
+});
+
+export const editLinkySchema = z.object({
+	id: deviceId,
+	name: z.string().trim().min(1, "Name the meter.").max(60),
+	roomId,
+	externalId: prm,
 	token: z
-		.string()
-		.trim()
-		.min(20, "Paste the token conso.boris.sh gave you.")
-		.max(2000),
+		.literal("")
+		.transform(() => undefined)
+		.or(linkyToken)
+		.optional(),
 });
 
 const rtspUrl = z
@@ -402,4 +432,58 @@ export const appReportSchema = z.object({
 		})
 		.nullable()
 		.optional(),
+});
+
+export const cardSizeSchema = z.object({ deviceId, size: z.enum(cardSizes) });
+
+const planPart = z
+	.object({
+		x: z
+			.int()
+			.min(0)
+			.max(planSize.columns - 1),
+		y: z
+			.int()
+			.min(0)
+			.max(planSize.rows - 1),
+		width: z.int().min(1).max(planSize.columns),
+		height: z.int().min(1).max(planSize.rows),
+	})
+	.refine(
+		(part) =>
+			part.x + part.width <= planSize.columns &&
+			part.y + part.height <= planSize.rows,
+		"Keep the room inside the plan.",
+	);
+
+export const planChangesSchema = z.object({
+	rooms: z
+		.array(
+			z.object({
+				roomId: z.string().trim().min(1, "Pick a room."),
+				plan: z
+					.array(planPart)
+					.min(1)
+					.max(12, "Keep a room to 12 parts.")
+					.nullable(),
+			}),
+		)
+		.max(500),
+	moves: z.array(z.object({ deviceId, roomId })).max(500),
+	pins: z
+		.array(
+			z.object({
+				deviceId,
+				pin: z
+					.object({
+						place: z.string().trim().min(1),
+						x: z.number().min(0).max(planSize.columns),
+						y: z.number().min(0).max(planSize.rows),
+					})
+					.nullable(),
+			}),
+		)
+		.max(500)
+		.default([]),
+	baseFloorId: z.string().trim().min(1).nullable().optional(),
 });

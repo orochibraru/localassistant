@@ -3,6 +3,7 @@ import type {
 	PrinterCommand,
 	VacuumCommand,
 } from "#lib/devices.js";
+import type { DeviceKind } from "#lib/dto/device.js";
 
 export const sunEvents = ["sunrise", "sunset"] as const;
 export type SunEvent = (typeof sunEvents)[number];
@@ -26,20 +27,111 @@ export type ThresholdDirection = (typeof thresholdDirections)[number];
 export const blindMoves = ["open", "close", "position"] as const;
 export type BlindMove = (typeof blindMoves)[number];
 
-export const presetKeys = ["window-valves"] as const;
+export const presetKeys = [
+	"blinds-sunset",
+	"blinds-sunrise",
+	"blinds-heat",
+	"window-valves",
+	"door-heating",
+] as const;
 export type PresetKey = (typeof presetKeys)[number];
 
 export const presets: Record<
 	PresetKey,
-	{ title: string; description: string }
+	{
+		title: string;
+		build: (
+			devices: { id: string; kind: string; roomId?: string | null }[],
+		) => {
+			name: string;
+			trigger: Trigger;
+			period: Period;
+			actions: AutomationAction[];
+		};
+	}
 > = {
+	"blinds-sunset": {
+		title: "Close the blinds at sunset, autumn and winter",
+		build: () => ({
+			name: "Close the blinds at sunset",
+			trigger: { type: "sun", event: "sunset", offsetMinutes: 0 },
+			period: { type: "seasons", seasons: ["autumn", "winter"] },
+			actions: [
+				{ type: "blinds", roomId: null, move: "close", position: null },
+			],
+		}),
+	},
+	"blinds-sunrise": {
+		title: "Open the blinds at sunrise, autumn and winter",
+		build: () => ({
+			name: "Open the blinds at sunrise",
+			trigger: { type: "sun", event: "sunrise", offsetMinutes: 0 },
+			period: { type: "seasons", seasons: ["autumn", "winter"] },
+			actions: [{ type: "blinds", roomId: null, move: "open", position: null }],
+		}),
+	},
+	"blinds-heat": {
+		title: "Close the blinds when it gets hot, summer",
+		build: () => ({
+			name: "Keep the heat out",
+			trigger: { type: "temperature", direction: "above", threshold: 28 },
+			period: { type: "seasons", seasons: ["summer"] },
+			actions: [
+				{ type: "blinds", roomId: null, move: "close", position: null },
+			],
+		}),
+	},
 	"window-valves": {
 		title: "Radiators off while a window is open",
-		description:
-			"When a door or window sensor opens, its room's radiator valves close, and go back to where they were once every window there is shut.",
+		build: (devices) => {
+			const ofKind = (kind: DeviceKind) =>
+				devices
+					.filter((device) => device.kind === kind)
+					.map((device) => device.id);
+			return {
+				name: "Radiators off while a window is open",
+				trigger: { type: "contact", deviceIds: ofKind("zigbee-contact") },
+				period: { type: "always" },
+				actions: [{ type: "valves", deviceIds: ofKind("zigbee-valve") }],
+			};
+		},
+	},
+	"door-heating": {
+		title: "Heating down while the front door is open",
+		build: (devices) => {
+			const sensors = devices.filter(
+				(device) => device.kind === "zigbee-contact",
+			);
+			const doors = sensors.filter((device) => device.roomId === null);
+			return {
+				name: "Heating down while the front door is open",
+				trigger: {
+					type: "contact",
+					deviceIds: (doors.length > 0 ? doors : sensors).map(
+						(device) => device.id,
+					),
+				},
+				period: { type: "seasons", seasons: ["autumn", "winter"] },
+				actions: [
+					{
+						type: "heating",
+						deviceIds: devices
+							.filter((device) =>
+								[
+									"melcloud-ata",
+									"melcloud-atw",
+									"esphome-climate",
+									"zigbee-valve",
+								].includes(device.kind),
+							)
+							.map((device) => device.id),
+						degrees: 3,
+					},
+				],
+			};
+		},
 	},
 };
-
 export type Trigger =
 	| { type: "sun"; event: SunEvent; offsetMinutes: number }
 	| { type: "time"; time: string; weekdays: number[] }
@@ -47,7 +139,8 @@ export type Trigger =
 			type: "temperature";
 			direction: ThresholdDirection;
 			threshold: number;
-	  };
+	  }
+	| { type: "contact"; deviceIds: string[] };
 
 export type Period =
 	| { type: "always" }
@@ -69,7 +162,9 @@ export type AutomationAction =
 			targetTemperature: number | null;
 	  }
 	| { type: "printer"; deviceId: string; command: PrinterCommand }
-	| { type: "vacuum"; deviceId: string; command: VacuumCommand };
+	| { type: "vacuum"; deviceId: string; command: VacuumCommand }
+	| { type: "valves"; deviceIds: string[] }
+	| { type: "heating"; deviceIds: string[]; degrees: number };
 
 const seasonMonths: Record<Season, number[]> = {
 	spring: [3, 4, 5],
@@ -107,7 +202,7 @@ export function inPeriod(period: Period, monthDay: string): boolean {
 	return withinDates(monthDay, period.from, period.to);
 }
 
-/** A trigger in words: "At sunset, 15 min after", "At 21:00 on weekdays", "When it gets above 28°C outside". */
+/** A trigger in words: "At sunset, 15 min after", "At 21:00 on weekdays", "When it gets above 28°C outside", "When one of 2 doors or windows opens". */
 export function describeTrigger(trigger: Trigger): string {
 	if (trigger.type === "sun") {
 		const offset = Math.abs(trigger.offsetMinutes);
@@ -118,6 +213,11 @@ export function describeTrigger(trigger: Trigger): string {
 	}
 	if (trigger.type === "time") {
 		return `At ${trigger.time} ${describeWeekdays(trigger.weekdays)}`;
+	}
+	if (trigger.type === "contact") {
+		return trigger.deviceIds.length === 1
+			? "When a door or window opens"
+			: `When one of ${trigger.deviceIds.length} doors or windows opens`;
 	}
 	return `When it gets ${trigger.direction} ${trigger.threshold}°C outside`;
 }
@@ -172,6 +272,12 @@ export function describeAction(
 			return `Move ${where} to ${action.position ?? 50}% open`;
 		}
 		return `${action.move === "open" ? "Open" : "Close"} ${where}`;
+	}
+	if (action.type === "heating") {
+		return `Turn ${action.deviceIds.length} ${action.deviceIds.length === 1 ? "heater" : "heaters"} down by ${action.degrees}°C until it shuts`;
+	}
+	if (action.type === "valves") {
+		return `Close ${action.deviceIds.length} radiator ${action.deviceIds.length === 1 ? "valve" : "valves"} in its room until it shuts`;
 	}
 	const device = names.devices.get(action.deviceId) ?? "a removed device";
 	if (action.type === "climate") {

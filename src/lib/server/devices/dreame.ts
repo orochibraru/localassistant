@@ -1,10 +1,15 @@
 import { createCipheriv } from "node:crypto";
 
-import type {
-	DreameRegion,
-	VacuumCommand,
-	VacuumStage,
-	VacuumState,
+import {
+	type DockStatus,
+	type DreameRegion,
+	type VacuumChange,
+	type VacuumCommand,
+	type VacuumMode,
+	type VacuumPart,
+	type VacuumStage,
+	type VacuumState,
+	vacuumSuctions,
 } from "#lib/devices.js";
 import type { DeviceDTO } from "#lib/dto/device.js";
 import { getSetting } from "#lib/dto/setting.js";
@@ -22,7 +27,47 @@ const properties = {
 	error: { siid: 2, piid: 2 },
 	battery: { siid: 3, piid: 1 },
 	charging: { siid: 3, piid: 2 },
+	lastCleanMinutes: { siid: 4, piid: 2 },
+	lastCleanArea: { siid: 4, piid: 3 },
+	suction: { siid: 4, piid: 4 },
+	mode: { siid: 4, piid: 23 },
+	selfWashBase: { siid: 4, piid: 25 },
+	cleanGenius: { siid: 4, piid: 50 },
+	mainBrush: { siid: 9, piid: 2 },
+	sideBrush: { siid: 10, piid: 2 },
+	filter: { siid: 11, piid: 1 },
+	dustCollection: { siid: 15, piid: 3 },
+	mopPads: { siid: 18, piid: 1 },
+	silverIon: { siid: 19, piid: 2 },
+	detergent: { siid: 20, piid: 1 },
+	cleanWaterTank: { siid: 27, piid: 1 },
+	dirtyWaterTank: { siid: 27, piid: 2 },
+	dustBag: { siid: 27, piid: 3 },
+	detergentCartridge: { siid: 27, piid: 4 },
+	wetness: { siid: 28, piid: 1 },
 } as const;
+
+const partResets: Record<VacuumPart, number> = {
+	mainBrush: 9,
+	sideBrush: 10,
+	filter: 11,
+	mopPads: 18,
+	silverIon: 19,
+	detergent: 20,
+};
+
+const dockCodes = {
+	cleanWaterTank: ["ok", "missing", "low", "check"],
+	dirtyWaterTank: ["ok", "full"],
+	dustBag: ["ok", "missing", "check"],
+	detergentCartridge: ["ok", "off", "low"],
+} satisfies Partial<Record<PropertyName, DockStatus[]>>;
+
+type PropertyName = keyof typeof properties;
+type Readings = Partial<Record<PropertyName, number>>;
+
+const modesWithMopLifting: readonly VacuumMode[] = ["both", "mop", "vacuum"];
+const modesWithoutMopLifting: readonly VacuumMode[] = ["vacuum", "mop", "both"];
 
 const commands: Record<VacuumCommand, { siid: number; aiid: number }> = {
 	start: { siid: 2, aiid: 1 },
@@ -39,7 +84,7 @@ const stages: Record<number, VacuumStage> = {
 	5: "returning",
 	6: "charging",
 	7: "cleaning",
-	8: "washing",
+	8: "drying",
 	9: "washing",
 	10: "returning",
 	12: "cleaning",
@@ -172,35 +217,99 @@ class DreameCloud {
 	}
 
 	/**
-	 * Reads a vacuum's stage, battery and error.
+	 * Reads a vacuum's stage, battery, error, cleaning settings, last clean and what's left of its parts.
 	 *
 	 * @throws DreameError when Dreame can't be reached or the robot is offline.
 	 */
 	async read(device: DeviceDTO): Promise<VacuumState> {
-		const entries = Object.values(properties);
-		const results = await this.#send<PropertyResult[]>(
+		const values = await this.#get(
 			device,
-			"get_properties",
-			entries.map((property) => ({ did: device.externalId, ...property })),
+			Object.keys(properties) as PropertyName[],
 		);
-		const value = (property: { siid: number; piid: number }) => {
-			const found = results.find(
-				(result) =>
-					result.siid === property.siid &&
-					result.piid === property.piid &&
-					(result.code ?? 0) === 0,
-			);
-			return typeof found?.value === "number" ? found.value : null;
-		};
-		const status = value(properties.status);
-		const error = value(properties.error);
 		return {
 			type: "vacuum",
-			stage: (status !== null ? stages[status] : undefined) ?? "idle",
-			battery: value(properties.battery),
-			charging: value(properties.charging) === 1,
-			errorCode: error && error !== 0 ? error : null,
+			stage:
+				(values.status === undefined ? undefined : stages[values.status]) ??
+				"idle",
+			battery: values.battery ?? null,
+			charging: values.charging === 1,
+			errorCode: values.error || null,
+			mode:
+				values.mode === undefined
+					? null
+					: (this.#modes(values)[values.mode & 0b11] ?? null),
+			suction:
+				values.suction === undefined
+					? null
+					: (vacuumSuctions[values.suction] ?? null),
+			wetness: values.wetness ?? null,
+			cleanGenius:
+				values.cleanGenius === undefined ? null : values.cleanGenius > 0,
+			lastCleanMinutes: values.lastCleanMinutes ?? null,
+			lastCleanArea: values.lastCleanArea ?? null,
+			partsLeft: {
+				mainBrush: values.mainBrush ?? null,
+				sideBrush: values.sideBrush ?? null,
+				filter: values.filter ?? null,
+				mopPads: values.mopPads ?? null,
+				silverIon: values.silverIon ?? null,
+				detergent: values.detergent ?? null,
+			},
+			dock: {
+				cleanWater: this.#dockStatus(values, "cleanWaterTank"),
+				dirtyWater: this.#dockStatus(values, "dirtyWaterTank"),
+				dustBag: this.#dockStatus(values, "dustBag"),
+				detergent: this.#dockStatus(values, "detergentCartridge"),
+			},
 		};
+	}
+
+	/**
+	 * Sets a vacuum's cleaning mode, suction, mop wetness and CleanGenius, leaving alone what `change` doesn't name.
+	 *
+	 * @throws DreameError when Dreame can't be reached or the robot refuses a setting.
+	 */
+	async configure(device: DeviceDTO, change: VacuumChange): Promise<void> {
+		const updates: { siid: number; piid: number; value: number | string }[] =
+			[];
+		if (change.mode) {
+			updates.push({
+				...properties.mode,
+				value: await this.#modeValue(device, change.mode),
+			});
+		}
+		if (change.suction) {
+			updates.push({
+				...properties.suction,
+				value: vacuumSuctions.indexOf(change.suction),
+			});
+		}
+		if (change.wetness !== undefined) {
+			updates.push({ ...properties.wetness, value: change.wetness });
+		}
+		if (change.cleanGenius !== undefined) {
+			updates.push({
+				...properties.cleanGenius,
+				value: JSON.stringify({
+					k: "SmartHost",
+					v: change.cleanGenius ? 1 : 0,
+				}),
+			});
+		}
+		if (updates.length === 0) {
+			return;
+		}
+		const results = await this.#send<PropertyResult[]>(
+			device,
+			"set_properties",
+			updates.map((update) => ({ did: device.externalId, ...update })),
+		);
+		if (
+			Array.isArray(results) &&
+			results.some((result) => (result.code ?? 0) !== 0)
+		) {
+			throw new DreameError("The robot refused that setting.");
+		}
 	}
 
 	/**
@@ -214,6 +323,93 @@ class DreameCloud {
 			...commands[command],
 			in: [],
 		});
+	}
+
+	/** The numeric values the robot answered for `names`, leaving out the ones it doesn't have. */
+	async #get(device: DeviceDTO, names: PropertyName[]): Promise<Readings> {
+		const results = await this.#send<PropertyResult[]>(
+			device,
+			"get_properties",
+			names.map((name) => ({ did: device.externalId, ...properties[name] })),
+		);
+		return Object.fromEntries(
+			names.flatMap((name) => {
+				const found = results.find(
+					(result) =>
+						result.siid === properties[name].siid &&
+						result.piid === properties[name].piid &&
+						(result.code ?? 0) === 0,
+				);
+				const value =
+					name === "cleanGenius" && typeof found?.value === "string"
+						? this.#smartHost(found.value)
+						: found?.value;
+				return typeof value === "number" ? [[name, value]] : [];
+			}),
+		);
+	}
+
+	/**
+	 * The mode property with its low bits set to `mode`, keeping the mop-wash settings Dreame packs above them.
+	 *
+	 * @throws DreameError when the robot has no cleaning modes or can't be reached.
+	 */
+	async #modeValue(device: DeviceDTO, mode: VacuumMode): Promise<number> {
+		const values = await this.#get(device, [
+			"mode",
+			"selfWashBase",
+			"dustCollection",
+		]);
+		if (values.mode === undefined) {
+			throw new DreameError("This robot has no cleaning modes.");
+		}
+		return (values.mode & ~0b11) | this.#modes(values).indexOf(mode);
+	}
+
+	/** The CleanGenius level in the robot's smart settings, a JSON list of `{ k, v }` pairs, or undefined without one. */
+	#smartHost(settings: string): number | undefined {
+		try {
+			const entries: unknown = JSON.parse(settings);
+			const found = Array.isArray(entries)
+				? (entries as { k?: unknown; v?: unknown }[]).find(
+						(entry) => entry.k === "SmartHost",
+					)
+				: undefined;
+			return typeof found?.v === "number" ? found.v : undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	/** The modes in the robot's numbering: a robot with a self-washing, self-emptying dock lifts its mops and swaps vacuum and both. */
+	#modes(values: Readings): readonly VacuumMode[] {
+		return values.selfWashBase !== undefined &&
+			values.dustCollection !== undefined
+			? modesWithMopLifting
+			: modesWithoutMopLifting;
+	}
+
+	/**
+	 * Tells the robot a part was replaced, so it counts its wear from new again.
+	 *
+	 * @throws DreameError when Dreame can't be reached or the robot refuses.
+	 */
+	async resetPart(device: DeviceDTO, part: VacuumPart): Promise<void> {
+		await this.#send(device, "action", {
+			did: device.externalId,
+			siid: partResets[part],
+			aiid: 1,
+			in: [],
+		});
+	}
+
+	/** What the dock says about one of its tanks or cartridges, or null when it doesn't report it. */
+	#dockStatus(
+		values: Readings,
+		name: keyof typeof dockCodes,
+	): DockStatus | null {
+		const code = values[name];
+		return code === undefined ? null : (dockCodes[name][code] ?? "check");
 	}
 
 	async #send<Result>(

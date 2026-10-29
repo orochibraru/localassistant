@@ -4,7 +4,7 @@
 	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import {
 		type ContactState,
 		type LinkyState,
@@ -19,9 +19,20 @@
 		error?: string | null;
 		readAt: Date | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, reading, readAt, now, error = null }: Props = $props();
+	const {
+		id,
+		name,
+		reading,
+		readAt,
+		now,
+		error = null,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	const ago = $derived(readAgo(readAt, now));
 	const Icon = $derived.by(() => {
@@ -60,15 +71,17 @@
 
 <article class="glass flex flex-col gap-3 rounded-2xl p-4">
 	<header class="flex items-center gap-3">
-		<span
-			class="flex size-10 shrink-0 items-center justify-center rounded-xl {reading?.type ===
-				'contact' && reading.open
-				? 'bg-primary text-primary-foreground'
-				: 'bg-accent text-accent-foreground'}"
-			aria-hidden="true"
-		>
-			<Icon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="flex size-10 shrink-0 items-center justify-center rounded-xl {reading?.type ===
+					'contact' && reading.open
+					? 'bg-primary text-primary-foreground'
+					: 'bg-accent text-accent-foreground'}"
+				aria-hidden="true"
+			>
+				<Icon class="size-5" />
+			</span>
+		{/if}
 		<div class="min-w-0 flex-1">
 			<h2 class="truncate font-semibold">{name}</h2>
 			<p class="text-muted-foreground text-sm">
@@ -81,9 +94,9 @@
 				><BatteryLowIcon class="size-4" />{reading.battery}%</span
 			>
 		{/if}
-		<DeviceSettings {id} {name} />
+		<CardMore {name} onclick={onMore} />
 	</header>
-	{#if ago}
+	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Reported {ago}</p>
 	{/if}
 </article>

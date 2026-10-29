@@ -3,10 +3,12 @@ import {
 	inPeriod,
 	type Trigger,
 } from "#lib/automations.js";
-import type { AutomationDTO } from "#lib/dto/automation.js";
+import type { DeviceState } from "#lib/devices.js";
+import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { Logger } from "#lib/server/core/logger.js";
+import { broker } from "#lib/server/devices/broker.js";
 import { devices } from "#lib/server/devices/devices.js";
 
 const logger = new Logger("Automations");
@@ -61,22 +63,88 @@ class Automations {
 		now: Date,
 	): Check {
 		const timeZone = this.timeZoneOf(home);
-		const today = this.localDate(now, timeZone);
-		const monthDay = `${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
 		const fired = this.#fires(automation, home, { since, now, timeZone });
 		return {
-			due: fired.due && inPeriod(automation.period, monthDay),
+			due:
+				fired.due && inPeriod(automation.period, this.#monthDay(now, timeZone)),
 			memory: fired.memory,
 		};
 	}
 
-	/** Runs every action of `automation` one after the other, recording what failed; never throws. */
-	async run(automation: AutomationDTO): Promise<void> {
+	/**
+	 * Runs the automations a door or window sensor triggers: their steps when it opens, and their radiator valves back to
+	 * where they were once every one of their sensors in its room is shut. Never throws.
+	 */
+	async onContact(sensor: DeviceDTO, next: DeviceState): Promise<void> {
+		const { homeId, roomId, name } = sensor.toJSON();
+		const home = homeId ? HomeDTO.find(homeId) : undefined;
+		if (next.type !== "contact" || next.open === null || !home) {
+			return;
+		}
+		const monthDay = this.#monthDay(new Date(), this.timeZoneOf(home));
+		for (const automation of AutomationDTO.inHome(home.id)) {
+			const trigger = automation.trigger;
+			if (
+				!automation.enabled ||
+				trigger.type !== "contact" ||
+				!trigger.deviceIds.includes(sensor.id)
+			) {
+				continue;
+			}
+			if (next.open) {
+				if (inPeriod(automation.period, monthDay)) {
+					await this.run(automation, { roomId, by: name });
+				}
+				continue;
+			}
+			const room = this.#around(home.id, roomId);
+			const anyOpen = room.some(
+				(device) =>
+					trigger.deviceIds.includes(device.id) &&
+					device.state?.type === "contact" &&
+					device.state.open,
+			);
+			if (anyOpen) {
+				continue;
+			}
+			for (const action of automation.actions) {
+				if (action.type === "valves") {
+					await this.#release(
+						room.filter((device) => action.deviceIds.includes(device.id)),
+					);
+				}
+				if (action.type === "heating") {
+					await this.#raise(
+						automation,
+						room.filter((device) => action.deviceIds.includes(device.id)),
+					);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Runs every action of `automation` one after the other, recording what failed; radiator valves close in the room of
+	 * the sensor that `opened`, or everywhere when run by hand. Never throws.
+	 */
+	async run(
+		automation: AutomationDTO,
+		opened?: { roomId: string | null; by: string },
+	): Promise<void> {
 		const failures: string[] = [];
 		for (const action of automation.actions) {
-			for (const failure of await this.#act(automation.homeId, action)) {
-				failures.push(failure);
-			}
+			const scope = () =>
+				this.#around(automation.homeId, opened?.roomId ?? null).filter(
+					(device) =>
+						"deviceIds" in action && action.deviceIds.includes(device.id),
+				);
+			const failed =
+				action.type === "valves"
+					? await this.#hold(scope(), opened?.by ?? automation.name)
+					: action.type === "heating"
+						? await this.#lower(automation, scope(), action.degrees)
+						: await this.#act(automation.homeId, action);
+			failures.push(...failed);
 		}
 		automation.recordRun(failures.length > 0 ? failures.join(" ") : null);
 		logger.info("Automation ran", {
@@ -124,6 +192,9 @@ class Automations {
 		{ since, now, timeZone }: { since: Date; now: Date; timeZone: string },
 	): Check {
 		const trigger: Trigger = automation.trigger;
+		if (trigger.type === "contact") {
+			return { due: false, memory: null };
+		}
 		const within = (instant: number) =>
 			instant > since.getTime() && instant <= now.getTime();
 		if (trigger.type === "sun") {
@@ -161,7 +232,130 @@ class Automations {
 		return { due: wasPast === false && past, memory: { past } };
 	}
 
-	async #act(homeId: string, action: AutomationAction): Promise<string[]> {
+	#monthDay(instant: Date, timeZone: string): string {
+		const today = this.localDate(instant, timeZone);
+		return `${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
+	}
+
+	#around(homeId: string, roomId: string | null): DeviceDTO[] {
+		return roomId === null
+			? DeviceDTO.inHome(homeId)
+			: DeviceDTO.inRoom(homeId, roomId);
+	}
+
+	async #hold(valves: DeviceDTO[], by: string): Promise<string[]> {
+		const failures: string[] = [];
+		for (const valve of valves) {
+			const state = valve.state;
+			if (state?.type !== "valve" || state.heldBy) {
+				continue;
+			}
+			try {
+				await broker.publish(valve, { [state.setpoint]: state.min });
+				valve.saveState({
+					...state,
+					heldBy: by,
+					heldTarget: state.target,
+					target: state.min,
+				});
+			} catch (error) {
+				failures.push(`${valve.toJSON().name}: ${devices.message(error)}`);
+			}
+		}
+		return failures;
+	}
+
+	async #release(valves: DeviceDTO[]): Promise<void> {
+		for (const valve of valves) {
+			const state = valve.state;
+			if (state?.type !== "valve" || !state.heldBy) {
+				continue;
+			}
+			const target = state.heldTarget ?? state.target ?? state.min;
+			try {
+				await broker.publish(valve, { [state.setpoint]: target });
+				valve.saveState({ ...state, heldBy: null, heldTarget: null, target });
+			} catch (error) {
+				logger.warn("Valve didn't go back", { valve: valve.id }, error);
+			}
+		}
+	}
+
+	#lowered(automation: AutomationDTO): Record<string, number> {
+		const lowered = automation.memory?.lowered;
+		return lowered && typeof lowered === "object"
+			? { ...(lowered as Record<string, number>) }
+			: {};
+	}
+
+	async #setTarget(device: DeviceDTO, target: number): Promise<void> {
+		const state = device.state;
+		if (state?.type === "climate") {
+			await devices.climate(device, { targetTemperature: target });
+			return;
+		}
+		if (state?.type === "valve") {
+			await broker.publish(device, { [state.setpoint]: target });
+			device.saveState({ ...state, target });
+		}
+	}
+
+	async #lower(
+		automation: AutomationDTO,
+		heaters: DeviceDTO[],
+		degrees: number,
+	): Promise<string[]> {
+		const lowered = this.#lowered(automation);
+		const failures: string[] = [];
+		for (const heater of heaters) {
+			const state = heater.state;
+			const target =
+				state?.type === "climate"
+					? state.targetTemperature
+					: state?.type === "valve"
+						? state.target
+						: null;
+			if (target === null || heater.id in lowered) {
+				continue;
+			}
+			const floor =
+				state?.type === "climate"
+					? state.minTemperature
+					: state?.type === "valve"
+						? state.min
+						: 5;
+			try {
+				await this.#setTarget(heater, Math.max(floor, target - degrees));
+				lowered[heater.id] = target;
+			} catch (error) {
+				failures.push(`${heater.toJSON().name}: ${devices.message(error)}`);
+			}
+		}
+		automation.remember({ ...automation.memory, lowered });
+		return failures;
+	}
+
+	async #raise(automation: AutomationDTO, heaters: DeviceDTO[]): Promise<void> {
+		const lowered = this.#lowered(automation);
+		for (const heater of heaters) {
+			const target = lowered[heater.id];
+			if (target === undefined) {
+				continue;
+			}
+			try {
+				await this.#setTarget(heater, target);
+				delete lowered[heater.id];
+			} catch (error) {
+				logger.warn("Heater didn't go back", { heater: heater.id }, error);
+			}
+		}
+		automation.remember({ ...automation.memory, lowered });
+	}
+
+	async #act(
+		homeId: string,
+		action: Exclude<AutomationAction, { type: "valves" | "heating" }>,
+	): Promise<string[]> {
 		const targets =
 			action.type === "blinds"
 				? DeviceDTO.inHome(homeId).filter(
@@ -191,7 +385,10 @@ class Automations {
 		return failures;
 	}
 
-	#apply(device: DeviceDTO, action: AutomationAction): Promise<void> {
+	#apply(
+		device: DeviceDTO,
+		action: Exclude<AutomationAction, { type: "valves" | "heating" }>,
+	): Promise<void> {
 		if (action.type === "blinds") {
 			return action.move === "position"
 				? devices.coverPosition(device, action.position ?? 50)
@@ -208,7 +405,7 @@ class Automations {
 		}
 		return action.type === "printer"
 			? devices.printer(device, { command: action.command })
-			: devices.vacuum(device, action.command);
+			: devices.vacuum(device, { command: action.command });
 	}
 
 	#parts(instant: Date, timeZone: string) {

@@ -150,3 +150,23 @@ describe("rooms with the same name", () => {
 		).toHaveLength(2);
 	});
 });
+
+describe("RoomDTO.place", () => {
+	beforeEach(resetDatabase);
+
+	test("draws a room on the plan and takes it off", () => {
+		const kitchen = room("Kitchen");
+		const shape = [
+			{ x: 1, y: 2, width: 6, height: 4 },
+			{ x: 1, y: 6, width: 2, height: 3 },
+		];
+		kitchen.place(shape);
+		expect(RoomDTO.find(kitchen.toJSON().id, homeId())?.toJSON().plan).toEqual(
+			shape,
+		);
+		kitchen.place(null);
+		expect(
+			RoomDTO.find(kitchen.toJSON().id, homeId())?.toJSON().plan,
+		).toBeNull();
+	});
+});

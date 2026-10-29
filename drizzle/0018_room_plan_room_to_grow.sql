@@ -1,0 +1,1 @@
+UPDATE `room` SET `plan` = (SELECT json_group_array(json_object('x', json_extract(`value`, '$.x') + 12, 'y', json_extract(`value`, '$.y') + 8, 'width', json_extract(`value`, '$.width'), 'height', json_extract(`value`, '$.height'))) FROM json_each(`room`.`plan`)) WHERE `plan` IS NOT NULL;

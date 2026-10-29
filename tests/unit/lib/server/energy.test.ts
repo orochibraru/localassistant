@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
+import { bucketLabel, monthName } from "#lib/energy.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { shelly } from "#lib/server/devices/shelly.js";
-import { energy } from "#lib/server/house/energy.js";
+import { energy, type EnergyChoice } from "#lib/server/house/energy.js";
 import { jobHandlers } from "#lib/server/jobs/handlers.js";
+import { energyRangeSchema } from "#lib/server/validation/energy.js";
 
 import { homeId, resetDatabase } from "../../database.js";
 
@@ -120,34 +122,84 @@ describe("energy", () => {
 		EnergyReadingDTO.record(dryer.id, at("2026-10-28T09:00:00Z"), 1);
 		EnergyReadingDTO.record(dryer.id, at("2026-10-28T10:00:00Z"), 3.5);
 		EnergyReadingDTO.record(dryer.id, at("2026-10-28T10:00:00Z"), 4);
-		const overview = energy.overview(homeId(), "Europe/Paris", now);
-		expect(overview.house.metered).toBe(true);
-		expect(overview.house.days).toHaveLength(30);
-		expect(overview.house.days.at(-1)).toEqual({
+		const days = energy.report(
+			homeId(),
+			"Europe/Paris",
+			{ from: "2026-09-29", to: "2026-10-28" },
+			now,
+		);
+		expect(days.range).toEqual({
+			key: "custom",
+			from: "2026-09-29",
+			to: "2026-10-28",
+			unit: "day",
+		});
+		expect(days.house.metered).toBe(true);
+		expect(days.house.buckets).toHaveLength(30);
+		expect(days.house.buckets.at(-1)).toEqual({
 			key: "2026-10-28",
 			kilowattHours: 5,
 		});
-		expect(overview.house.days.at(-2)).toEqual({
+		expect(days.house.buckets.at(-2)).toEqual({
 			key: "2026-10-27",
 			kilowattHours: 10,
 		});
-		expect(overview.house.months.at(-1)).toEqual({
+		expect(days.house).toMatchObject({
+			total: 15,
+			averagePerDay: 0.5,
+			peak: { key: "2026-10-27", kilowattHours: 10 },
+			lowest: { kilowattHours: 0 },
+			projection: null,
+		});
+		expect(days.months).toEqual(["2026-10"]);
+		const year = energy.report(
+			homeId(),
+			"Europe/Paris",
+			{ preset: "year-to-date" },
+			now,
+		);
+		expect(year.house.buckets.at(-1)).toEqual({
 			key: "2026-10",
 			kilowattHours: 15,
 		});
-		expect(overview.house.months).toHaveLength(12);
-		expect(overview.appliances.map((series) => series.name).toSorted()).toEqual(
-			["Dryer", "Heat pump"],
-		);
+		expect(year.house.buckets).toHaveLength(10);
 		expect(
-			overview.appliances.find((series) => series.name === "Dryer")?.days.at(-1)
-				?.kilowattHours,
-		).toBe(3);
+			days.appliances.map((appliance) => appliance.name).toSorted(),
+		).toEqual(["Dryer", "Heat pump"]);
+		const dryerUse = days.appliances.find(
+			(appliance) => appliance.name === "Dryer",
+		);
+		expect(dryerUse?.buckets.at(-1)?.kilowattHours).toBe(3);
+		expect(dryerUse?.share).toBe(0.2);
+		const hours = energy.report(
+			homeId(),
+			"Europe/Paris",
+			{ preset: "today" },
+			now,
+		);
+		expect(hours.range.unit).toBe("hour");
+		expect(hours.house.buckets).toHaveLength(24);
+		expect(
+			hours.house.buckets.find((bucket) => bucket.key === "2026-10-28 12"),
+		).toEqual({ key: "2026-10-28 12", kilowattHours: 5 });
+		const week = energy.report(
+			homeId(),
+			"Europe/Paris",
+			{ preset: "this-month" },
+			now,
+		);
+		expect(week.house.projection).toBe(16.61);
+		expect(week.house.previousTotal).toBe(0);
 
 		linky.delete();
-		const unmetered = energy.overview(homeId(), "Europe/Paris", now);
+		const unmetered = energy.report(
+			homeId(),
+			"Europe/Paris",
+			{ from: "2026-10-28", to: "2026-10-28" },
+			now,
+		);
 		expect(unmetered.house.metered).toBe(false);
-		expect(unmetered.house.days.at(-1)?.kilowattHours).toBe(3);
+		expect(unmetered.house.total).toBe(3);
 		expect(
 			energy.bucketOf(at("2026-10-27T23:30:00Z"), "Europe/Paris", "day"),
 		).toBe("2026-10-28");
@@ -179,6 +231,65 @@ describe("energy", () => {
 		await jobHandlers["energy.record"]({});
 		await jobHandlers["jobs.prune"]({ olderThanDays: 1 });
 		expect(EnergyReadingDTO.since([linky.id], new Date(0))).toHaveLength(2);
-		expect(energy.overview(homeId(), "UTC").appliances).toEqual([]);
+		expect(
+			energy.report(homeId(), "UTC", { preset: "this-month" }).appliances,
+		).toEqual([]);
+	});
+
+	test("every preset and a month cover the days they say", () => {
+		const today = "2026-10-29";
+		const cases: [EnergyChoice, [string, string, string]][] = [
+			[{ preset: "today" }, [today, today, "hour"]],
+			[{ preset: "yesterday" }, ["2026-10-28", "2026-10-28", "hour"]],
+			[{ preset: "last-3-days" }, ["2026-10-27", today, "hour"]],
+			[{ preset: "this-week" }, ["2026-10-26", today, "day"]],
+			[{ preset: "this-month" }, ["2026-10-01", "2026-10-31", "day"]],
+			[{ preset: "last-month" }, ["2026-09-01", "2026-09-30", "day"]],
+			[{ preset: "last-3-months" }, ["2026-08-01", today, "day"]],
+			[{ preset: "this-year" }, ["2026-01-01", "2026-12-31", "month"]],
+			[{ preset: "year-to-date" }, ["2026-01-01", today, "month"]],
+			[{ preset: "all-time" }, ["2025-03-04", today, "month"]],
+			[{ month: "2026-02" }, ["2026-02-01", "2026-02-28", "day"]],
+			[
+				{ from: "2026-10-20", to: "2026-10-01" },
+				["2026-10-01", "2026-10-20", "day"],
+			],
+			[{ from: "2025-01-01", to: today }, ["2025-01-01", today, "month"]],
+		];
+		for (const [choice, [from, to, unit]] of cases) {
+			expect(energy.resolve(choice, today, "2025-03-04")).toMatchObject({
+				from,
+				to,
+				unit,
+			});
+		}
+		expect(energy.resolve({ preset: "all-time" }, today, null).from).toBe(
+			today,
+		);
+	});
+
+	test("the period query falls back to this month when it makes no sense", () => {
+		expect(energyRangeSchema.parse({ range: "last-month" })).toEqual({
+			preset: "last-month",
+		});
+		expect(energyRangeSchema.parse({ range: "month:2026-02" })).toEqual({
+			month: "2026-02",
+		});
+		expect(
+			energyRangeSchema.parse({ from: "2026-10-01", to: "2026-10-05" }),
+		).toEqual({ from: "2026-10-01", to: "2026-10-05" });
+		expect(energyRangeSchema.parse({ range: "forever" })).toEqual({
+			preset: "this-month",
+		});
+		expect(energyRangeSchema.safeParse({ from: "yesterday" }).success).toBe(
+			false,
+		);
+	});
+
+	test("bars are labelled by hour, day or month", () => {
+		expect(bucketLabel("2026-10-28 14", "hour")).toBe("14h");
+		expect(bucketLabel("2026-10-28", "day")).toBe("28/10");
+		expect(bucketLabel("2026-10", "month")).toMatch(/26/);
+		expect(monthName("2026-09")).toMatch(/2026/);
 	});
 });

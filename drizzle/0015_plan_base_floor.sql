@@ -1,0 +1,1 @@
+ALTER TABLE `home` ADD `plan_base_floor_id` text;

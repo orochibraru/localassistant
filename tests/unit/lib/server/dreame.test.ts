@@ -171,6 +171,26 @@ describe("Dreame cloud", () => {
 			battery: 87,
 			charging: true,
 			errorCode: null,
+			mode: null,
+			suction: null,
+			wetness: null,
+			cleanGenius: null,
+			lastCleanMinutes: null,
+			lastCleanArea: null,
+			partsLeft: {
+				mainBrush: null,
+				sideBrush: null,
+				filter: null,
+				mopPads: null,
+				silverIon: null,
+				detergent: null,
+			},
+			dock: {
+				cleanWater: null,
+				dirtyWater: null,
+				dustBag: null,
+				detergent: null,
+			},
 		});
 		const read = JSON.parse(calls.at(-1)?.body ?? "{}");
 		expect(read.sign).toBe(
@@ -180,7 +200,7 @@ describe("Dreame cloud", () => {
 				)
 				.digest("hex"),
 		);
-		await devices.vacuum(robot, "start");
+		await devices.vacuum(robot, { command: "start" });
 		expect(JSON.parse(calls.at(-1)?.body ?? "{}").data).toMatchObject({
 			method: "action",
 			params: { did: "123456", siid: 2, aiid: 1, in: [] },
@@ -193,9 +213,147 @@ describe("Dreame cloud", () => {
 					name: "Phone",
 					externalId: "browser",
 				}),
-				"start",
+				{ command: "start" },
 			),
 		).rejects.toThrow("That device is not a robot vacuum.");
+	});
+
+	test("reads the cleaning settings, last clean and parts, and writes settings in the robot's numbering", async () => {
+		connect();
+		const robot = addRobot();
+		let mode: number | undefined = 5120;
+		let dock = [
+			{ siid: 4, piid: 25, value: 2 },
+			{ siid: 15, piid: 3, value: 1 },
+		];
+		answers["/dreame-iot-com-10001/device/sendCommand"] = () => {
+			const { data } = JSON.parse(calls.at(-1)?.body ?? "{}") as {
+				data: {
+					method: string;
+					params: { siid: number; piid: number; value: number }[];
+				};
+			};
+			if (data.method === "set_properties") {
+				return json({
+					code: 0,
+					data: {
+						result: data.params.map((param) => ({
+							...param,
+							code: param.siid === 28 && param.value === 31 ? -4004 : 0,
+						})),
+					},
+				});
+			}
+			return json({
+				code: 0,
+				data: {
+					result: [
+						{ siid: 2, piid: 1, value: 8 },
+						{ siid: 4, piid: 2, value: 34 },
+						{ siid: 4, piid: 3, value: 21 },
+						{ siid: 4, piid: 4, value: 1 },
+						...(mode === undefined ? [] : [{ siid: 4, piid: 23, value: mode }]),
+						...dock,
+						{ siid: 9, piid: 2, value: 90 },
+						{ siid: 10, piid: 2, value: 85 },
+						{ siid: 11, piid: 1, value: 81 },
+						{ siid: 18, piid: 1, value: 65 },
+						{ siid: 19, piid: 2, value: 100 },
+						{ siid: 20, piid: 1, value: 18 },
+						{ siid: 27, piid: 1, value: 2 },
+						{ siid: 27, piid: 2, value: 0 },
+						{ siid: 27, piid: 3, value: 7 },
+						{ siid: 28, piid: 1, value: 16 },
+						{
+							siid: 4,
+							piid: 50,
+							value: JSON.stringify([
+								{ k: "LessColl", v: 1 },
+								{ k: "SmartHost", v: 1 },
+							]),
+						},
+					],
+				},
+			});
+		};
+		const lastWrite = () =>
+			(
+				JSON.parse(
+					calls.findLast((call) => call.body.includes('"set_properties"'))
+						?.body ?? "{}",
+				) as { data: { params: unknown[] } }
+			).data.params;
+
+		expect(await dreameCloud.read(robot)).toMatchObject({
+			stage: "drying",
+			mode: "both",
+			suction: "standard",
+			wetness: 16,
+			cleanGenius: true,
+			lastCleanMinutes: 34,
+			lastCleanArea: 21,
+			partsLeft: {
+				mainBrush: 90,
+				sideBrush: 85,
+				filter: 81,
+				mopPads: 65,
+				silverIon: 100,
+				detergent: 18,
+			},
+			dock: {
+				cleanWater: "low",
+				dirtyWater: "ok",
+				dustBag: "check",
+				detergent: null,
+			},
+		});
+		await devices.vacuum(robot, {
+			mode: "vacuum",
+			suction: "max",
+			wetness: 20,
+		});
+		expect(lastWrite()).toEqual([
+			{ did: "123456", siid: 4, piid: 23, value: 5122 },
+			{ did: "123456", siid: 4, piid: 4, value: 3 },
+			{ did: "123456", siid: 28, piid: 1, value: 20 },
+		]);
+
+		dock = [];
+		mode = 2;
+		expect(await dreameCloud.read(robot)).toMatchObject({ mode: "both" });
+		await dreameCloud.configure(robot, { mode: "vacuum" });
+		expect(lastWrite()).toEqual([
+			{ did: "123456", siid: 4, piid: 23, value: 0 },
+		]);
+
+		await devices.vacuum(robot, { reset: "filter" });
+		expect(JSON.parse(calls.at(-1)?.body ?? "{}").data).toMatchObject({
+			method: "action",
+			params: { did: "123456", siid: 11, aiid: 1, in: [] },
+		});
+
+		await dreameCloud.configure(robot, { cleanGenius: false });
+		expect(lastWrite()).toEqual([
+			{
+				did: "123456",
+				siid: 4,
+				piid: 50,
+				value: JSON.stringify({ k: "SmartHost", v: 0 }),
+			},
+		]);
+
+		expect(dreameCloud.configure(robot, { wetness: 31 })).rejects.toThrow(
+			"The robot refused that setting.",
+		);
+		const before = calls.length;
+		await dreameCloud.configure(robot, { command: "start" });
+		expect(calls.length).toBe(before);
+
+		mode = undefined;
+		expect(await dreameCloud.read(robot)).toMatchObject({ mode: null });
+		expect(dreameCloud.configure(robot, { mode: "mop" })).rejects.toThrow(
+			"This robot has no cleaning modes.",
+		);
 	});
 
 	test("explains an unknown stage, an offline robot, a refusal, an expired session and no account", async () => {

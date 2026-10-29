@@ -3,14 +3,19 @@ import type { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { secrets } from "#lib/server/core/secrets.js";
 
-const apiUrl = "https://conso.boris.sh/api/daily_consumption";
+const apiUrl = "https://conso.boris.sh/api/consommation_quotidienne";
 const requestTimeoutMs = 20_000;
 const refreshEveryMs = 6 * 60 * 60_000;
 const dayMs = 24 * 60 * 60_000;
 const windowDays = 365;
 
 interface DailyAnswer {
-	interval_reading?: { value: string; date: string }[];
+	grandeur?: { unite?: string; points?: { v: string | null; d: string }[] }[];
+}
+
+interface ErrorAnswer {
+	message?: string;
+	error?: { error?: string; error_description?: string };
 }
 
 /**
@@ -62,6 +67,18 @@ class Linky {
 		return new Date(`${date}T12:00:00Z`);
 	}
 
+	/** Why conso.boris.sh or Enedis behind it refused, in words a person can act on. */
+	async #refusal(response: Response): Promise<string> {
+		const body = (await response.json().catch(() => ({}))) as ErrorAnswer;
+		if (body.error?.error === "ADAM-DC-0007") {
+			return "Enedis says this account doesn't hold that PRM anymore: give consent for it again on conso.boris.sh.";
+		}
+		const reason = body.error?.error_description ?? body.message;
+		return reason
+			? `conso.boris.sh answered ${response.status}: ${reason}`
+			: `conso.boris.sh answered ${response.status}.`;
+	}
+
 	async #fetch(
 		device: DeviceDTO,
 		now: Date,
@@ -73,15 +90,16 @@ class Linky {
 		const day = (offset: number) =>
 			new Date(now.getTime() - offset * dayMs).toISOString().slice(0, 10);
 		const query = new URLSearchParams({
-			prm: device.externalId,
-			start: day(windowDays),
-			end: day(0),
+			pointId: device.externalId,
+			dateDebut: day(windowDays),
+			dateFin: day(0),
 		});
 		let response: Response;
 		try {
 			response = await fetch(`${apiUrl}?${query}`, {
 				headers: {
 					Authorization: `Bearer ${secrets.decrypt(encrypted)}`,
+					Accept: "application/json",
 					"User-Agent": "LocalAssistant",
 				},
 				signal: AbortSignal.timeout(requestTimeoutMs),
@@ -97,14 +115,20 @@ class Linky {
 			);
 		}
 		if (!response.ok) {
-			throw new Error(`conso.boris.sh answered ${response.status}.`);
+			throw new Error(await this.#refusal(response));
 		}
 		const body = (await response.json()) as DailyAnswer;
-		return (body.interval_reading ?? [])
-			.map((reading) => ({
-				date: reading.date.slice(0, 10),
-				kilowattHours: Number(reading.value) / 1000,
-			}))
+		return (body.grandeur?.[0]?.points ?? [])
+			.flatMap((point) =>
+				point.v === null
+					? []
+					: [
+							{
+								date: point.d.slice(0, 10),
+								kilowattHours: Number(point.v) / 1000,
+							},
+						],
+			)
 			.filter((reading) => Number.isFinite(reading.kilowattHours))
 			.toSorted((first, second) => first.date.localeCompare(second.date));
 	}

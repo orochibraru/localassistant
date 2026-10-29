@@ -99,6 +99,41 @@
       "when": 1793228570158,
       "tag": "0013_device_options",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793273230341,
+      "tag": "0014_card_sizes_room_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1793274612314,
+      "tag": "0015_plan_base_floor",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1793274709484,
+      "tag": "0016_room_plan_shapes",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1793274710075,
+      "tag": "0017_drop_room_plan_cells",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1793275456685,
+      "tag": "0018_room_plan_room_to_grow",
+      "breakpoints": true
     }
   ]
 }

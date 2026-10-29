@@ -1,19 +1,21 @@
 import { command, getRequestEvent } from "$app/server";
 import { error } from "@sveltejs/kit";
 
+import { CardSizeDTO } from "#lib/dto/card-size.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { access } from "#lib/server/auth/access.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { homes } from "#lib/server/house/homes.js";
 import {
 	appReportSchema,
+	cardSizeSchema,
 	climateChangeSchema,
 	coverActionSchema,
 	coverGroupSchema,
 	coverPositionSchema,
 	printerChangeSchema,
 	switchPowerSchema,
-	vacuumCommandSchema,
+	vacuumChangeSchema,
 	valveTargetSchema,
 } from "#lib/server/validation/device.js";
 
@@ -82,11 +84,11 @@ export const reportAppDevice = command(
 );
 
 export const controlVacuum = command(
-	vacuumCommandSchema,
-	async ({ deviceId, command: order }) => {
+	vacuumChangeSchema,
+	async ({ deviceId, ...change }) => {
 		access.requireUser();
 		const device = deviceFor(deviceId);
-		await attempt(() => devices.vacuum(device, order));
+		await attempt(() => devices.vacuum(device, change));
 	},
 );
 
@@ -125,3 +127,9 @@ export const controlBlinds = command(
 		}
 	},
 );
+
+export const resizeCard = command(cardSizeSchema, ({ deviceId, size }) => {
+	const user = access.requireUser();
+	deviceFor(deviceId);
+	CardSizeDTO.save(user.id, deviceId, size);
+});

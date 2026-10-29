@@ -94,12 +94,108 @@ export const vacuumStages = [
 	"charging",
 	"docked",
 	"washing",
+	"drying",
 	"error",
 ] as const;
 export type VacuumStage = (typeof vacuumStages)[number];
 
 export const vacuumCommands = ["start", "pause", "dock", "stop"] as const;
 export type VacuumCommand = (typeof vacuumCommands)[number];
+
+export const vacuumModes = ["vacuum", "mop", "both"] as const;
+export type VacuumMode = (typeof vacuumModes)[number];
+
+export const vacuumModeLabels: Record<VacuumMode, string> = {
+	vacuum: "Vacuum",
+	mop: "Mop",
+	both: "Both",
+};
+
+export const vacuumSuctions = ["quiet", "standard", "strong", "max"] as const;
+export type VacuumSuction = (typeof vacuumSuctions)[number];
+
+export const vacuumSuctionLabels: Record<VacuumSuction, string> = {
+	quiet: "Quiet",
+	standard: "Standard",
+	strong: "Strong",
+	max: "Max",
+};
+
+export const vacuumWetness = { min: 1, max: 32 } as const;
+
+export interface VacuumChange {
+	command?: VacuumCommand;
+	mode?: VacuumMode;
+	suction?: VacuumSuction;
+	wetness?: number;
+	cleanGenius?: boolean;
+	reset?: VacuumPart;
+}
+
+export const vacuumParts = [
+	"mainBrush",
+	"sideBrush",
+	"filter",
+	"mopPads",
+	"silverIon",
+	"detergent",
+] as const;
+export type VacuumPart = (typeof vacuumParts)[number];
+export type VacuumParts = Record<VacuumPart, number | null>;
+
+export const vacuumPartLabels: Record<VacuumPart, string> = {
+	mainBrush: "Main brush",
+	sideBrush: "Side brush",
+	filter: "Filter",
+	mopPads: "Mop pads",
+	silverIon: "Silver ion",
+	detergent: "Detergent",
+};
+
+export const dockStatuses = [
+	"ok",
+	"low",
+	"full",
+	"missing",
+	"check",
+	"off",
+] as const;
+export type DockStatus = (typeof dockStatuses)[number];
+
+export const dockStatusLabels: Record<DockStatus, string> = {
+	ok: "OK",
+	low: "Low",
+	full: "Full or out",
+	missing: "Missing",
+	check: "Check it",
+	off: "Off",
+};
+
+export interface VacuumDock {
+	cleanWater: DockStatus | null;
+	dirtyWater: DockStatus | null;
+	dustBag: DockStatus | null;
+	detergent: DockStatus | null;
+}
+
+export const cardSizes = ["small", "medium", "large"] as const;
+export type CardSize = (typeof cardSizes)[number];
+
+export const cardSizeLabels: Record<CardSize, string> = {
+	small: "Small",
+	medium: "Medium",
+	large: "Large",
+};
+
+/** The size a device's card shows at: what the account picked, else large for a robot vacuum and medium for the rest. */
+export function cardSizeOf(
+	sizes: Record<string, CardSize> | undefined,
+	device: { id: string; kind: string },
+): CardSize {
+	return (
+		sizes?.[device.id] ?? (device.kind === "dreame-vacuum" ? "large" : "medium")
+	);
+}
 
 export const dreameRegions = ["eu", "us", "cn", "sg", "ru"] as const;
 export type DreameRegion = (typeof dreameRegions)[number];
@@ -110,6 +206,14 @@ export interface VacuumState {
 	battery: number | null;
 	charging: boolean;
 	errorCode: number | null;
+	mode: VacuumMode | null;
+	suction: VacuumSuction | null;
+	wetness: number | null;
+	cleanGenius: boolean | null;
+	lastCleanMinutes: number | null;
+	lastCleanArea: number | null;
+	partsLeft: VacuumParts;
+	dock: VacuumDock;
 }
 
 export interface ContactState {

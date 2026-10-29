@@ -1,5 +1,5 @@
 import { JobDTO } from "#lib/dto/job.js";
-import { presets } from "#lib/server/automations/presets.js";
+import { automations } from "#lib/server/automations/automations.js";
 import { configuration } from "#lib/server/core/config.js";
 import { Logger } from "#lib/server/core/logger.js";
 import { databaseConnection } from "#lib/server/db/database.js";
@@ -15,7 +15,9 @@ const logger = new Logger("Worker");
 const parentPid = process.ppid;
 const shutdownDeadlineMs = 30_000;
 
-broker.onContact((device, _previous, next) => presets.onContact(device, next));
+broker.onContact((device, _previous, next) =>
+	automations.onContact(device, next),
+);
 
 const requeued = JobDTO.requeueStale();
 if (requeued > 0) {

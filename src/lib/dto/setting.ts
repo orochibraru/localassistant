@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 
-import type { PresetKey } from "#lib/automations.js";
 import type { DreameRegion } from "#lib/devices.js";
 import { databaseConnection } from "#lib/server/db/database.js";
 import { setting } from "#lib/server/db/schema.js";
@@ -67,7 +66,6 @@ export interface SettingValues {
 	dreame: DreameAccount | null;
 	mqtt: MqttBroker | null;
 	frigate: FrigateServer | null;
-	presets: Record<string, PresetKey[]>;
 	multipleHomes: boolean;
 	passwordSignIn: boolean;
 	passkeySignIn: boolean;
@@ -87,7 +85,6 @@ const defaults: SettingValues = {
 	dreame: null,
 	mqtt: null,
 	frigate: null,
-	presets: {},
 	multipleHomes: false,
 	passwordSignIn: true,
 	passkeySignIn: true,
@@ -122,7 +119,6 @@ export function allSettings(): SettingValues {
 		dreame: getSetting("dreame"),
 		mqtt: getSetting("mqtt"),
 		frigate: getSetting("frigate"),
-		presets: getSetting("presets"),
 		multipleHomes: getSetting("multipleHomes"),
 		passwordSignIn: getSetting("passwordSignIn"),
 		passkeySignIn: getSetting("passkeySignIn"),

@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import {
 	blindMoves,
-	presetKeys,
 	seasons,
 	sunEvents,
 	thresholdDirections,
@@ -31,6 +30,13 @@ export const triggerSchema = z.discriminatedUnion("type", [
 		type: z.literal("temperature"),
 		direction: z.enum(thresholdDirections),
 		threshold: z.number("Type a temperature.").min(-40).max(50),
+	}),
+	z.object({
+		type: z.literal("contact"),
+		deviceIds: z
+			.array(deviceId)
+			.min(1, "Pick at least one door or window sensor.")
+			.max(100),
 	}),
 ]);
 
@@ -67,21 +73,49 @@ export const automationActionSchema = z.discriminatedUnion("type", [
 		deviceId,
 		command: z.enum(vacuumCommands),
 	}),
+	z.object({
+		type: z.literal("heating"),
+		deviceIds: z
+			.array(deviceId)
+			.min(1, "Pick at least one heat pump or radiator valve.")
+			.max(100),
+		degrees: z.number("Type how many degrees.").min(0.5).max(10),
+	}),
+	z.object({
+		type: z.literal("valves"),
+		deviceIds: z
+			.array(deviceId)
+			.min(1, "Pick at least one radiator valve.")
+			.max(100),
+	}),
 ]);
 
-export const automationSchema = z.object({
-	name: z
-		.string()
-		.trim()
-		.min(1, "Name the automation.")
-		.max(60, "Keep it under 60 characters."),
-	trigger: triggerSchema,
-	period: periodSchema,
-	actions: z
-		.array(automationActionSchema)
-		.min(1, "Add something for it to do.")
-		.max(20, "That's a lot: split it in two."),
-});
+export const automationSchema = z
+	.object({
+		name: z
+			.string()
+			.trim()
+			.min(1, "Name the automation.")
+			.max(60, "Keep it under 60 characters."),
+		trigger: triggerSchema,
+		period: periodSchema,
+		actions: z
+			.array(automationActionSchema)
+			.min(1, "Add something for it to do.")
+			.max(20, "That's a lot: split it in two."),
+	})
+	.refine(
+		(automation) =>
+			automation.trigger.type === "contact" ||
+			automation.actions.every(
+				(action) => action.type !== "valves" && action.type !== "heating",
+			),
+		{
+			message:
+				"Radiator valves and turning the heating down follow a door or window: pick that trigger.",
+			path: ["actions"],
+		},
+	);
 
 export const automationFormSchema = z.object({
 	id: z
@@ -100,11 +134,6 @@ export const automationFormSchema = z.object({
 			}
 		})
 		.pipe(automationSchema),
-});
-
-export const presetToggleSchema = z.object({
-	key: z.enum(presetKeys),
-	enabled: z.stringbool().default(false),
 });
 
 export const automationToggleSchema = z.object({

@@ -112,7 +112,8 @@ Each is a hard rule.
   into a throwing `<name>Callback()` that restores its own UI state and a thin
   `handle<Name>()`; a `use:enhance` form uses `enhanceToast` or `saveToast` with
   `reset: false` by default. Exceptions: synchronous results, remote queries
-  that render their own inline error, and device controls.
+  that render their own inline error, device controls, and the plan editor,
+  which keeps drafts and shows a saved line once Done saves them.
 - Device controls are optimistic and silent: a `PendingChanges` shows the change
   on the card at once, debounces taps into one command, spins while it's in
   flight and on failure falls back to the last reading with the reason inline in

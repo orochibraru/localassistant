@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import { guessRoomIcon, houseGroups, placeOf, roomLabels } from "#lib/house.js";
+import {
+	extendPart,
+	freePlanSpot,
+	guessRoomIcon,
+	houseGroups,
+	placeOf,
+	planOutline,
+	planSize,
+	roomLabels,
+	splitPart,
+} from "#lib/house.js";
 
 const room = (id: string, floorId: string | null = null, outdoor = false) => ({
 	id,
@@ -114,5 +124,93 @@ describe("roomLabels", () => {
 			"Shed, Outside",
 			"Shed, no floor",
 		]);
+	});
+});
+
+describe("the house plan", () => {
+	test("an L-shaped room is outlined without the edge between its parts", () => {
+		const outline = planOutline([
+			{ x: 0, y: 0, width: 2, height: 1 },
+			{ x: 0, y: 1, width: 1, height: 1 },
+		]);
+		expect(outline.match(/M/g)?.length).toBe(8);
+		expect(outline).not.toContain("M0 1h1");
+		expect(outline).toContain("M1 1h1");
+	});
+
+	test("a new room goes to the first free spot, the corner when the plan is full", () => {
+		expect(freePlanSpot([])).toEqual({ x: 0, y: 0, width: 6, height: 4 });
+		expect(freePlanSpot([{ x: 0, y: 0, width: 8, height: 4 }])).toEqual({
+			x: 8,
+			y: 0,
+			width: 6,
+			height: 4,
+		});
+		expect(
+			freePlanSpot([
+				{ x: 0, y: 0, width: planSize.columns, height: planSize.rows },
+			]),
+		).toEqual({
+			x: 0,
+			y: 0,
+			width: 6,
+			height: 4,
+		});
+		expect(
+			freePlanSpot([{ x: 0, y: 0, width: planSize.columns, height: 2 }], 3, 2),
+		).toEqual({
+			x: 0,
+			y: 2,
+			width: 3,
+			height: 2,
+		});
+	});
+
+	test("a part grows a new one against any side, never past the plan", () => {
+		const part = { x: 2, y: 2, width: 4, height: 3 };
+		expect(extendPart(part, "right")).toEqual({
+			x: 6,
+			y: 2,
+			width: 3,
+			height: 3,
+		});
+		expect(extendPart(part, "left")).toEqual({
+			x: 0,
+			y: 2,
+			width: 2,
+			height: 3,
+		});
+		expect(extendPart(part, "down")).toEqual({
+			x: 2,
+			y: 5,
+			width: 4,
+			height: 3,
+		});
+		expect(extendPart(part, "up")).toEqual({
+			x: 2,
+			y: 0,
+			width: 4,
+			height: 2,
+		});
+		const whole = {
+			x: 0,
+			y: 0,
+			width: planSize.columns,
+			height: planSize.rows,
+		};
+		expect(extendPart(whole, "up")).toBeNull();
+		expect(extendPart(whole, "right")).toBeNull();
+	});
+
+	test("a part splits across its longer side, a single cell doesn't", () => {
+		expect(splitPart({ x: 0, y: 0, width: 5, height: 2 })).toEqual([
+			{ x: 0, y: 0, width: 2, height: 2 },
+			{ x: 2, y: 0, width: 3, height: 2 },
+		]);
+		expect(splitPart({ x: 0, y: 0, width: 1, height: 4 })).toEqual([
+			{ x: 0, y: 0, width: 1, height: 2 },
+			{ x: 0, y: 2, width: 1, height: 2 },
+		]);
+		expect(splitPart({ x: 0, y: 0, width: 1, height: 1 })).toBeNull();
 	});
 });

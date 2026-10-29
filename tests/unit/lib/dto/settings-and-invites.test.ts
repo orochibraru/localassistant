@@ -24,7 +24,6 @@ describe("settings", () => {
 			dreame: null,
 			mqtt: null,
 			frigate: null,
-			presets: {},
 			multipleHomes: false,
 			passwordSignIn: true,
 			passkeySignIn: true,

@@ -27,6 +27,7 @@ export interface HomeRow {
 	timezone: string | null;
 	weather: Weather | null;
 	weatherAt: Date | null;
+	planBaseFloorId: string | null;
 }
 
 const columns = {
@@ -38,6 +39,7 @@ const columns = {
 	timezone: home.timezone,
 	weather: home.weather,
 	weatherAt: home.weatherAt,
+	planBaseFloorId: home.planBaseFloorId,
 };
 
 type SelectedRow = Omit<HomeRow, "weather"> & { weather: unknown };
@@ -144,6 +146,17 @@ export class HomeDTO extends BaseDTO<HomeRow> {
 			.where(eq(home.id, this.row.id))
 			.run();
 		this.row.name = name;
+	}
+
+	/** Makes `floorId` the floor the plan outlines under the others, or the lowest floor again with null. */
+	setPlanBase(floorId: string | null): void {
+		databaseConnection
+			.get()
+			.update(home)
+			.set({ planBaseFloorId: floorId })
+			.where(eq(home.id, this.row.id))
+			.run();
+		this.row.planBaseFloorId = floorId;
 	}
 
 	/** Removes the home with its automations, devices, rooms and floors, in one transaction: the foreign keys have no ON DELETE. */

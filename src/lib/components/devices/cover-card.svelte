@@ -5,7 +5,7 @@
 	import SquareIcon from "@lucide/svelte/icons/square";
 	import { onDestroy } from "svelte";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import { Slider } from "#lib/components/ui/slider/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
@@ -26,9 +26,20 @@
 		error: string | null;
 		readAt: Date | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, reading, error, readAt, now }: Props = $props();
+	const {
+		id,
+		name,
+		reading,
+		error,
+		readAt,
+		now,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	const actionTargets: Record<CoverAction, number | null> = {
 		open: 100,
@@ -91,12 +102,14 @@
 
 <article class="glass flex flex-col gap-4 rounded-2xl p-4">
 	<header class="flex items-center gap-3">
-		<span
-			class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
-			aria-hidden="true"
-		>
-			<BlindsIcon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+				aria-hidden="true"
+			>
+				<BlindsIcon class="size-5" />
+			</span>
+		{/if}
 		<div class="min-w-0 flex-1">
 			<h2 class="truncate font-semibold">{name}</h2>
 			<p class="text-muted-foreground text-sm">
@@ -116,18 +129,20 @@
 		{#if pending.sending}
 			<Spinner class="text-muted-foreground" aria-label="Sending to {name}" />
 		{/if}
-		<DeviceSettings {id} {name} />
+		<CardMore {name} onclick={onMore} />
 	</header>
 
-	<Slider
-		type="single"
-		bind:value={position}
-		min={0}
-		max={100}
-		step={5}
-		aria-label="{name} position"
-		onValueCommit={(next) => pending.set({ move: { position: next } })}
-	/>
+	{#if !compact}
+		<Slider
+			type="single"
+			bind:value={position}
+			min={0}
+			max={100}
+			step={5}
+			aria-label="{name} position"
+			onValueCommit={(next) => pending.set({ move: { position: next } })}
+		/>
+	{/if}
 
 	<div class="flex justify-between gap-2">
 		<IconButton
@@ -153,7 +168,7 @@
 		/>
 	</div>
 
-	{#if ago}
+	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Read {ago}</p>
 	{/if}
 </article>

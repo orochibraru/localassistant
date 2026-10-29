@@ -7,7 +7,7 @@
 	import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 	import { onDestroy } from "svelte";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import IconButton from "#lib/components/icon-button.svelte";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
@@ -30,9 +30,20 @@
 		error: string | null;
 		readAt: Date | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, reading, error, readAt, now }: Props = $props();
+	const {
+		id,
+		name,
+		reading,
+		error,
+		readAt,
+		now,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	const step = 0.5;
 
@@ -78,12 +89,14 @@
 
 <article class="glass flex flex-col gap-4 rounded-2xl p-4">
 	<header class="flex items-center gap-3">
-		<span
-			class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
-			aria-hidden="true"
-		>
-			<ThermometerIcon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+				aria-hidden="true"
+			>
+				<ThermometerIcon class="size-5" />
+			</span>
+		{/if}
 		<div class="min-w-0 flex-1">
 			<h2 class="truncate font-semibold">{name}</h2>
 			<p class="text-muted-foreground text-sm">
@@ -111,7 +124,7 @@
 				onclick={() => pending.set({ power: !shown.power })}
 			/>
 		{/if}
-		<DeviceSettings {id} {name} />
+		<CardMore {name} onclick={onMore} />
 	</header>
 
 	{#if shown}
@@ -140,7 +153,7 @@
 			/>
 		</div>
 
-		{#if shown.hotWater}
+		{#if shown.hotWater && !compact}
 			<div class="bg-muted/60 flex min-h-14 items-center gap-3 rounded-xl px-3">
 				<DropletIcon class="text-muted-foreground size-5 shrink-0" />
 				<label for="{id}-boost" class="min-w-0 flex-1 cursor-pointer py-2">
@@ -160,7 +173,7 @@
 			</div>
 		{/if}
 
-		{#if shown.modes.length > 0}
+		{#if shown.modes.length > 0 && !compact}
 			<ToggleGroup.Root
 				type="single"
 				bind:value={mode}
@@ -180,7 +193,7 @@
 		{/if}
 	{/if}
 
-	{#if ago}
+	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Read {ago}</p>
 	{/if}
 </article>

@@ -154,6 +154,11 @@ export class AutomationDTO extends BaseDTO<AutomationRow> {
 		this.#update({ checkedAt, memory });
 	}
 
+	/** Keeps what a door or window automation needs to undo later, such as the targets it turned down. */
+	remember(memory: Record<string, unknown> | null): void {
+		this.#update({ memory });
+	}
+
 	/** Records a run, with what failed or `null`. */
 	recordRun(runError: string | null): void {
 		this.#update({ ranAt: new Date(), runError });

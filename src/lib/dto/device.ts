@@ -34,6 +34,7 @@ export interface DeviceOptions {
 	record?: boolean;
 	retentionDays?: number;
 	objectId?: string;
+	pin?: { place: string; x: number; y: number };
 }
 
 export interface TuyaCoverSettings {
@@ -347,6 +348,34 @@ export class DeviceDTO extends BaseDTO<DeviceRow> {
 			.where(eq(device.id, this.row.id))
 			.run();
 		Object.assign(this.row, rest);
+	}
+
+	/** Points a Linky at another PRM or token, forgetting its last reading so the next one is fetched at once. */
+	relink(values: {
+		name: string;
+		roomId: string | null;
+		externalId: string;
+		encryptedLocalKey?: string;
+	}): void {
+		const { encryptedLocalKey, ...rest } = values;
+		databaseConnection
+			.get()
+			.update(device)
+			.set({
+				...rest,
+				localKey: encryptedLocalKey,
+				state: null,
+				stateError: null,
+				stateAt: null,
+				updatedAt: new Date(),
+			})
+			.where(eq(device.id, this.row.id))
+			.run();
+		Object.assign(this.row, rest, {
+			state: null,
+			stateError: null,
+			stateAt: null,
+		});
 	}
 
 	/** Removes the device. */

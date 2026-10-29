@@ -21,6 +21,7 @@ import {
 	editBambuPrinterSchema,
 	editCameraSchema,
 	editEspHomeSchema,
+	editLinkySchema,
 	editTuyaCoverSchema,
 	espHomeSchema,
 	frigateSchema,
@@ -303,6 +304,42 @@ export const actions = {
 		refreshSoon(device.id);
 		return { added: true };
 	},
+	editLinky: async ({ cookies, locals, request }) => {
+		const admin = access.adminFrom(locals);
+		if (!("id" in admin)) {
+			return admin;
+		}
+		const home = homes.current(cookies);
+		const parsed = parseForm(editLinkySchema, await request.formData());
+		if (!parsed.success) {
+			return fail(400, { errors: parsed.errors });
+		}
+		const { id, token, ...rest } = parsed.data;
+		if (roomMissing(home.id, rest.roomId)) {
+			return fail(400, { errors: { roomId: ["That room is gone."] } });
+		}
+		const device = DeviceDTO.find(id, home.id);
+		if (device?.kind !== "linky") {
+			return fail(404, { error: "That meter is gone." });
+		}
+		const taken = DeviceDTO.all().some(
+			(other) =>
+				other.kind === "linky" &&
+				other.externalId === rest.externalId &&
+				other.id !== id,
+		);
+		if (taken) {
+			return fail(400, {
+				errors: { externalId: ["Another Linky already reads this PRM."] },
+			});
+		}
+		device.relink({
+			...rest,
+			encryptedLocalKey: token ? secrets.encrypt(token) : undefined,
+		});
+		refreshSoon(device.id);
+		return { saved: true };
+	},
 	addCamera: async ({ cookies, locals, request }) => {
 		const admin = access.adminFrom(locals);
 		if (!("id" in admin)) {
@@ -353,7 +390,7 @@ export const actions = {
 			host: url ? new URL(url).hostname : (device.host ?? ""),
 			encryptedLocalKey: url ? secrets.encrypt(url) : undefined,
 		});
-		device.setOptions({ record, retentionDays });
+		device.setOptions({ ...device.options, record, retentionDays });
 		JobDTO.enqueue("cameras.sync", {}, { maxAttempts: 1 });
 		return { saved: true };
 	},
@@ -449,7 +486,7 @@ export const actions = {
 					? secrets.encrypt(`${username}:${password}`)
 					: undefined,
 		});
-		device.setOptions({ objectId });
+		device.setOptions({ ...device.options, objectId });
 		refreshSoon(device.id);
 		return { saved: true };
 	},

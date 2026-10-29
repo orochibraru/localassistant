@@ -12,6 +12,7 @@ import ClapperboardIcon from "@lucide/svelte/icons/clapperboard";
 import CookingPotIcon from "@lucide/svelte/icons/cooking-pot";
 import DoorClosedIcon from "@lucide/svelte/icons/door-closed";
 import DoorOpenIcon from "@lucide/svelte/icons/door-open";
+import DoorStairwellIcon from "@lucide/svelte/icons/door-stairwell";
 import DumbbellIcon from "@lucide/svelte/icons/dumbbell";
 import FlameIcon from "@lucide/svelte/icons/flame";
 import Gamepad2Icon from "@lucide/svelte/icons/gamepad-2";
@@ -44,6 +45,7 @@ import type { RoomIcon } from "#lib/house.js";
 const icons: Record<RoomIcon, Component<{ class?: string }>> = {
 	door: DoorOpenIcon,
 	entrance: DoorClosedIcon,
+	stairs: DoorStairwellIcon,
 	living: SofaIcon,
 	lounge: ArmchairIcon,
 	dining: UtensilsCrossedIcon,

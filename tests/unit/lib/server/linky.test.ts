@@ -6,7 +6,7 @@ import { secrets } from "#lib/server/core/secrets.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { linky } from "#lib/server/devices/linky.js";
 import { energy } from "#lib/server/house/energy.js";
-import { linkySchema } from "#lib/server/validation/device.js";
+import { editLinkySchema, linkySchema } from "#lib/server/validation/device.js";
 
 import { homeId, resetDatabase } from "../../database.js";
 
@@ -25,12 +25,18 @@ function addLinky(withToken = true) {
 	});
 }
 
-const daily = (values: [string, number][]) =>
+const daily = (values: [string, number | null][]) =>
 	Response.json({
-		interval_reading: values.map(([date, value]) => ({
-			date,
-			value: String(value),
-		})),
+		idPrm: "12345678901234",
+		grandeur: [
+			{
+				unite: "Wh",
+				points: values.map(([d, value]) => ({
+					d,
+					v: value === null ? null : String(value),
+				})),
+			},
+		],
 	});
 
 beforeEach(() => {
@@ -55,9 +61,11 @@ describe("Linky online", () => {
 				["2026-10-27", 12_500],
 				["2026-10-26", 10_000],
 				["2026-10-25", Number.NaN],
+				["2026-10-24", null],
 			]);
 		await devices.refresh(meter);
-		expect(urls[0]).toContain("prm=12345678901234");
+		expect(urls[0]).toContain("/api/consommation_quotidienne?");
+		expect(urls[0]).toContain("pointId=12345678901234");
 		expect(DeviceDTO.find(meter.id)?.state).toEqual({
 			type: "linky",
 			day: "2026-10-27",
@@ -68,12 +76,14 @@ describe("Linky online", () => {
 				(reading) => reading.toJSON().total,
 			),
 		).toEqual([10, 22.5]);
-		const overview = energy.overview(homeId(), "Europe/Paris", now);
-		expect(overview.house.metered).toBe(true);
-		expect(overview.house.days.at(-2)).toEqual({
-			key: "2026-10-27",
-			kilowattHours: 12.5,
-		});
+		const report = energy.report(
+			homeId(),
+			"Europe/Paris",
+			{ from: "2026-10-27", to: "2026-10-28" },
+			now,
+		);
+		expect(report.house.metered).toBe(true);
+		expect(report.house.total).toBe(12.5);
 
 		answer = () => daily([["2026-10-28", 9000]]);
 		const fresh = DeviceDTO.find(meter.id) as DeviceDTO;
@@ -97,10 +107,68 @@ describe("Linky online", () => {
 		expect(linky.read(addLinky())).rejects.toThrow("refused the token");
 		answer = () => new Response("", { status: 500 });
 		expect(linky.read(addLinky())).rejects.toThrow("answered 500");
+		answer = () =>
+			Response.json(
+				{
+					status: 400,
+					message: "The Enedis API returned an error",
+					error: {
+						error: "ADAM-DC-0007",
+						error_description:
+							"Le client n'est pas titulaire du point demandé.",
+					},
+				},
+				{ status: 400 },
+			);
+		expect(linky.read(addLinky())).rejects.toThrow(
+			"Enedis says this account doesn't hold that PRM anymore",
+		);
+		answer = () =>
+			Response.json(
+				{ status: 400, message: "The Enedis API returned an error" },
+				{ status: 400 },
+			);
+		expect(linky.read(addLinky())).rejects.toThrow(
+			"conso.boris.sh answered 400: The Enedis API returned an error",
+		);
 		answer = () => Promise.reject(new Error("offline"));
 		expect(linky.read(addLinky())).rejects.toThrow("can't be reached");
 		resetDatabase();
 		expect(linky.read(addLinky(false))).rejects.toThrow("no token");
+	});
+
+	test("another PRM or token reads the meter again at once, an empty token keeps the old one", () => {
+		const meter = addLinky();
+		meter.saveState({ type: "linky", day: "2026-10-27", kilowattHours: 12 });
+		meter.relink({
+			name: "Meter",
+			roomId: null,
+			externalId: "99999999999999",
+		});
+		const relinked = DeviceDTO.find(meter.id);
+		expect(relinked?.toJSON()).toMatchObject({
+			name: "Meter",
+			externalId: "99999999999999",
+			state: null,
+			stateAt: null,
+		});
+		expect(relinked?.encryptedLocalKey()).not.toBeNull();
+		expect(
+			editLinkySchema.parse({
+				id: meter.id,
+				name: "Meter",
+				externalId: "99999999999999",
+				token: "",
+			}).token,
+		).toBeUndefined();
+		expect(
+			editLinkySchema.safeParse({
+				id: meter.id,
+				name: "Meter",
+				externalId: "99999999999999",
+				token: "short",
+			}).success,
+		).toBe(false);
 	});
 
 	test("the form wants a 14-digit PRM and a token", () => {

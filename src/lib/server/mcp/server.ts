@@ -273,7 +273,7 @@ class McpEndpoint {
 			},
 			({ deviceId, command }) =>
 				this.#withDevice(deviceId, async (device) => {
-					await devices.vacuum(device, command);
+					await devices.vacuum(device, { command });
 					return { done: true };
 				}),
 		);

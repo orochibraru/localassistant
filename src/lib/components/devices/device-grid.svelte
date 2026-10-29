@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { page } from "$app/state";
 	import type { ComponentProps } from "svelte";
 
 	import DeviceCard from "#lib/components/devices/device-card.svelte";
+	import { type CardSize, cardSizeOf } from "#lib/devices.js";
 
 	type Device = ComponentProps<typeof DeviceCard>["device"];
 
@@ -30,6 +32,12 @@
 		app: 5,
 	};
 
+	const spans: Record<CardSize, string> = {
+		small: "",
+		medium: "@min-[25rem]:col-span-2",
+		large: "@min-[25rem]:col-span-2 @min-[40rem]:col-span-4",
+	};
+
 	const sorted = $derived(
 		devices.toSorted(
 			(first, second) =>
@@ -39,10 +47,13 @@
 	);
 </script>
 
-<ul
-	class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] md:gap-4"
->
-	{#each sorted as device (device.id)}
-		<li><DeviceCard {device} {now} /></li>
-	{/each}
-</ul>
+<div class="@container">
+	<ul
+		class="grid grid-flow-dense gap-3 @min-[25rem]:grid-cols-2 @min-[40rem]:grid-cols-4 @min-[62rem]:grid-cols-6 @min-[84rem]:grid-cols-8 md:gap-4"
+	>
+		{#each sorted as device (device.id)}
+			{@const size = cardSizeOf(page.data.cardSizes, device)}
+			<li class={spans[size]}><DeviceCard {device} {now} {size} /></li>
+		{/each}
+	</ul>
+</div>

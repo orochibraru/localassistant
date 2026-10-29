@@ -77,7 +77,7 @@
 		"zigbee-switch": "rename",
 		"zigbee-meter": "rename",
 		"shelly-meter": "rename",
-		linky: "rename",
+		linky: "editLinky",
 		camera: "editCamera",
 		"frigate-camera": "rename",
 		"esphome-climate": "editEspHome",
@@ -836,6 +836,21 @@
 					/>
 					<Field.Error errors={errorsOf("ownerId")} />
 				</Field.Field>
+			{/if}
+			{#if editing.kind === "linky"}
+				{@render text("edit", "externalId", "PRM", {
+					value: editing.externalId,
+					numeric: true,
+					description:
+						"On your bill, or on the meter: press + until it shows the PRM.",
+				})}
+				{@render text("edit", "token", "Token", {
+					secret: true,
+					optional: true,
+					placeholder: "Unchanged",
+					description:
+						"Leave empty to keep the current one. A new one comes from conso.boris.sh.",
+				})}
 			{/if}
 			{#if editing.kind === "esphome-climate"}
 				{@render text("edit", "host", "IP address", {

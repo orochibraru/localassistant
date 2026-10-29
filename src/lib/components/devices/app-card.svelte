@@ -6,7 +6,7 @@
 	import MapPinIcon from "@lucide/svelte/icons/map-pin";
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import {
 		type AppState,
 		describeDistance,
@@ -22,9 +22,21 @@
 		readAt: Date | null;
 		home: { latitude: number; longitude: number } | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, ownerName, reading, readAt, home, now }: Props = $props();
+	const {
+		id,
+		name,
+		ownerName,
+		reading,
+		readAt,
+		home,
+		now,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	const ago = $derived(readAgo(readAt, now));
 	const location = $derived(reading?.location ?? null);
@@ -50,12 +62,14 @@
 
 <article class="glass flex flex-col gap-4 rounded-2xl p-4">
 	<header class="flex items-center gap-3">
-		<span
-			class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
-			aria-hidden="true"
-		>
-			<SmartphoneIcon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+				aria-hidden="true"
+			>
+				<SmartphoneIcon class="size-5" />
+			</span>
+		{/if}
 		<div class="min-w-0 flex-1">
 			<h2 class="truncate font-semibold">{name}</h2>
 			<p class="text-muted-foreground truncate text-sm">
@@ -64,50 +78,52 @@
 					: ""}
 			</p>
 		</div>
-		<DeviceSettings {id} {name} />
+		<CardMore {name} onclick={onMore} />
 	</header>
-	{#if reading}
-		<dl class="grid grid-cols-2 gap-3">
-			<div class="bg-secondary/60 flex items-center gap-2 rounded-xl p-3">
-				<BatteryIcon class="text-muted-foreground size-5 shrink-0" />
-				<div>
-					<dt class="sr-only">Battery</dt>
-					<dd class="font-medium">
-						{reading.battery === null ? "Unknown" : `${reading.battery}%`}
-					</dd>
-					<dd class="text-muted-foreground text-xs">
-						{reading.charging ? "Charging" : "Battery"}
-					</dd>
+	{#if !compact}
+		{#if reading}
+			<dl class="grid grid-cols-2 gap-3">
+				<div class="bg-secondary/60 flex items-center gap-2 rounded-xl p-3">
+					<BatteryIcon class="text-muted-foreground size-5 shrink-0" />
+					<div>
+						<dt class="sr-only">Battery</dt>
+						<dd class="font-medium">
+							{reading.battery === null ? "Unknown" : `${reading.battery}%`}
+						</dd>
+						<dd class="text-muted-foreground text-xs">
+							{reading.charging ? "Charging" : "Battery"}
+						</dd>
+					</div>
 				</div>
-			</div>
-			<div class="bg-secondary/60 flex items-center gap-2 rounded-xl p-3">
-				<MapPinIcon class="text-muted-foreground size-5 shrink-0" />
-				<div class="min-w-0">
-					<dt class="sr-only">Location</dt>
-					<dd class="truncate font-medium">
-						{#if location}
-							<a
-								class="underline-offset-4 hover:underline"
-								href="https://www.openstreetmap.org/?mlat={location.latitude}&mlon={location.longitude}#map=16/{location.latitude}/{location.longitude}"
-								target="_blank"
-								rel="noopener noreferrer">{where}</a
-							>
-						{:else}
-							Not shared
-						{/if}
-					</dd>
-					<dd class="text-muted-foreground truncate text-xs">
-						{location ? readAgo(new Date(location.at), now) : "Location"}
-					</dd>
+				<div class="bg-secondary/60 flex items-center gap-2 rounded-xl p-3">
+					<MapPinIcon class="text-muted-foreground size-5 shrink-0" />
+					<div class="min-w-0">
+						<dt class="sr-only">Location</dt>
+						<dd class="truncate font-medium">
+							{#if location}
+								<a
+									class="underline-offset-4 hover:underline"
+									href="https://www.openstreetmap.org/?mlat={location.latitude}&mlon={location.longitude}#map=16/{location.latitude}/{location.longitude}"
+									target="_blank"
+									rel="noopener noreferrer">{where}</a
+								>
+							{:else}
+								Not shared
+							{/if}
+						</dd>
+						<dd class="text-muted-foreground truncate text-xs">
+							{location ? readAgo(new Date(location.at), now) : "Location"}
+						</dd>
+					</div>
 				</div>
-			</div>
-		</dl>
-	{:else}
-		<p class="text-muted-foreground text-sm">
-			Hasn't reported yet: open LocalAssistant on it.
-		</p>
+			</dl>
+		{:else}
+			<p class="text-muted-foreground text-sm">
+				Hasn't reported yet: open LocalAssistant on it.
+			</p>
+		{/if}
 	{/if}
-	{#if ago}
+	{#if ago && !compact}
 		<p class="text-muted-foreground text-xs">Reported {ago}</p>
 	{/if}
 </article>

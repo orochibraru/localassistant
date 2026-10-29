@@ -2,6 +2,7 @@ import { resolve } from "$app/paths";
 import GaugeIcon from "@lucide/svelte/icons/gauge";
 import HouseIcon from "@lucide/svelte/icons/house";
 import LayersIcon from "@lucide/svelte/icons/layers";
+import MapIcon from "@lucide/svelte/icons/map";
 import PlugIcon from "@lucide/svelte/icons/plug";
 import ShieldIcon from "@lucide/svelte/icons/shield";
 import WorkflowIcon from "@lucide/svelte/icons/workflow";
@@ -21,6 +22,7 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 	const items = [
 		{ href: resolve("/(protected)"), label: "Home", icon: HouseIcon },
 		{ href: resolve("/(protected)/house"), label: "House", icon: LayersIcon },
+		{ href: resolve("/(protected)/plan"), label: "Plan", icon: MapIcon },
 		{
 			href: resolve("/(protected)/automations"),
 			label: "Automations",

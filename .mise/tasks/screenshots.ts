@@ -11,6 +11,7 @@ import {
 import { hashPassword } from "better-auth/crypto";
 import { $, Image } from "bun";
 
+import { presets } from "#lib/automations.js";
 import type { DeviceState } from "#lib/devices.js";
 import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
@@ -18,7 +19,6 @@ import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
-import { setSetting } from "#lib/dto/setting.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { databaseConnection } from "#lib/server/db/database.js";
@@ -272,6 +272,26 @@ demo.push(
 			battery: 100,
 			charging: false,
 			errorCode: null,
+			mode: "both",
+			suction: "standard",
+			wetness: 16,
+			cleanGenius: true,
+			lastCleanMinutes: 34,
+			lastCleanArea: 21,
+			partsLeft: {
+				mainBrush: 90,
+				sideBrush: 85,
+				filter: 81,
+				mopPads: 65,
+				silverIon: 100,
+				detergent: 18,
+			},
+			dock: {
+				cleanWater: "low",
+				dirtyWater: "ok",
+				dustBag: "ok",
+				detergent: "ok",
+			},
 		},
 	],
 	[
@@ -349,7 +369,15 @@ AutomationDTO.create(homeId, {
 		},
 	],
 });
-setSetting("presets", { [homeId]: ["window-valves"] });
+AutomationDTO.create(
+	homeId,
+	presets["window-valves"].build(
+		DeviceDTO.inHome(homeId).map((device) => ({
+			id: device.id,
+			kind: device.kind,
+		})),
+	),
+);
 
 function showDemoStates(): void {
 	for (const [device, state] of demo) {

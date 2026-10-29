@@ -1,6 +1,7 @@
 export const roomIconLabels = {
 	door: "Room",
 	entrance: "Entrance",
+	stairs: "Staircase",
 	living: "Living room",
 	lounge: "Lounge",
 	dining: "Dining room",
@@ -49,6 +50,130 @@ export const roomIcons = Object.keys(roomIconLabels) as [
 
 export const outsidePlace = "outside";
 export const noFloorPlace = "none";
+
+export const planSize = { columns: 48, rows: 32 } as const;
+
+export interface RoomPlan {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+/** The outline of a room made of `parts`, as an SVG path in plan cells: every cell edge with no cell of the room across it. */
+export function planOutline(parts: RoomPlan[]): string {
+	const cells = new Set<string>();
+	for (const part of parts) {
+		for (let x = part.x; x < part.x + part.width; x++) {
+			for (let y = part.y; y < part.y + part.height; y++) {
+				cells.add(`${x},${y}`);
+			}
+		}
+	}
+	const edges: string[] = [];
+	for (const cell of cells) {
+		const [x = 0, y = 0] = cell.split(",").map(Number);
+		if (!cells.has(`${x},${y - 1}`)) {
+			edges.push(`M${x} ${y}h1`);
+		}
+		if (!cells.has(`${x},${y + 1}`)) {
+			edges.push(`M${x} ${y + 1}h1`);
+		}
+		if (!cells.has(`${x - 1},${y}`)) {
+			edges.push(`M${x} ${y}v1`);
+		}
+		if (!cells.has(`${x + 1},${y}`)) {
+			edges.push(`M${x + 1} ${y}v1`);
+		}
+	}
+	return edges.join("");
+}
+
+export type PlanSide = "right" | "down" | "left" | "up";
+
+/** A new part of up to 3 cells against `side` of `part`, as deep as the plan allows, or null at the plan's edge. */
+export function extendPart(part: RoomPlan, side: PlanSide): RoomPlan | null {
+	const depth = 3;
+	if (side === "right" || side === "left") {
+		const room =
+			side === "right" ? planSize.columns - (part.x + part.width) : part.x;
+		const width = Math.min(depth, room);
+		if (width < 1) {
+			return null;
+		}
+		return {
+			x: side === "right" ? part.x + part.width : part.x - width,
+			y: part.y,
+			width,
+			height: part.height,
+		};
+	}
+	const room =
+		side === "down" ? planSize.rows - (part.y + part.height) : part.y;
+	const height = Math.min(depth, room);
+	if (height < 1) {
+		return null;
+	}
+	return {
+		x: part.x,
+		y: side === "down" ? part.y + part.height : part.y - height,
+		width: part.width,
+		height,
+	};
+}
+
+/** `part` cut in two across its longer side, or null for a single cell. */
+export function splitPart(part: RoomPlan): [RoomPlan, RoomPlan] | null {
+	if (part.width >= part.height && part.width > 1) {
+		const left = Math.floor(part.width / 2);
+		return [
+			{ ...part, width: left },
+			{ ...part, x: part.x + left, width: part.width - left },
+		];
+	}
+	if (part.height > 1) {
+		const top = Math.floor(part.height / 2);
+		return [
+			{ ...part, height: top },
+			{ ...part, y: part.y + top, height: part.height - top },
+		];
+	}
+	return null;
+}
+
+/** The floor the plan outlines under the others: the one the home picked while it still exists, else the lowest. */
+export function planBaseFloor(
+	floors: HouseFloor[],
+	chosenId: string | null,
+): HouseFloor | undefined {
+	return (
+		floors.find((floor) => floor.id === chosenId) ??
+		floors.toSorted((first, second) => first.level - second.level)[0]
+	);
+}
+
+/** The first spot of the plan, row by row, where a `width` by `height` part overlaps none of `taken`; the top left corner when it's full. */
+export function freePlanSpot(
+	taken: RoomPlan[],
+	width = 6,
+	height = 4,
+): RoomPlan {
+	for (let y = 0; y + height <= planSize.rows; y++) {
+		for (let x = 0; x + width <= planSize.columns; x++) {
+			const overlaps = taken.some(
+				(other) =>
+					x < other.x + other.width &&
+					other.x < x + width &&
+					y < other.y + other.height &&
+					other.y < y + height,
+			);
+			if (!overlaps) {
+				return { x, y, width, height };
+			}
+		}
+	}
+	return { x: 0, y: 0, width, height };
+}
 
 export interface HouseRoom {
 	id: string;
@@ -121,6 +246,7 @@ export function placeOf(room: Pick<HouseRoom, "floorId" | "outdoor">): string {
 }
 
 const iconKeywords: [RoomIcon, string[]][] = [
+	["stairs", ["stair", "stairs", "staircase", "stairwell", "escalier"]],
 	["kids", ["kid", "child", "enfant", "bebe", "baby", "nursery"]],
 	[
 		"bathroom",

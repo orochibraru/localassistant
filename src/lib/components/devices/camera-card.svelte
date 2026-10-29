@@ -3,7 +3,7 @@
 	import CctvIcon from "@lucide/svelte/icons/cctv";
 	import CircleIcon from "@lucide/svelte/icons/circle";
 
-	import DeviceSettings from "#lib/components/devices/device-settings.svelte";
+	import CardMore from "#lib/components/devices/card-more.svelte";
 	import { type CameraState, readAgo } from "#lib/devices.js";
 
 	interface Props {
@@ -13,9 +13,20 @@
 		reading: CameraState | null;
 		error: string | null;
 		now: number;
+		compact?: boolean;
+		onMore?: () => void;
 	}
 
-	const { id, name, frigateName, reading, error, now }: Props = $props();
+	const {
+		id,
+		name,
+		frigateName,
+		reading,
+		error,
+		now,
+		compact = false,
+		onMore,
+	}: Props = $props();
 
 	const snapshot = $derived(
 		frigateName
@@ -34,21 +45,25 @@
 </script>
 
 <article class="glass relative flex flex-col gap-3 rounded-2xl p-4">
-	{#if snapshot}
-		<img
-			src={snapshot}
-			alt="{name}, latest picture"
-			class="aspect-video w-full rounded-xl bg-black object-cover"
-			loading="lazy"
-		/>
+	{#if !compact}
+		{#if snapshot}
+			<img
+				src={snapshot}
+				alt="{name}, latest picture"
+				class="aspect-video w-full rounded-xl bg-black object-cover"
+				loading="lazy"
+			/>
+		{/if}
 	{/if}
 	<header class="flex items-center gap-3">
-		<span
-			class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
-			aria-hidden="true"
-		>
-			<CctvIcon class="size-5" />
-		</span>
+		{#if !compact}
+			<span
+				class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+				aria-hidden="true"
+			>
+				<CctvIcon class="size-5" />
+			</span>
+		{/if}
 		<div class="min-w-0 flex-1">
 			<h2 class="truncate font-semibold">
 				<a
@@ -69,6 +84,6 @@
 				{/if}
 			</p>
 		</div>
-		<DeviceSettings {id} {name} />
+		<CardMore {name} onclick={onMore} />
 	</header>
 </article>

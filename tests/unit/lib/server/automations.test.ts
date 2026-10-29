@@ -6,6 +6,8 @@ import {
 	describeTrigger,
 	describeWeekdays,
 	inPeriod,
+	presetKeys,
+	presets,
 	seasonOf,
 } from "#lib/automations.js";
 import {
@@ -18,7 +20,10 @@ import { RoomDTO } from "#lib/dto/room.js";
 import { automations } from "#lib/server/automations/automations.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { jobHandlers } from "#lib/server/jobs/handlers.js";
-import { automationFormSchema } from "#lib/server/validation/automation.js";
+import {
+	automationFormSchema,
+	automationSchema,
+} from "#lib/server/validation/automation.js";
 import type { Weather } from "#lib/weather.js";
 
 import { resetDatabase } from "../../database.js";
@@ -105,6 +110,12 @@ describe("automation helpers", () => {
 				threshold: 28,
 			}),
 		).toBe("When it gets above 28°C outside");
+		expect(describeTrigger({ type: "contact", deviceIds: ["window"] })).toBe(
+			"When a door or window opens",
+		);
+		expect(
+			describeTrigger({ type: "contact", deviceIds: ["window", "door"] }),
+		).toBe("When one of 2 doors or windows opens");
 		expect(describePeriod({ type: "always" })).toBe("All year");
 		expect(describePeriod({ type: "seasons", seasons: ["summer"] })).toBe(
 			"In summer",
@@ -122,6 +133,9 @@ describe("automation helpers", () => {
 				names,
 			),
 		).toBe("Close every blind");
+		expect(
+			describeAction({ type: "valves", deviceIds: ["radiator"] }, names),
+		).toBe("Close 1 radiator valve in its room until it shuts");
 		expect(
 			describeAction(
 				{ type: "blinds", roomId: "room", move: "position", position: 30 },
@@ -426,5 +440,17 @@ describe("automations", () => {
 				definition: JSON.stringify({ ...definition, actions: [] }),
 			}).success,
 		).toBe(false);
+	});
+
+	test("every preset builds an automation the form accepts", () => {
+		const house = [
+			{ id: "window", kind: "zigbee-contact" },
+			{ id: "radiator", kind: "zigbee-valve" },
+		];
+		for (const key of presetKeys) {
+			expect(
+				automationSchema.safeParse(presets[key].build(house)).success,
+			).toBe(true);
+		}
 	});
 });

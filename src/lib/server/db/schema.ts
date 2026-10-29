@@ -9,6 +9,9 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
+import { cardSizes } from "#lib/devices.js";
+import type { RoomPlan } from "#lib/house.js";
+
 const createdAt = () =>
 	integer("created_at", { mode: "timestamp_ms" })
 		.notNull()
@@ -244,6 +247,7 @@ export const home = sqliteTable("home", {
 	timezone: text("timezone"),
 	weather: text("weather", { mode: "json" }),
 	weatherAt: integer("weather_at", { mode: "timestamp_ms" }),
+	planBaseFloorId: text("plan_base_floor_id"),
 	createdAt: createdAt(),
 });
 
@@ -268,6 +272,7 @@ export const room = sqliteTable("room", {
 		onDelete: "set null",
 	}),
 	outdoor: integer("outdoor", { mode: "boolean" }).notNull().default(false),
+	plan: text("plan", { mode: "json" }).$type<RoomPlan[]>(),
 	createdAt: createdAt(),
 });
 
@@ -335,6 +340,20 @@ export const energyReading = sqliteTable(
 		total: real("total").notNull(),
 	},
 	(table) => [primaryKey({ columns: [table.deviceId, table.hour] })],
+);
+
+export const cardSize = sqliteTable(
+	"card_size",
+	{
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		deviceId: text("device_id")
+			.notNull()
+			.references(() => device.id, { onDelete: "cascade" }),
+		size: text("size", { enum: cardSizes }).notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.deviceId] })],
 );
 
 export const automation = sqliteTable("automation", {

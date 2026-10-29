@@ -11,8 +11,6 @@
 		describeAction,
 		describePeriod,
 		describeTrigger,
-		presetKeys,
-		presets,
 	} from "#lib/automations.js";
 	import AutomationSheet from "#lib/components/automations/automation-sheet.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
@@ -32,7 +30,6 @@
 	let sheetOpen = $state(false);
 	const toggles = $state<Record<string, HTMLFormElement | undefined>>({});
 	let editing = $state<Automation | null>(null);
-
 	function openSheet(automation: Automation | null) {
 		editing = automation;
 		sheetOpen = true;
@@ -52,45 +49,6 @@
 		rooms: roomLabels(data.rooms, data.floors),
 	});
 </script>
-
-<section
-	class="glass mb-6 flex flex-col gap-4 rounded-2xl p-4 md:p-6"
-	aria-labelledby="presets-heading"
->
-	<div>
-		<h2 id="presets-heading" class="font-semibold">Presets</h2>
-		<p class="text-muted-foreground mt-1 text-sm">
-			Ready-made, they react to the devices as soon as they report.
-		</p>
-	</div>
-	{#each presetKeys as key (key)}
-		<form
-			bind:this={toggles[key]}
-			method="POST"
-			action="?/preset"
-			class="flex items-start justify-between gap-4"
-			use:enhance={saveToast(presets[key].title)}
-		>
-			<input type="hidden" name="key" value={key} />
-			<label for="preset-{key}" class="min-w-0 cursor-pointer">
-				<span class="block font-medium">{presets[key].title}</span>
-				<span class="text-muted-foreground mt-0.5 block text-sm"
-					>{presets[key].description} Needs Zigbee door or window sensors and valves
-					in the same room.</span
-				>
-			</label>
-			<Switch
-				id="preset-{key}"
-				name="enabled"
-				value="true"
-				checked={data.presets.includes(key)}
-				onCheckedChange={() =>
-					void tick().then(() => toggles[key]?.requestSubmit())}
-				class="mt-1 shrink-0"
-			/>
-		</form>
-	{/each}
-</section>
 
 {#if data.automations.length === 0}
 	<div class="glass rounded-2xl">

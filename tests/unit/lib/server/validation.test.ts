@@ -15,10 +15,12 @@ import {
 	editRoomSchema,
 	editTuyaCoverSchema,
 	floorSchema,
+	planChangesSchema,
 	printerChangeSchema,
 	renameDeviceSchema,
 	roomSettingsSchema,
 	tuyaCoverSchema,
+	vacuumChangeSchema,
 } from "#lib/server/validation/device.js";
 import { parseForm } from "#lib/server/validation/form.js";
 
@@ -165,6 +167,24 @@ describe("parseForm", () => {
 		expect(printerChangeSchema.safeParse({ deviceId: "p" }).success).toBe(
 			false,
 		);
+	});
+
+	test("a vacuum change names a command, a mode, a suction or a wetness within the robot's range", () => {
+		expect(
+			vacuumChangeSchema.safeParse({
+				deviceId: "v",
+				mode: "both",
+				suction: "max",
+				wetness: 32,
+			}).success,
+		).toBe(true);
+		expect(
+			vacuumChangeSchema.safeParse({ deviceId: "v", wetness: 33 }).success,
+		).toBe(false);
+		expect(
+			vacuumChangeSchema.safeParse({ deviceId: "v", mode: "spin" }).success,
+		).toBe(false);
+		expect(vacuumChangeSchema.safeParse({ deviceId: "v" }).success).toBe(false);
 	});
 
 	test("a room has a name, an icon and a place, and house means no room", () => {
@@ -321,5 +341,28 @@ describe("password change schemas", () => {
 				confirmPassword: "Correct-Horse-9",
 			},
 		});
+	});
+
+	test("plan changes keep every room part inside the plan", () => {
+		const part = { x: 2, y: 2, width: 4, height: 3 };
+		expect(
+			planChangesSchema.safeParse({
+				rooms: [
+					{ roomId: "kitchen", plan: [part] },
+					{ roomId: "hall", plan: null },
+				],
+				moves: [{ deviceId: "robot", roomId: "house" }],
+				baseFloorId: "ground",
+			}),
+		).toMatchObject({
+			success: true,
+			data: { moves: [{ deviceId: "robot", roomId: null }] },
+		});
+		expect(
+			planChangesSchema.safeParse({
+				rooms: [{ roomId: "kitchen", plan: [{ ...part, x: 47 }] }],
+				moves: [],
+			}).success,
+		).toBe(false);
 	});
 });
