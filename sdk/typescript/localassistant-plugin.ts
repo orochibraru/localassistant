@@ -319,6 +319,13 @@ export interface ButtonState {
 	pressedAt: string | null;
 }
 
+export interface PresenceState {
+	type: "presence";
+	home: boolean | null;
+	zone: string | null;
+	battery: number | null;
+}
+
 export type DeviceState =
 	| CoverState
 	| ClimateState
@@ -336,7 +343,8 @@ export type DeviceState =
 	| FanState
 	| MediaState
 	| SensorState
-	| ButtonState;
+	| ButtonState
+	| PresenceState;
 
 export interface ClimateChange {
 	power?: boolean;
@@ -364,6 +372,7 @@ export const pluginCards = [
 	"media",
 	"sensor",
 	"button",
+	"presence",
 	"app",
 ] as const;
 
@@ -388,6 +397,7 @@ export const pluginIcons = [
 	"speaker",
 	"thermometer",
 	"tv",
+	"user",
 	"zap",
 ] as const;
 

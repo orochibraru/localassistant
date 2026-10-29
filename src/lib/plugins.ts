@@ -17,6 +17,7 @@ export const pluginCards = [
 	"media",
 	"sensor",
 	"button",
+	"presence",
 	"app",
 ] as const;
 export type PluginCard = (typeof pluginCards)[number];
@@ -40,6 +41,7 @@ export const pluginIcons = [
 	"speaker",
 	"thermometer",
 	"tv",
+	"user",
 	"zap",
 ] as const;
 export type PluginIcon = (typeof pluginIcons)[number];

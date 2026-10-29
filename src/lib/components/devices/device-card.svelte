@@ -13,6 +13,7 @@
 	import LightCard from "#lib/components/devices/light-card.svelte";
 	import LockCard from "#lib/components/devices/lock-card.svelte";
 	import MediaCard from "#lib/components/devices/media-card.svelte";
+	import PresenceCard from "#lib/components/devices/presence-card.svelte";
 	import PrinterCard from "#lib/components/devices/printer-card.svelte";
 	import ReadingsCard from "#lib/components/devices/readings-card.svelte";
 	import SensorCard from "#lib/components/devices/sensor-card.svelte";
@@ -265,6 +266,17 @@
 			name={device.name}
 			reading={reading?.type === "button" ? reading : null}
 			error={device.stateError}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "presence"}
+		<PresenceCard
+			name={device.name}
+			{ownerName}
+			reading={reading?.type === "presence" ? reading : null}
+			error={device.stateError}
+			readAt={device.stateAt}
 			{now}
 			{compact}
 			{onMore}

@@ -213,6 +213,14 @@ type ButtonState struct {
 	PressedAt *string `json:"pressedAt"`
 }
 
+// PresenceState is what a person tracker reports: home, away, or the zone it's in.
+type PresenceState struct {
+	Type    string   `json:"type"`
+	Home    *bool    `json:"home"`
+	Zone    *string  `json:"zone"`
+	Battery *float64 `json:"battery"`
+}
+
 // CameraLive says where a camera's live view is, under the device's media path.
 type CameraLive struct {
 	Format string `json:"format"`

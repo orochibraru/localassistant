@@ -16,6 +16,7 @@ import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 import SpeakerIcon from "@lucide/svelte/icons/speaker";
 import ThermometerIcon from "@lucide/svelte/icons/thermometer";
 import TvIcon from "@lucide/svelte/icons/tv";
+import UserIcon from "@lucide/svelte/icons/user";
 import ZapIcon from "@lucide/svelte/icons/zap";
 import type { Component } from "svelte";
 
@@ -43,6 +44,7 @@ export const pluginIconComponents: Record<
 	speaker: SpeakerIcon,
 	thermometer: ThermometerIcon,
 	tv: TvIcon,
+	user: UserIcon,
 	zap: ZapIcon,
 };
 

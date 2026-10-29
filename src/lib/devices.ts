@@ -371,6 +371,13 @@ export interface ButtonState {
 	pressedAt: string | null;
 }
 
+export interface PresenceState {
+	type: "presence";
+	home: boolean | null;
+	zone: string | null;
+	battery: number | null;
+}
+
 export type AppReport = Omit<AppState, "type" | "location"> & {
 	location?: Omit<AppLocation, "at"> | null;
 };
@@ -392,7 +399,8 @@ export type DeviceState =
 	| FanState
 	| MediaState
 	| SensorState
-	| ButtonState;
+	| ButtonState
+	| PresenceState;
 
 /** How far apart two points are, in metres, along the Earth's surface. */
 export function distanceMetres(
