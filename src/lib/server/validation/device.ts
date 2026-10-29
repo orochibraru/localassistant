@@ -196,15 +196,19 @@ const deviceName = z.string().trim().min(1, "Name the device.").max(60);
 
 export const appDeviceSchema = z.object({ name: deviceName });
 
+const ownerId = z
+	.string()
+	.trim()
+	.optional()
+	.transform((value) => (value && value !== nobody ? value : null));
+
+export const deviceOwnerSchema = z.object({ ownerId });
+
 export const editAppDeviceSchema = z.object({
 	id: deviceId,
 	name: deviceName,
 	roomId,
-	ownerId: z
-		.string()
-		.trim()
-		.optional()
-		.transform((value) => (value && value !== nobody ? value : null)),
+	ownerId,
 });
 
 export const appReportSchema = z.object({

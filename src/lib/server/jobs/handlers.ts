@@ -9,6 +9,7 @@ import { Logger } from "#lib/server/core/logger.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { energy } from "#lib/server/house/energy.js";
+import { presences } from "#lib/server/house/presence.js";
 import { weatherService } from "#lib/server/house/weather.js";
 import type { JobPayloads, JobType } from "#lib/server/jobs/types.js";
 import { mailer } from "#lib/server/notifications/mailer.js";
@@ -91,6 +92,13 @@ export const jobHandlers: JobHandlers = {
 	},
 	"automation.resume": async (payload) => {
 		await automations.resume(payload);
+	},
+	"presence.update": async ({ userId }) => {
+		const change = presences.update(userId);
+		if (change) {
+			logger.info("Presence changed", { userId, home: change.home });
+			await automations.onPresence(change);
+		}
 	},
 	"broker.connect": () => {
 		broker.restart();

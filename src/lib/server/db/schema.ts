@@ -396,6 +396,14 @@ export const automationRun = sqliteTable(
 	],
 );
 
+export const presence = sqliteTable("presence", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	home: integer("home", { mode: "boolean" }),
+	changedAt: integer("changed_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export const scene = sqliteTable("scene", {
 	id: text("id")
 		.primaryKey()

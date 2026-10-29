@@ -10,6 +10,7 @@ export interface JobPayloads {
 	"weather.refresh": { homeId?: string };
 	"automations.tick": Record<string, never>;
 	"automation.run": { automationId: string };
+	"presence.update": { userId: string };
 	"automation.resume": {
 		automationId: string;
 		runId: string;

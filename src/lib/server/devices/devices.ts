@@ -119,8 +119,8 @@ class Devices {
 	}
 
 	/**
-	 * Saves what a phone or tablet running the app reported; its last location stays when `report.location` is
-	 * `undefined`, and goes when it's `null`.
+	 * Saves what a phone or tablet running the app reported, and has the worker work out again whether its owner is
+	 * home; its last location stays when `report.location` is `undefined`, and goes when it's `null`.
 	 */
 	reportApp(device: DeviceDTO, report: AppReport): void {
 		const previous = device.state?.type === "app" ? device.state : null;
@@ -133,6 +133,13 @@ class Devices {
 					? (previous?.location ?? null)
 					: location && { ...location, at: new Date().toISOString() },
 		});
+		if (device.ownerId) {
+			JobDTO.enqueue(
+				"presence.update",
+				{ userId: device.ownerId },
+				{ maxAttempts: 1 },
+			);
+		}
 	}
 
 	/** A message fit for the page from whatever a plugin threw. */

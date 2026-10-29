@@ -20,6 +20,15 @@ deviceEvents.onContact((device, next) => automations.onContact(device, next));
 deviceEvents.onChange((device, previous, next) =>
 	automations.onChange(device, previous, next),
 );
+deviceEvents.onChange((device, _previous, next) => {
+	if (device.ownerId && (next.type === "presence" || next.type === "app")) {
+		JobDTO.enqueue(
+			"presence.update",
+			{ userId: device.ownerId },
+			{ maxAttempts: 1 },
+		);
+	}
+});
 
 const requeued = JobDTO.requeueStale();
 if (requeued > 0) {

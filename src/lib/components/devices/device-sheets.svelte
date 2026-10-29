@@ -375,7 +375,7 @@
 			<input type="hidden" name="id" value={editing.id} />
 			{@render nameField("edit", editing.name)}
 			{@render roomPicker("edit", editing.roomId)}
-			{#if editing.kind === "app"}
+			{#if editing.kind === "app" || kindInfo(kinds, editing.kind).card === "presence"}
 				<Field.Field>
 					<Field.Label for="edit-owner">Whose is it</Field.Label>
 					<Picker

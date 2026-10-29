@@ -5,6 +5,7 @@ import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { getSetting, setSetting } from "#lib/dto/setting.js";
 import { UserDTO } from "#lib/dto/user.js";
+import { kindInfo } from "#lib/plugins.js";
 import { access } from "#lib/server/auth/access.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { broker } from "#lib/server/devices/broker.js";
@@ -12,7 +13,10 @@ import { devices } from "#lib/server/devices/devices.js";
 import { homes } from "#lib/server/house/homes.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 import { pluginSetup } from "#lib/server/plugins/setup.js";
-import { editAppDeviceSchema } from "#lib/server/validation/device.js";
+import {
+	deviceOwnerSchema,
+	editAppDeviceSchema,
+} from "#lib/server/validation/device.js";
 import { idSchema, parseForm } from "#lib/server/validation/form.js";
 import {
 	addDeviceSchema,
@@ -29,6 +33,16 @@ function roomMissing(homeId: string, roomId: string | null): boolean {
 function pluginFrom(formData: FormData) {
 	const parsed = parseForm(pluginIdSchema, formData);
 	return parsed.success ? pluginSetup.plugin(parsed.data.plugin) : undefined;
+}
+
+function handOver(device: DeviceDTO, ownerId: string | null): void {
+	const previous = device.ownerId;
+	device.setOwner(ownerId);
+	for (const userId of new Set([previous, ownerId])) {
+		if (userId) {
+			JobDTO.enqueue("presence.update", { userId }, { maxAttempts: 1 });
+		}
+	}
 }
 
 export const load = async ({ parent }) => {
@@ -101,6 +115,17 @@ export const actions = {
 		if (roomMissing(home.id, roomId)) {
 			return fail(400, { errors: { roomId: ["That room is gone."] } });
 		}
+		if (kindInfo(plugins.catalog(), device.kind).card === "presence") {
+			const owner = parseForm(deviceOwnerSchema, formData);
+			const ownerId = owner.success ? owner.data.ownerId : null;
+			if (
+				ownerId &&
+				!UserDTO.people().some((person) => person.id === ownerId)
+			) {
+				return fail(400, { errors: { ownerId: ["That account is gone."] } });
+			}
+			handOver(device, ownerId);
+		}
 		if (!hosted) {
 			device.rename(name, roomId);
 			return { saved: true };
@@ -134,7 +159,7 @@ export const actions = {
 			return fail(404, { error: "That device is gone." });
 		}
 		device.rename(name, roomId);
-		device.setOwner(ownerId);
+		handOver(device, ownerId);
 		return { saved: true };
 	},
 	connect: async ({ cookies, locals, request }) => {
