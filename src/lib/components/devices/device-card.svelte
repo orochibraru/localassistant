@@ -5,10 +5,16 @@
 	import { toast } from "svelte-sonner";
 
 	import AppCard from "#lib/components/devices/app-card.svelte";
+	import ButtonCard from "#lib/components/devices/button-card.svelte";
 	import CameraCard from "#lib/components/devices/camera-card.svelte";
 	import ClimateCard from "#lib/components/devices/climate-card.svelte";
 	import CoverCard from "#lib/components/devices/cover-card.svelte";
+	import FanCard from "#lib/components/devices/fan-card.svelte";
+	import LightCard from "#lib/components/devices/light-card.svelte";
+	import LockCard from "#lib/components/devices/lock-card.svelte";
+	import MediaCard from "#lib/components/devices/media-card.svelte";
 	import PrinterCard from "#lib/components/devices/printer-card.svelte";
+	import ReadingsCard from "#lib/components/devices/readings-card.svelte";
 	import SensorCard from "#lib/components/devices/sensor-card.svelte";
 	import SwitchCard from "#lib/components/devices/switch-card.svelte";
 	import VacuumCard from "#lib/components/devices/vacuum-card.svelte";
@@ -194,6 +200,70 @@
 			id={device.id}
 			name={device.name}
 			reading={reading?.type === "camera" ? reading : null}
+			error={device.stateError}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "light"}
+		<LightCard
+			id={device.id}
+			name={device.name}
+			reading={reading?.type === "light" ? reading : null}
+			error={device.stateError}
+			readAt={device.stateAt}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "lock"}
+		<LockCard
+			id={device.id}
+			name={device.name}
+			reading={reading?.type === "lock" ? reading : null}
+			error={device.stateError}
+			readAt={device.stateAt}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "fan"}
+		<FanCard
+			id={device.id}
+			name={device.name}
+			reading={reading?.type === "fan" ? reading : null}
+			error={device.stateError}
+			readAt={device.stateAt}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "media"}
+		<MediaCard
+			id={device.id}
+			name={device.name}
+			reading={reading?.type === "media" ? reading : null}
+			error={device.stateError}
+			readAt={device.stateAt}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "sensor"}
+		<ReadingsCard
+			name={device.name}
+			reading={reading?.type === "sensor" ? reading : null}
+			error={device.stateError}
+			readAt={device.stateAt}
+			{now}
+			{compact}
+			{onMore}
+		/>
+	{:else if cardType === "button"}
+		<ButtonCard
+			id={device.id}
+			name={device.name}
+			reading={reading?.type === "button" ? reading : null}
 			error={device.stateError}
 			{now}
 			{compact}
