@@ -1,9 +1,10 @@
 # Routines
 
 The server runs every routine, whether or not anyone has the app open: the
-worker checks the clock-driven ones once a minute, and door or window routines
-the moment a sensor reports. Everyone signed in can add, change, run or switch
-one off.
+worker checks the clock-driven ones once a minute, and device routines the
+moment a device reports. Everyone signed in can add, change, run or switch one
+off. **Routines** has three tabs: the routines, the scenes, and the history of
+every run.
 
 ## When
 
@@ -12,19 +13,44 @@ one off.
 - **A time** on chosen weekdays, in the home's time zone.
 - **The outside temperature** getting above or below a threshold. It fires once
   when it crosses, and again only after it went back by a degree.
-- **A door or window opens**: one of the chosen Zigbee contact sensors.
+- **A door or window opens**: one of the chosen contact sensors.
+- **A device changes**: turns on or off, opens or shuts, locks or unlocks,
+  starts playing, is pressed, or goes above or below a value (a sensor's
+  reading, a meter's watts, a thermostat's room temperature, a light's
+  brightness, a blind's position). It fires when the device gets there, not
+  while it stays.
 
 ## During
 
 All year, chosen seasons (winter is December to February, summer June to
 August), or a date range that repeats every year and may wrap over New Year.
 
+## Only if
+
+Conditions checked when the trigger fires; if one doesn't hold, the routine
+skips that time and the history says which:
+
+- a device is on, off, open, shut, locked, playing, above or below a value;
+- between two times (it may wrap over midnight);
+- on chosen weekdays;
+- during the day or at night, from the home's sunrise and sunset.
+
+**Run now** ignores them.
+
 ## Do
 
-Steps run one after the other: blinds of a room or every blind in the house
-(open, close or to a position), a heat pump (on with a mode and temperature, or
-off), a printer (pause, resume, stop) or a robot vacuum (start, pause, stop,
-dock). A step that fails doesn't stop the next; the card shows what failed.
+Steps run one after the other:
+
+- **Drive a device**: any device that takes a command, a light (on, off,
+  brightness, white), a switch, a lock, a fan, a speaker or TV, a heat pump, a
+  valve, a blind, a button, a printer or a robot vacuum;
+- **Set a scene**;
+- **Move blinds** of a room or every blind in the house;
+- **Wait** some minutes before the next steps. Changing or switching off the
+  routine cancels the steps still waiting.
+
+A step that fails doesn't stop the next; the card and the history show what
+failed.
 
 With a door or window trigger, two more steps hold until the sensors shut:
 
@@ -34,6 +60,18 @@ With a door or window trigger, two more steps hold until the sensors shut:
 - **Turn the heating down** by some degrees: the chosen heat pumps and valves in
   that room, or all of them for a door in the whole house, go back to the target
   they had once it shuts.
+
+## Scenes
+
+A scene is a set of devices and what each one should be doing: movie night,
+bedtime, away. **Add a device** brings it in the way it is now, **Use how they
+are now** captures every one again, and each can be changed by hand. **Set**
+puts them all that way; routines set scenes too.
+
+## History
+
+Every run for 30 days: what set it off, whether it ran, was skipped by a
+condition, is waiting on a delay, or failed, and why.
 
 ## Presets
 

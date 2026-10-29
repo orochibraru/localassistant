@@ -20,9 +20,11 @@ your phone like an app.
 - **Energy**: Shelly meters and metering plugs per appliance, the Linky for the
   house (ZLinky or Enedis online), per day and per month.
 - **Routines** run by the server: sunrise, sunset, a time on chosen days, the
-  outside temperature or a door or window opening, limited to seasons or dates,
-  driving blinds by room, heat pumps, radiator valves, printers and the vacuum.
-  Presets to start from, like radiators off while a window is open.
+  outside temperature, a door opening or any device changing, limited to seasons
+  or dates and to conditions (a device's state, a time window, weekdays, day or
+  night). They drive any device, set scenes and wait between steps, and every
+  run is in their history. Presets to start from, like radiators off while a
+  window is open.
 - **Cameras**: RTSP cameras watched and recorded on the server in five-minute
   files with a retention, or a Frigate NVR with its events, clips and detection
   notifications. The Bambu printer's camera on its card.
