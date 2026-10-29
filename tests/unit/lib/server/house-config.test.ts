@@ -4,7 +4,7 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
-import { getSetting, setSetting } from "#lib/dto/setting.js";
+import { getPluginSettings, setPluginSettings } from "#lib/dto/setting.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { houseConfiguration } from "#lib/server/house/house-config.js";
 import { houseConfigSchema } from "#lib/server/validation/house-config.js";
@@ -39,8 +39,8 @@ function furnish(home: HomeDTO) {
 		externalId: "bf0000000000bath0000",
 		roomId: bathDown,
 		host: "192.168.1.40",
-		protocolVersion: "3.4",
-		encryptedLocalKey: secrets.encrypt("abcdabcdabcdabcd"),
+		fields: { protocolVersion: "3.4" },
+		encryptedSecrets: { localKey: secrets.encrypt("abcdabcdabcdabcd") },
 	});
 	DeviceDTO.upsert({
 		homeId: home.id,
@@ -48,9 +48,10 @@ function furnish(home: HomeDTO) {
 		name: "Ada's phone",
 		externalId: "browser-1",
 	});
-	setSetting("melcloud", {
-		email: "ada@example.com",
-		encryptedPassword: secrets.encrypt("hunter2"),
+	setPluginSettings("melcloud", {
+		homeId: home.id,
+		values: { email: "ada@example.com" },
+		secrets: { password: secrets.encrypt("hunter2") },
 	});
 }
 
@@ -74,8 +75,12 @@ describe("house configuration", () => {
 		expect(JSON.stringify(plain)).not.toContain("abcdabcdabcdabcd");
 		expect(JSON.stringify(plain)).not.toContain("hunter2");
 		const full = houseConfiguration.export(home, true);
-		expect(full.devices[0]?.secret).toBe("abcdabcdabcdabcd");
-		expect(full.melcloud?.password).toBe("hunter2");
+		expect(full.devices[0]?.secrets).toEqual({ localKey: "abcdabcdabcdabcd" });
+		expect(full.devices[0]?.fields).toEqual({ protocolVersion: "3.4" });
+		expect(full.plugins.melcloud).toEqual({
+			values: { email: "ada@example.com" },
+			secrets: { password: "hunter2" },
+		});
 		expect(
 			houseConfigSchema.safeParse(JSON.parse(JSON.stringify(full))).success,
 		).toBe(true);
@@ -88,7 +93,7 @@ describe("house configuration", () => {
 			JSON.parse(JSON.stringify(houseConfiguration.export(home, true))),
 		);
 		home.delete();
-		setSetting("melcloud", null);
+		setPluginSettings("melcloud", null);
 		const flat = HomeDTO.create("Flat");
 		expect(houseConfiguration.import(flat, file)).toEqual({
 			floors: 2,
@@ -105,10 +110,11 @@ describe("house configuration", () => {
 		expect(
 			FloorDTO.find(bathroom?.toJSON().floorId ?? "", flat.id)?.toJSON().name,
 		).toBe("Ground floor");
-		expect(secrets.decrypt(blind?.encryptedLocalKey() ?? "")).toBe(
+		expect(secrets.decrypt(blind?.encryptedSecrets().localKey ?? "")).toBe(
 			"abcdabcdabcdabcd",
 		);
-		expect(getSetting("melcloud")?.email).toBe("ada@example.com");
+		expect(getPluginSettings("melcloud")?.values.email).toBe("ada@example.com");
+		expect(getPluginSettings("melcloud")?.homeId).toBe(flat.id);
 	});
 
 	test("carries the plan, its base floor and the pinned devices to another home", () => {
@@ -162,18 +168,18 @@ describe("house configuration", () => {
 		expect(
 			houseConfigSchema.safeParse({
 				format: "localassistant-house",
-				version: 2,
+				version: 1,
 			}).success,
 		).toBe(false);
 		const minimal = houseConfigSchema.parse({
 			format: "localassistant-house",
-			version: 1,
+			version: 2,
 		});
 		expect(minimal).toMatchObject({
 			floors: [],
 			rooms: [],
 			devices: [],
-			melcloud: null,
+			plugins: {},
 		});
 	});
 });

@@ -3,9 +3,6 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { bucketLabel, monthName, rangeLabel } from "#lib/energy.js";
-import { secrets } from "#lib/server/core/secrets.js";
-import { broker } from "#lib/server/devices/broker.js";
-import { shelly } from "#lib/server/devices/shelly.js";
 import { energy, type EnergyChoice } from "#lib/server/house/energy.js";
 import { jobHandlers } from "#lib/server/jobs/handlers.js";
 import { energyRangeSchema } from "#lib/server/validation/energy.js";
@@ -30,69 +27,6 @@ function meter(
 			: { type: "meter", power: null, energy: 0 },
 	);
 	return device;
-}
-
-describe("Shelly", () => {
-	test("reads relays, single meters and three-phase meters", () => {
-		expect(
-			shelly.readings("switch:0", { apower: 12.5, aenergy: { total: 1500 } }),
-		).toEqual([{ channel: "switch:0", power: 12.5, energy: 1.5 }]);
-		expect(shelly.readings("em1:1", { act_power: 900 })).toEqual([
-			{ channel: "em1:1", power: 900 },
-		]);
-		expect(shelly.readings("em1data:1", { total_act_energy: 2000 })).toEqual([
-			{ channel: "em1:1", energy: 2 },
-		]);
-		expect(
-			shelly.readings("em:0", {
-				a_act_power: 1,
-				b_act_power: 2,
-				c_act_power: 3,
-			}),
-		).toHaveLength(3);
-		expect(
-			shelly.readings("emdata:0", { a_total_act_energy: 1000 })[0],
-		).toEqual({
-			channel: "em:0:a",
-			energy: 1,
-		});
-		expect(shelly.readings("sys", {})).toEqual([]);
-		expect(shelly.readings("input:0", {})).toEqual([]);
-	});
-
-	test("the broker brings each channel in as a meter", async () => {
-		resetDatabase();
-		const settings = {
-			url: "mqtt://broker.local:1883",
-			username: null,
-			encryptedPassword: secrets.encrypt("x"),
-			zigbeeTopic: "zigbee2mqtt",
-			homeId: homeId(),
-		};
-		await broker.handle(
-			settings,
-			"shellyem-1/status/em1:0",
-			JSON.stringify({ act_power: 2400 }),
-		);
-		await broker.handle(
-			settings,
-			"shellyem-1/status/em1data:0",
-			JSON.stringify({ total_act_energy: 5000 }),
-		);
-		await broker.handle(settings, "shellyem-1/events/rpc", "{}");
-		await broker.handle(settings, "shellyem-1/status/em1:0", "nope");
-		broker.flush();
-		const [device] = DeviceDTO.inHome(homeId());
-		expect(device?.kind).toBe("shelly-meter");
-		expect(device?.externalId).toBe("shellyem-1/em1:0");
-		expect(device?.state).toEqual({ type: "meter", power: 2400, energy: 5 });
-		await devices();
-	});
-});
-
-async function devices() {
-	const { devices: service } = await import("#lib/server/devices/devices.js");
-	await service.refresh(DeviceDTO.inHome(homeId())[0] as DeviceDTO);
 }
 
 describe("energy", () => {

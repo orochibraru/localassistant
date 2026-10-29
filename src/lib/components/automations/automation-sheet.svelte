@@ -65,6 +65,7 @@
 	} from "#lib/devices.js";
 	import type { AutomationDefinition } from "#lib/dto/automation.js";
 	import { type HouseFloor, type HouseRoom, roomLabels } from "#lib/house.js";
+	import type { PluginCard } from "#lib/plugins.js";
 	import { enhanceToast } from "#lib/toast.js";
 
 	interface Props {
@@ -72,7 +73,7 @@
 		editing: (AutomationDefinition & { id: string }) | null;
 		devices: {
 			id: string;
-			kind: string;
+			card: PluginCard;
 			name: string;
 			roomId: string | null;
 		}[];
@@ -169,23 +170,17 @@
 		to = `2026-${period?.type === "dates" ? period.to : "08-31"}`;
 	}
 
-	const ofKinds = (...kinds: string[]) =>
+	const ofCards = (...cards: PluginCard[]) =>
 		devices
-			.filter((device) => kinds.includes(device.kind))
+			.filter((device) => cards.includes(device.card))
 			.map((device) => ({ value: device.id, label: device.name }));
-	const climateOptions = $derived(
-		ofKinds("melcloud-ata", "melcloud-atw", "esphome-climate"),
-	);
-	const printerOptions = $derived(ofKinds("bambu-printer"));
-	const vacuumOptions = $derived(ofKinds("dreame-vacuum"));
-	const sensorOptions = $derived(ofKinds("zigbee-contact"));
-	const valveOptions = $derived(ofKinds("zigbee-valve"));
-	const heaterOptions = $derived(
-		ofKinds("melcloud-ata", "melcloud-atw", "esphome-climate", "zigbee-valve"),
-	);
-	const hasBlinds = $derived(
-		devices.some((device) => device.kind === "tuya-cover"),
-	);
+	const climateOptions = $derived(ofCards("climate"));
+	const printerOptions = $derived(ofCards("printer"));
+	const vacuumOptions = $derived(ofCards("vacuum"));
+	const sensorOptions = $derived(ofCards("contact"));
+	const valveOptions = $derived(ofCards("valve"));
+	const heaterOptions = $derived(ofCards("climate", "valve"));
+	const hasBlinds = $derived(devices.some((device) => device.card === "cover"));
 	const roomOptions = $derived([
 		{ value: "house", label: "Every blind in the house" },
 		...[...roomLabels(rooms, floors)]

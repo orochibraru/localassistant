@@ -17,6 +17,7 @@ import {
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import { automations } from "#lib/server/automations/automations.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { jobHandlers } from "#lib/server/jobs/handlers.js";
@@ -325,21 +326,20 @@ describe("automations", () => {
 			externalId: "1",
 		});
 		const moved: string[] = [];
-		const coverAction = spyOn(devices, "coverAction").mockImplementation(
-			async (device, action) => {
-				moved.push(`${device.externalId}:${action}`);
+		const sent: DeviceCommand[] = [];
+		const command = spyOn(devices, "command").mockImplementation(
+			async (device, given) => {
+				sent.push(given);
+				if (given.type === "cover") {
+					moved.push(
+						`${device.externalId}:${"action" in given.move ? given.move.action : given.move.position}`,
+					);
+				}
+				if (given.type === "climate") {
+					throw new Error("MELCloud is down.");
+				}
 			},
 		);
-		const coverPosition = spyOn(devices, "coverPosition").mockImplementation(
-			async (device, position) => {
-				moved.push(`${device.externalId}:${position}`);
-			},
-		);
-		const climate = spyOn(devices, "climate").mockRejectedValue(
-			new Error("MELCloud is down."),
-		);
-		const vacuum = spyOn(devices, "vacuum").mockResolvedValue();
-		const printer = spyOn(devices, "printer").mockResolvedValue();
 		const due = make(home, {
 			name: "Evening",
 			actions: [
@@ -380,19 +380,16 @@ describe("automations", () => {
 		expect(row?.runError).toBe(
 			"Pump: MELCloud is down. A device it drives is gone.",
 		);
-		expect(climate).toHaveBeenCalledWith(expect.anything(), {
-			power: true,
-			mode: "heat",
-			targetTemperature: 19,
+		expect(sent).toContainEqual({
+			type: "climate",
+			change: { power: true, mode: "heat", targetTemperature: 19 },
 		});
-		expect(printer).toHaveBeenCalled();
-		expect(vacuum).not.toHaveBeenCalled();
+		expect(sent.some((entry) => entry.type === "printer")).toBe(true);
+		expect(sent.some((entry) => entry.type === "vacuum")).toBe(false);
 		expect(
 			await automations.tick(AutomationDTO.all(), at("2026-12-15T16:01:00Z")),
 		).toBe(0);
-		for (const spy of [coverAction, coverPosition, climate, vacuum, printer]) {
-			spy.mockRestore();
-		}
+		command.mockRestore();
 	});
 
 	test("jobs run one automation now, and tick every minute", async () => {
@@ -444,8 +441,8 @@ describe("automations", () => {
 
 	test("every preset builds an automation the form accepts", () => {
 		const house = [
-			{ id: "window", kind: "zigbee-contact" },
-			{ id: "radiator", kind: "zigbee-valve" },
+			{ id: "window", card: "contact" as const },
+			{ id: "radiator", card: "valve" as const },
 		];
 		for (const key of presetKeys) {
 			expect(
