@@ -129,8 +129,17 @@ export interface PluginManifest {
 	kinds: PluginKind[];
 }
 
+export const pluginSourceKinds = [
+	"github",
+	"gitlab",
+	"gitea",
+	"folder",
+] as const;
+export type PluginSourceKind = (typeof pluginSourceKinds)[number];
+
 export const pluginHealths = [
 	"official",
+	"local",
 	"maintained",
 	"quiet",
 	"unmaintained",
@@ -141,6 +150,7 @@ export type PluginHealth = (typeof pluginHealths)[number];
 
 export const pluginHealthLabels: Record<PluginHealth, string> = {
 	official: "Official",
+	local: "Local folder",
 	maintained: "Maintained",
 	quiet: "Little activity",
 	unmaintained: "Not maintained",
@@ -150,6 +160,8 @@ export const pluginHealthLabels: Record<PluginHealth, string> = {
 
 export const pluginHealthDescriptions: Record<PluginHealth, string> = {
 	official: "Ships with LocalAssistant and is updated with it.",
+	local:
+		"Read from a folder on this server: it changes when you change its files.",
 	maintained: "Its author changed it in the last six months.",
 	quiet: "Nothing changed in six months to a year. It may still work fine.",
 	unmaintained:
@@ -160,6 +172,7 @@ export const pluginHealthDescriptions: Record<PluginHealth, string> = {
 
 export interface PluginStatus {
 	health: PluginHealth;
+	url: string | null;
 	stars: number | null;
 	pushedAt: string | null;
 	latestVersion: string | null;
@@ -202,7 +215,8 @@ export interface PluginSummary {
 	icon: PluginIcon;
 	official: boolean;
 	enabled: boolean;
-	url: string;
+	site: string;
+	url: string | null;
 	status: PluginStatus;
 	updateAvailable: boolean;
 	compatible: boolean;
@@ -216,7 +230,8 @@ export interface PluginPreview {
 	repository: string;
 	path: string;
 	ref: string;
-	url: string;
+	site: string;
+	url: string | null;
 	manifest: PluginManifest;
 	status: PluginStatus;
 	compatible: boolean;
@@ -228,6 +243,7 @@ export interface PluginListing {
 	repository: string;
 	name: string;
 	description: string;
+	site: string;
 	url: string;
 	stars: number;
 	health: PluginHealth;

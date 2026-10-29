@@ -77,12 +77,13 @@ async function install(
 	await copyFile(sdk, join(folder, "localassistant_plugin.py"));
 	const row = PluginDTO.save({
 		id: manifest.id,
-		repository: "someone/fixture",
+		repository: "github:https://github.com/someone/fixture",
 		path: "",
 		ref,
 		manifest,
 		status: {
 			health: "maintained",
+			url: null,
 			stars: 0,
 			pushedAt: null,
 			latestVersion: null,

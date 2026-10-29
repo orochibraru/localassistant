@@ -21,19 +21,27 @@ import { secrets } from "#lib/server/core/secrets.js";
 import { deviceEvents } from "#lib/server/devices/device-events.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { pluginContexts } from "#lib/server/plugins/context.js";
-import { gitHub } from "#lib/server/plugins/github.js";
 import { pluginManager } from "#lib/server/plugins/manager.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 import { pluginSetup } from "#lib/server/plugins/setup.js";
+import { gitHubForge } from "#lib/server/plugins/sources/github.js";
+import { pluginSources } from "#lib/server/plugins/sources/sources.js";
 import {
 	connectionSchema,
-	gitHubTokenSchema,
 	parseManifest,
+	sourceTokenSchema,
 } from "#lib/server/validation/plugins.js";
 
 import { homeId, resetDatabase } from "../../database.js";
 
 const repository = "someone/localassistant-demo";
+const at = (name: string) => ({
+	kind: "github" as const,
+	origin: "https://github.com",
+	repository: name,
+	path: "",
+	ref: null,
+});
 const shaOf: Record<string, string> = {
 	"v1.0.0": "a".repeat(40),
 	"v1.1.0": "c".repeat(40),
@@ -236,7 +244,7 @@ beforeEach(async () => {
 });
 
 describe("GitHub links", () => {
-	test("read every way a person might paste one", () => {
+	test("read every way a person might paste one", async () => {
 		for (const link of [
 			"someone/localassistant-demo",
 			"github.com/someone/localassistant-demo",
@@ -245,57 +253,77 @@ describe("GitHub links", () => {
 			"git@github.com:someone/localassistant-demo.git",
 			"https://github.com/someone/localassistant-demo?tab=readme#top",
 		]) {
-			expect(gitHub.parseLink(link)).toEqual({
-				repository,
-				path: "",
-				ref: null,
-			});
+			expect(await pluginSources.locate(link)).toEqual(at(repository));
 		}
 		expect(
-			gitHub.parseLink(
+			await pluginSources.locate(
 				"https://github.com/someone/plugins/tree/main/lamps/../x/./localassistant-plugin.json",
 			),
-		).toEqual({ repository: "someone/plugins", path: "lamps/x", ref: "main" });
-		for (const link of ["", "someone", "https://example.com/a/b", "a b/c"]) {
-			expect(() => gitHub.parseLink(link)).toThrow("isn't a link");
+		).toEqual({ ...at("someone/plugins"), path: "x", ref: "main" });
+		for (const link of [
+			"",
+			"someone",
+			"a b/c",
+			"https://",
+			"file://relative",
+		]) {
+			await expect(pluginSources.locate(link)).rejects.toThrow("isn't a link");
 		}
+		await expect(
+			pluginSources.locate("https://example.com/a/b"),
+		).rejects.toThrow("doesn't look like GitHub, GitLab, Gitea or Forgejo");
 	});
 
 	test("say how maintained a repository is", () => {
 		const now = Date.parse("2026-10-29T00:00:00Z");
 		const ago = (days: number) =>
 			new Date(now - days * 24 * 60 * 60_000).toISOString();
-		expect(gitHub.health({ archived: true, pushedAt: ago(1) }, now)).toBe(
-			"archived",
-		);
-		expect(gitHub.health({ archived: false, pushedAt: null }, now)).toBe(
-			"unknown",
-		);
-		expect(gitHub.health({ archived: false, pushedAt: ago(30) }, now)).toBe(
-			"maintained",
-		);
-		expect(gitHub.health({ archived: false, pushedAt: ago(250) }, now)).toBe(
-			"quiet",
-		);
-		expect(gitHub.health({ archived: false, pushedAt: ago(500) }, now)).toBe(
-			"unmaintained",
-		);
+		expect(
+			pluginSources.health({ archived: true, pushedAt: ago(1) }, "github", now),
+		).toBe("archived");
+		expect(
+			pluginSources.health({ archived: false, pushedAt: null }, "github", now),
+		).toBe("unknown");
+		expect(
+			pluginSources.health(
+				{ archived: false, pushedAt: ago(30) },
+				"github",
+				now,
+			),
+		).toBe("maintained");
+		expect(
+			pluginSources.health(
+				{ archived: false, pushedAt: ago(250) },
+				"github",
+				now,
+			),
+		).toBe("quiet");
+		expect(
+			pluginSources.health({ archived: true, pushedAt: null }, "folder", now),
+		).toBe("local");
+		expect(
+			pluginSources.health(
+				{ archived: false, pushedAt: ago(500) },
+				"github",
+				now,
+			),
+		).toBe("unmaintained");
 	});
 
 	test("explain limits, outages, missing repositories and refs", async () => {
-		await expect(gitHub.repository("someone/nothing")).rejects.toThrow(
-			"no public repository",
-		);
-		await expect(gitHub.commit(repository, "nope")).rejects.toThrow(
-			"no branch or tag named nope",
-		);
+		await expect(
+			gitHubForge.repository(at("someone/nothing"), null),
+		).rejects.toThrow("no public repository");
+		await expect(
+			gitHubForge.commit(at(repository), "nope", null),
+		).rejects.toThrow("no branch or tag named nope");
 		limited = true;
-		await expect(gitHub.repository(repository)).rejects.toThrow(
+		await expect(gitHubForge.repository(at(repository), null)).rejects.toThrow(
 			"limiting requests",
 		);
 		limited = false;
 		offline = true;
-		await expect(gitHub.search()).rejects.toThrow("can't be reached");
+		await expect(pluginSources.search()).rejects.toThrow("can't be reached");
 	});
 });
 
@@ -490,7 +518,7 @@ describe("installing plugins", () => {
 			"calls itself other, not demo",
 		);
 		await expect(pluginManager.update("tuya")).rejects.toThrow(
-			"isn't installed from GitHub",
+			"ships with LocalAssistant",
 		);
 		expect(
 			(await pluginManager.browse()).map((entry) => [
@@ -572,12 +600,13 @@ describe("the registry", () => {
 		const row = PluginDTO.find("demo");
 		PluginDTO.save({
 			id: "demo",
-			repository,
+			repository: `github:https://github.com/${repository}`,
 			path: "",
 			ref: "d".repeat(40),
 			manifest: row?.manifest ?? parseManifest(manifest("1.0.0")),
 			status: row?.status ?? {
 				health: "unknown",
+				url: null,
 				stars: null,
 				pushedAt: null,
 				latestVersion: null,
@@ -728,13 +757,15 @@ describe("private integrations", () => {
 			fakePrivateGitHub as typeof fetch,
 		);
 		await expect(pluginManager.preview(privateRepository)).rejects.toThrow(
-			"for a private one, save a GitHub token first",
+			"for a private one, save a token for github.com first",
 		);
-		await expect(gitHub.checkToken("github_pat_wrong")).rejects.toThrow(
-			"GitHub refused that token",
+		await expect(
+			gitHubForge.checkToken("https://github.com", "github_pat_wrong"),
+		).rejects.toThrow("GitHub refused that token");
+		expect(await pluginSources.saveToken("www.github.com/", token)).toBe(
+			"https://github.com",
 		);
-		await gitHub.checkToken(token);
-		setSetting("githubToken", { encryptedToken: secrets.encrypt(token) });
+		expect(pluginSources.tokenSites()).toEqual(["https://github.com"]);
 		const preview = await pluginManager.preview(privateRepository);
 		expect(preview).toMatchObject({ ref: sha, manifest: { id: "private" } });
 		await pluginManager.install(privateRepository);
@@ -743,22 +774,31 @@ describe("private integrations", () => {
 			"no repository at that link the token can read",
 		);
 		await pluginManager.remove("private");
-		setSetting("githubToken", {
-			encryptedToken: secrets.encrypt("github_pat_revoked"),
-		});
+		setSetting("sourceTokens", [
+			{
+				site: "https://github.com",
+				encryptedToken: secrets.encrypt("github_pat_revoked"),
+			},
+		]);
 		await expect(pluginManager.preview(privateRepository)).rejects.toThrow(
 			"GitHub refused the saved token",
 		);
-		setSetting("githubToken", null);
+		pluginSources.removeToken("github.com");
+		expect(pluginSources.tokenSites()).toEqual([]);
 	});
 
-	test("the token form wants something shaped like a GitHub token", () => {
-		expect(gitHubTokenSchema.safeParse({ token }).success).toBe(true);
+	test("the token form wants a site and something shaped like a token", () => {
 		expect(
-			gitHubTokenSchema.safeParse({ token: `ghp_${"a".repeat(36)}` }).success,
+			sourceTokenSchema.safeParse({ site: "github.com", token }).success,
 		).toBe(true);
-		expect(gitHubTokenSchema.safeParse({ token: "hunter2" }).success).toBe(
-			false,
-		);
+		expect(
+			sourceTokenSchema.safeParse({
+				site: "gitlab.com",
+				token: `glpat-${"a".repeat(20)}`,
+			}).success,
+		).toBe(true);
+		expect(
+			sourceTokenSchema.safeParse({ site: "", token: "hunter2" }).success,
+		).toBe(false);
 	});
 });

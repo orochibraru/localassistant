@@ -327,12 +327,18 @@ export const brokerSchema = z.object({
 		.transform((value) => value || undefined),
 });
 
-export const gitHubTokenSchema = z.object({
+const site = z
+	.string()
+	.trim()
+	.min(1, "Type the site, like github.com or gitlab.com.")
+	.max(200, "That address is too long.");
+
+export const sourceTokenSchema = z.object({
+	site,
 	token: z
 		.string()
 		.trim()
-		.regex(
-			/^(github_pat_|gh[pousr]_)[A-Za-z0-9_]{20,250}$/,
-			"Paste a GitHub token: it starts with github_pat_ or ghp_.",
-		),
+		.regex(/^\S{10,300}$/, "Paste the access token the site made for you."),
 });
+
+export const sourceSiteSchema = z.object({ site });

@@ -12,18 +12,19 @@ import type {
 	PluginStatus,
 	PluginSummary,
 } from "#lib/plugins.js";
-import {
-	gitHub,
-	type PluginSource,
-	type RepositoryInfo,
-} from "#lib/server/plugins/github.js";
 import { officialRepository, plugins } from "#lib/server/plugins/registry.js";
+import { pluginSources } from "#lib/server/plugins/sources/sources.js";
+import type {
+	Location,
+	RepositoryInfo,
+} from "#lib/server/plugins/sources/types.js";
 import { parseManifest } from "#lib/server/validation/plugins.js";
 
 const manifestFile = "localassistant-plugin.json";
 
 const officialStatus: PluginStatus = {
 	health: "official",
+	url: null,
 	stars: null,
 	pushedAt: null,
 	latestVersion: null,
@@ -32,35 +33,40 @@ const officialStatus: PluginStatus = {
 };
 
 interface Resolved {
-	source: PluginSource;
+	location: Location;
 	info: RepositoryInfo;
 	sha: string;
 	version: string | null;
 	manifest: PluginManifest;
 }
 
-/** Finds, installs, updates and removes plugins hosted on GitHub, and keeps track of how maintained each one is. */
+/**
+ * Finds, installs, updates and removes plugins from GitHub, GitLab, Gitea or Forgejo, or a folder on this server, and
+ * keeps track of how maintained each one is.
+ */
 class PluginManager {
 	/**
 	 * What installing from `link` would add: the plugin's manifest at its latest release (or newest commit), how
 	 * maintained its repository is, and what would stop it from loading.
 	 *
-	 * @throws When the link isn't a GitHub repository, it has no valid plugin, or GitHub can't be reached.
+	 * @throws When the link isn't a repository or folder, it has no valid plugin, or its site can't be reached.
 	 */
 	async preview(link: string): Promise<PluginPreview> {
-		const resolved = await this.#resolve(gitHub.parseLink(link));
-		const { source, info, sha, manifest } = resolved;
+		const resolved = await this.#resolve(await pluginSources.locate(link));
+		const { location, sha, manifest } = resolved;
+		const status = this.#status(resolved);
 		return {
 			link,
-			repository: source.repository,
-			path: source.path,
+			repository: location.repository,
+			path: location.path,
 			ref: sha,
-			url: this.#url(source, info.defaultBranch),
+			site: pluginSources.site(location),
+			url: status.url,
 			manifest,
-			status: this.#status(info, resolved),
+			status,
 			compatible: plugins.compatible(manifest),
 			installed: PluginDTO.find(manifest.id) !== undefined,
-			conflict: plugins.conflict(manifest, source.repository),
+			conflict: plugins.conflict(manifest, pluginSources.key(location)),
 		};
 	}
 
@@ -70,24 +76,24 @@ class PluginManager {
 	 * @throws When it can't be previewed, needs a newer LocalAssistant, clashes with another plugin or fails to load.
 	 */
 	async install(link: string): Promise<PluginDTO> {
-		return this.#install(await this.#resolve(gitHub.parseLink(link)));
+		return this.#install(await this.#resolve(await pluginSources.locate(link)));
 	}
 
 	/**
 	 * Installs the newest version of the installed plugin `id`.
 	 *
-	 * @throws When it isn't installed from GitHub, or the new version can't be installed.
+	 * @throws When it ships with LocalAssistant, or the new version can't be installed.
 	 */
 	async update(id: string): Promise<PluginDTO> {
 		const row = PluginDTO.find(id);
 		if (!row) {
-			throw new Error("That integration isn't installed from GitHub.");
+			throw new Error(
+				"That integration ships with LocalAssistant: it updates with it.",
+			);
 		}
-		const resolved = await this.#resolve({
-			repository: row.repository,
-			path: row.path,
-			ref: null,
-		});
+		const resolved = await this.#resolve(
+			pluginSources.fromKey(row.repository, row.path),
+		);
 		if (resolved.manifest.id !== id) {
 			throw new Error(
 				`The new version calls itself ${resolved.manifest.id}, not ${id}. Remove it and install it again.`,
@@ -129,17 +135,15 @@ class PluginManager {
 		JobDTO.enqueue("plugins.restart", { pluginId: id }, { maxAttempts: 1 });
 	}
 
-	/** Asks GitHub again how every installed plugin's repository is doing and what its newest version is; never throws. */
+	/** Asks every installed plugin's source again how it's doing and what its newest version is; never throws. */
 	async check(): Promise<number> {
 		let checked = 0;
 		for (const row of PluginDTO.all()) {
 			try {
-				const resolved = await this.#resolve({
-					repository: row.repository,
-					path: row.path,
-					ref: null,
-				});
-				row.setStatus(this.#status(resolved.info, resolved));
+				const resolved = await this.#resolve(
+					pluginSources.fromKey(row.repository, row.path),
+				);
+				row.setStatus(this.#status(resolved));
 				checked += 1;
 			} catch {
 				row.setStatus({
@@ -153,24 +157,26 @@ class PluginManager {
 	}
 
 	/**
-	 * Plugins on GitHub tagged as LocalAssistant plugins, marking the ones already installed.
+	 * Plugins tagged as LocalAssistant plugins on GitHub, gitlab.com and Codeberg, marking the ones already installed.
 	 *
-	 * @throws When GitHub can't be reached or limits this server.
+	 * @throws When none of those sites can be reached.
 	 */
 	async browse(): Promise<PluginListing[]> {
 		const installed = new Set(
 			PluginDTO.all().map((row) => row.repository.toLowerCase()),
 		);
-		return (await gitHub.search())
-			.filter((info) => info.repository.toLowerCase() !== officialRepository)
-			.map((info) => ({
+		return (await pluginSources.search())
+			.map((info) => ({ info, key: pluginSources.key(info).toLowerCase() }))
+			.filter(({ key }) => key !== officialRepository)
+			.map(({ info, key }) => ({
 				repository: info.repository,
-				name: info.repository.split("/")[1] ?? info.repository,
+				name: info.repository.split("/").at(-1) ?? info.repository,
 				description: info.description,
-				url: info.url,
-				stars: info.stars,
-				health: gitHub.health(info),
-				installed: installed.has(info.repository.toLowerCase()),
+				site: pluginSources.site(info),
+				url: info.url ?? info.origin,
+				stars: info.stars ?? 0,
+				health: pluginSources.health(info, info.kind),
+				installed: installed.has(key),
 			}));
 	}
 
@@ -198,16 +204,15 @@ class PluginManager {
 				icon: manifest.icon,
 				official,
 				enabled: plugins.enabled(manifest.id),
+				site:
+					official || !row
+						? "github.com"
+						: pluginSources.site(
+								pluginSources.fromKey(row.repository, row.path),
+							),
 				url: official
-					? `https://github.com/${officialRepository}/tree/main/src/plugins/${manifest.id}`
-					: this.#url(
-							{
-								repository: row?.repository ?? "",
-								path: row?.path ?? "",
-								ref: null,
-							},
-							"HEAD",
-						),
+					? `https://github.com/orochibraru/localassistant/tree/main/src/plugins/${manifest.id}`
+					: (status.url ?? null),
 				status,
 				updateAvailable:
 					!official &&
@@ -234,8 +239,9 @@ class PluginManager {
 	}
 
 	async #install(resolved: Resolved): Promise<PluginDTO> {
-		const { source, info, sha, manifest } = resolved;
-		const conflict = plugins.conflict(manifest, source.repository);
+		const { location, sha, manifest } = resolved;
+		const key = pluginSources.key(location);
+		const conflict = plugins.conflict(manifest, key);
 		if (conflict) {
 			throw new Error(conflict);
 		}
@@ -245,15 +251,15 @@ class PluginManager {
 			);
 		}
 		const folder = plugins.codeFolder(manifest.id, sha);
-		await this.#download(source, sha, manifest, folder);
+		await this.#download(location, sha, manifest, folder);
 		const previous = PluginDTO.find(manifest.id);
 		const row = PluginDTO.save({
 			id: manifest.id,
-			repository: source.repository,
-			path: source.path,
+			repository: key,
+			path: location.path,
 			ref: sha,
 			manifest,
-			status: this.#status(info, resolved),
+			status: this.#status(resolved),
 		});
 		await plugins.load(row);
 		const failure = plugins.failure(manifest.id);
@@ -276,21 +282,27 @@ class PluginManager {
 	}
 
 	async #download(
-		source: PluginSource,
+		location: Location,
 		sha: string,
 		manifest: PluginManifest,
 		folder: string,
 	): Promise<void> {
 		const entry = plugins.entryFor(manifest);
+		const forge = pluginSources.forge(location.kind);
+		const token =
+			location.kind === "folder" ? null : pluginSources.token(location.origin);
 		for (const file of [entry, ...manifest.files]) {
-			const bytes = await gitHub.download(
-				source.repository,
+			const bytes = await forge.download(
+				location,
 				sha,
-				join(source.path, file),
+				join(location.path, file),
+				token,
 			);
 			if (bytes === null) {
 				throw new Error(
-					`The repository has no ${file}: its author has to build it and commit it.`,
+					location.kind === "folder"
+						? `The folder has no ${file}: build it there first.`
+						: `The repository has no ${file}: its author has to build it and commit it.`,
 				);
 			}
 			const path = join(folder, file);
@@ -306,31 +318,36 @@ class PluginManager {
 		}
 	}
 
-	async #resolve(source: PluginSource): Promise<Resolved> {
-		const info = await gitHub.repository(source.repository);
-		const release = source.ref
+	async #resolve(location: Location): Promise<Resolved> {
+		const forge = pluginSources.forge(location.kind);
+		const token =
+			location.kind === "folder" ? null : pluginSources.token(location.origin);
+		const info = await forge.repository(location, token);
+		const release = location.ref
 			? null
-			: await gitHub.latestRelease(source.repository);
-		const ref = source.ref ?? release?.tag ?? info.defaultBranch;
-		const sha = await gitHub.commit(source.repository, ref);
-		const raw = await gitHub.file(
-			source.repository,
+			: await forge.latestRelease(location, token);
+		const ref = location.ref ?? release?.tag ?? info.defaultBranch;
+		const sha = await forge.commit(location, ref, token);
+		const bytes = await forge.download(
+			location,
 			sha,
-			join(source.path, manifestFile),
+			join(location.path, manifestFile),
+			token,
 		);
-		if (raw === null) {
+		if (bytes === null) {
 			throw new Error(
-				`That repository isn't a LocalAssistant integration: it has no ${manifestFile}${source.path ? ` in ${source.path}` : ""}.`,
+				`That isn't a LocalAssistant integration: it has no ${manifestFile}${location.path ? ` in ${location.path}` : ""}.`,
 			);
 		}
 		let parsed: unknown;
 		try {
-			parsed = JSON.parse(raw);
+			parsed = JSON.parse(new TextDecoder().decode(bytes));
 		} catch {
 			throw new Error(`Its ${manifestFile} isn't valid JSON.`);
 		}
+		const resolvedLocation = { ...location, repository: info.repository };
 		return {
-			source: { ...source, repository: info.repository },
+			location: resolvedLocation,
 			info,
 			sha,
 			version: release?.tag ?? null,
@@ -338,23 +355,19 @@ class PluginManager {
 		};
 	}
 
-	#status(
-		info: RepositoryInfo,
-		resolved: Pick<Resolved, "sha" | "version" | "manifest">,
-	): PluginStatus {
+	#status(resolved: Resolved): PluginStatus {
+		const { location, info } = resolved;
 		return {
-			health: gitHub.health(info),
+			health: pluginSources.health(info, location.kind),
+			url: pluginSources
+				.forge(location.kind)
+				.webUrl(location, info.defaultBranch),
 			stars: info.stars,
 			pushedAt: info.pushedAt,
 			latestVersion: resolved.version ?? resolved.manifest.version,
 			latestRef: resolved.sha,
 			checkedAt: new Date().toISOString(),
 		};
-	}
-
-	#url(source: PluginSource, branch: string): string {
-		const base = `https://github.com/${source.repository}`;
-		return source.path ? `${base}/tree/${branch}/${source.path}` : base;
 	}
 }
 

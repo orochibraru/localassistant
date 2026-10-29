@@ -16,7 +16,8 @@ import { officialPlugins } from "#plugins/official.js";
 
 const logger = new Logger("Plugins");
 
-export const officialRepository = "orochibraru/localassistant";
+export const officialRepository =
+	"github:https://github.com/orochibraru/localassistant";
 
 const hooks = [
 	"connect",
