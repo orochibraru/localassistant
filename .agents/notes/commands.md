@@ -104,3 +104,12 @@ icons keep the rounded square (padding 0.05); the maskable (192, 512) and Apple
 (180) icons are full-bleed (padding 0, background `#911f43`) so a phone's
 circle, squircle or rounded-square mask never shows a white ring or white
 corners. The house stays inside the maskable safe zone (the centre 80%).
+
+## Patched dependencies
+
+`patches/` holds `bun patch` fixes, applied by `bun install` (and copied into
+the Docker deps stage). `@sveltejs/adapter-bun` learns a runtime fallback for
+the request's protocol: the proxy header, else `ORIGIN`'s scheme when it names
+the same host, else the scheme the request arrived on, so remote functions work
+over plain HTTP without a proxy. Edit one with `bun patch <package>`, change the
+files in `node_modules`, then `bun patch --commit <path>`.

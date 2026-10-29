@@ -33,6 +33,31 @@ describe("a fresh instance", () => {
 		expect(response.status).toBe(200);
 	});
 
+	test("takes remote calls from its own plain-HTTP origin, by name or address, and refuses other sites", async () => {
+		const call = (origin: string, host?: string) =>
+			fetch(`${origin}/_app/remote/aaaaaa/nothing`, {
+				method: "POST",
+				headers: {
+					Origin: origin,
+					"Content-Type": "application/json",
+					...(host ? { Host: host } : {}),
+				},
+				body: "{}",
+			});
+		expect((await call(app.origin)).status).not.toBe(403);
+		const byAddress = app.origin.replace("localhost", "127.0.0.1");
+		expect((await call(byAddress)).status).not.toBe(403);
+		const crossSite = await fetch(`${app.origin}/_app/remote/aaaaaa/nothing`, {
+			method: "POST",
+			headers: {
+				Origin: "http://elsewhere.example",
+				"Content-Type": "application/json",
+			},
+			body: "{}",
+		});
+		expect(crossSite.status).toBe(403);
+	});
+
 	test("sends every page to the setup flow", async () => {
 		const response = await new Client(app.origin).get("/");
 		expect(response.status).toBeGreaterThanOrEqual(300);

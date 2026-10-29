@@ -1,0 +1,56 @@
+diff --git a/src/handler.js b/src/handler.js
+index a5cce744b7873975a161beb1deb02766e5635deb..93c34279f01800308c293bf48ee4b184b607d142 100644
+--- a/src/handler.js
++++ b/src/handler.js
+@@ -1,3 +1,4 @@
++import process from 'node:process';
+ /** @import { Server as BunServer } from 'bun' */
+ import { env_prefix, origin, server } from '#@sveltejs/adapter-bun';
+ import { server_assets } from './routes.js';
+@@ -58,15 +59,44 @@ function normalize_request(request) {
+ 	}
+ }
+ 
++const configured_origin = parse_origin(process.env.ORIGIN);
++
++/**
++ * @param {string | undefined} value
++ * @returns {URL | null}
++ */
++function parse_origin(value) {
++	try {
++		return value ? new URL(value) : null;
++	} catch {
++		return null;
++	}
++}
++
++/**
++ * Without a protocol header: ORIGIN's scheme when it names this host, else the scheme the request came in on.
++ * @param {string} host
++ * @param {URL} url
++ * @returns {string}
++ */
++function fallback_protocol(host, url) {
++	if (configured_origin && configured_origin.host.toLowerCase() === host.toLowerCase()) {
++		return configured_origin.protocol.slice(0, -1);
++	}
++	return url.protocol.slice(0, -1);
++}
++
+ /**
+  * @param {Request} request
+  * @param {URL} url
+  * @returns {string}
+  */
+ function get_origin(request, url) {
+-	// assume TLS terminates upstream, like adapter-node; an http origin would fail CSRF checks
++	const host_seen =
++		(host_header && request.headers.get(host_header)) || (request.headers.get('host') ?? url.host);
+ 	const protocol = decodeURIComponent(
+-		(protocol_header && request.headers.get(protocol_header)) || 'https'
++		(protocol_header && request.headers.get(protocol_header)) ||
++			fallback_protocol(host_seen, url)
+ 	);
+ 	if (!/^https?$/i.test(protocol)) {
+ 		throw new Error(

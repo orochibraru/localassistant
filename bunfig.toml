@@ -20,7 +20,7 @@ coveragePathIgnorePatterns = [
 [fmt]
 useTabs = true
 tabWidth = 2
-ignorePatterns = ["CHANGELOG.md", "drizzle/", "static/", "bun.lock"]
+ignorePatterns = ["CHANGELOG.md", "drizzle/", "patches/", "static/", "bun.lock"]
 
 [fmt.sortImports]
 newlinesBetween = true

@@ -16,7 +16,7 @@ repos:
       - id: mixed-line-ending
         name: Fix line endings
         args: [--fix=lf]
-        exclude: &generated ^(drizzle/|CHANGELOG\.md$|bun\.lock$)
+        exclude: &generated ^(drizzle/|patches/|CHANGELOG\.md$|bun\.lock$)
       - id: end-of-file-fixer
         name: Fix end of files
         exclude: *generated
