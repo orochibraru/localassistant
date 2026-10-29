@@ -14,6 +14,7 @@ import { z } from "zod";
 import {
 	climateModes,
 	coverActions,
+	mediaActions,
 	printerCommands,
 	printerSpeeds,
 	vacuumCommands,
@@ -24,6 +25,7 @@ import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { houseGroups } from "#lib/house.js";
+import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import { kindInfo } from "#lib/plugins.js";
 import { authService } from "#lib/server/auth/auth.js";
 import { configuration } from "#lib/server/core/config.js";
@@ -90,6 +92,7 @@ class McpEndpoint {
 		this.#registerClimate(server);
 		this.#registerPrinter(server);
 		this.#registerVacuum(server);
+		this.#registerControls(server);
 		return server;
 	}
 
@@ -287,6 +290,101 @@ class McpEndpoint {
 					});
 					return { done: true };
 				}),
+		);
+	}
+
+	#registerControls(server: McpServer): void {
+		const percent = z.number().min(0).max(100);
+		this.#registerCommand(
+			server,
+			"control_switch",
+			"Turn a switch on or off",
+			"Turns a relay, plug or switch on or off.",
+			{ on: z.boolean() },
+			({ on }) => ({ type: "switch", on }),
+		);
+		this.#registerCommand(
+			server,
+			"control_light",
+			"Control a light",
+			"Turns a light on or off and sets its brightness (0 to 100), colour temperature in kelvin, or colour as a hue (0 to 360) and saturation (0 to 100), when it has them.",
+			{
+				on: z.boolean().optional(),
+				brightness: percent.optional(),
+				temperature: z.number().int().min(1000).max(10_000).optional(),
+				color: z
+					.object({ hue: z.number().min(0).max(360), saturation: percent })
+					.optional(),
+			},
+			(change) => ({ type: "light", change }),
+		);
+		this.#registerCommand(
+			server,
+			"control_lock",
+			"Lock or unlock a door",
+			"Locks or unlocks a door lock.",
+			{ locked: z.boolean() },
+			({ locked }) => ({ type: "lock", locked }),
+		);
+		this.#registerCommand(
+			server,
+			"control_fan",
+			"Control a fan",
+			"Turns a fan on or off, sets its speed (0 to 100) or its oscillation.",
+			{
+				on: z.boolean().optional(),
+				speed: percent.optional(),
+				oscillating: z.boolean().optional(),
+			},
+			(change) => ({ type: "fan", change }),
+		);
+		this.#registerCommand(
+			server,
+			"control_media",
+			"Control a speaker or TV",
+			"Turns a speaker or TV on or off, plays, pauses, skips, sets the volume (0 to 100), mutes, or picks a source from its list.",
+			{
+				power: z.boolean().optional(),
+				action: z.enum(mediaActions).optional(),
+				volume: percent.optional(),
+				muted: z.boolean().optional(),
+				source: z.string().min(1).max(120).optional(),
+			},
+			(change) => ({ type: "media", change }),
+		);
+		this.#registerCommand(
+			server,
+			"press_button",
+			"Press a button or run a scene",
+			"Presses a button, or runs a scene or script, once.",
+			{},
+			() => ({ type: "button" }),
+		);
+	}
+
+	#registerCommand<Shape extends z.ZodRawShape>(
+		server: McpServer,
+		name: string,
+		title: string,
+		description: string,
+		shape: Shape,
+		toCommand: (input: z.infer<z.ZodObject<Shape>>) => DeviceCommand,
+	): void {
+		const schema = z.object(shape);
+		server.registerTool(
+			name,
+			{
+				title,
+				description,
+				inputSchema: schema.extend({ deviceId: deviceIdField }),
+			},
+			(input: Record<string, unknown>) => {
+				const { deviceId, ...rest } = input;
+				return this.#withDevice(String(deviceId), async (device) => {
+					await devices.command(device, toCommand(schema.parse(rest)));
+					return { done: true };
+				});
+			},
 		);
 	}
 

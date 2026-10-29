@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 import { createMcpHandler } from "@modelcontextprotocol/server";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { devices } from "#lib/server/devices/devices.js";
 import { mcpEndpoint } from "#lib/server/mcp/server.js";
 
 import { homeId, resetDatabase } from "../../database.js";
@@ -55,14 +56,61 @@ describe("MCP tools", () => {
 		const reply = await rpc("tools/list");
 		expect(reply.result?.tools?.map((tool) => tool.name).sort()).toEqual([
 			"control_blind",
+			"control_fan",
 			"control_heat_pump",
+			"control_light",
+			"control_lock",
+			"control_media",
 			"control_printer",
 			"control_room_blinds",
+			"control_switch",
 			"control_vacuum",
 			"get_device",
 			"list_homes",
 			"list_house",
+			"press_button",
 		]);
+	});
+
+	test("the device control tools send their command to the device", async () => {
+		const lamp = DeviceDTO.upsert({
+			homeId: homeId(),
+			kind: "mqtt-discovery-light",
+			name: "Lamp",
+			externalId: "lamp",
+			roomId: null,
+			host: null,
+			fields: {},
+		});
+		const sent: unknown[] = [];
+		const command = spyOn(devices, "command").mockImplementation(
+			(_device, order) => {
+				sent.push(order);
+				return Promise.resolve();
+			},
+		);
+		const id = lamp.toJSON().id;
+		await call("control_switch", { deviceId: id, on: true });
+		await call("control_light", { deviceId: id, brightness: 40 });
+		await call("control_lock", { deviceId: id, locked: true });
+		await call("control_fan", { deviceId: id, speed: 30 });
+		await call("control_media", { deviceId: id, action: "pause" });
+		expect(await call("press_button", { deviceId: id })).toEqual({
+			isError: false,
+			text: JSON.stringify({ done: true }),
+		});
+		expect(sent).toEqual([
+			{ type: "switch", on: true },
+			{ type: "light", change: { brightness: 40 } },
+			{ type: "lock", locked: true },
+			{ type: "fan", change: { speed: 30 } },
+			{ type: "media", change: { action: "pause" } },
+			{ type: "button" },
+		]);
+		expect((await call("press_button", { deviceId: "missing" })).isError).toBe(
+			true,
+		);
+		command.mockRestore();
 	});
 
 	test("list_house groups rooms by floor and lists devices with their room", async () => {
