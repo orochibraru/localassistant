@@ -1,6 +1,9 @@
 import type {
 	ContactState,
 	DeviceState,
+	LightFeature,
+	LightState,
+	LockState,
 	MeterState,
 	SwitchState,
 	ValveState,
@@ -24,7 +27,13 @@ export interface BridgeDevice {
 }
 
 export interface ZigbeeDevice {
-	kind: "zigbee-contact" | "zigbee-valve" | "zigbee-switch" | "zigbee-meter";
+	kind:
+		| "zigbee-contact"
+		| "zigbee-valve"
+		| "zigbee-light"
+		| "zigbee-lock"
+		| "zigbee-switch"
+		| "zigbee-meter";
 	ieeeAddress: string;
 	friendlyName: string;
 	name: string;
@@ -35,7 +44,10 @@ const setpoints = ["occupied_heating_setpoint", "current_heating_setpoint"];
 
 /** Zigbee2MQTT's devices and messages, mapped to LocalAssistant's kinds and states. */
 class Zigbee {
-	/** The devices of a `bridge/devices` message LocalAssistant knows how to show: contacts, valves, switches and meters. */
+	/**
+	 * The devices of a `bridge/devices` message LocalAssistant knows how to show: contacts, valves, lights, locks,
+	 * switches and meters.
+	 */
 	devices(bridge: BridgeDevice[]): ZigbeeDevice[] {
 		return bridge.flatMap((entry) => {
 			if (entry.type === "Coordinator" || !entry.definition) {
@@ -86,6 +98,23 @@ class Zigbee {
 				...(battery === undefined ? {} : { battery }),
 			} satisfies ValveState;
 		}
+		if (previous.type === "light") {
+			return this.#light(previous, payload);
+		}
+		if (previous.type === "lock") {
+			const locked =
+				payload.lock_state === "locked" || payload.state === "LOCK"
+					? true
+					: payload.lock_state === "unlocked" || payload.state === "UNLOCK"
+						? false
+						: previous.locked;
+			return {
+				...previous,
+				locked,
+				jammed: payload.lock_state === "not_fully_locked",
+				...(battery === undefined ? {} : { battery }),
+			} satisfies LockState;
+		}
 		const power = number("power", "apparent_power", "active_power");
 		const energy = number("energy", "current_summation_delivered");
 		const measured = {
@@ -134,6 +163,45 @@ class Zigbee {
 				},
 			};
 		}
+		const types = new Set(
+			(entry.definition?.exposes ?? []).map((expose) => expose.type),
+		);
+		if (types.has("light")) {
+			const temperature = properties.get("color_temp");
+			const features: LightFeature[] = [];
+			if (properties.has("brightness")) {
+				features.push("brightness");
+			}
+			if (temperature) {
+				features.push("temperature");
+			}
+			if (properties.has("color_hs") || properties.has("color_xy")) {
+				features.push("color");
+			}
+			return {
+				kind: "zigbee-light",
+				state: {
+					type: "light",
+					on: null,
+					brightness: null,
+					temperature: null,
+					minTemperature: Math.round(
+						1_000_000 / (temperature?.value_max ?? 500),
+					),
+					maxTemperature: Math.round(
+						1_000_000 / (temperature?.value_min ?? 153),
+					),
+					color: null,
+					features,
+				},
+			};
+		}
+		if (types.has("lock")) {
+			return {
+				kind: "zigbee-lock",
+				state: { type: "lock", locked: null, jammed: false, battery: null },
+			};
+		}
 		if (properties.has("state")) {
 			return {
 				kind: "zigbee-switch",
@@ -152,6 +220,26 @@ class Zigbee {
 					state: { type: "meter", power: null, energy: null },
 				}
 			: null;
+	}
+
+	#light(previous: LightState, payload: Payload): LightState {
+		const color = payload.color as
+			{ hue?: unknown; saturation?: unknown } | undefined;
+		return {
+			...previous,
+			...(typeof payload.state === "string"
+				? { on: payload.state === "ON" }
+				: {}),
+			...(typeof payload.brightness === "number"
+				? { brightness: Math.round((payload.brightness / 254) * 100) }
+				: {}),
+			...(typeof payload.color_temp === "number" && payload.color_temp > 0
+				? { temperature: Math.round(1_000_000 / payload.color_temp) }
+				: {}),
+			...(typeof color?.hue === "number" && typeof color.saturation === "number"
+				? { color: { hue: color.hue, saturation: color.saturation } }
+				: {}),
+		};
 	}
 
 	#flatten(exposes: Expose[]): Map<string, Expose> {

@@ -1,9 +1,9 @@
 {
 	"id": "zigbee",
 	"name": "Zigbee (Zigbee2MQTT)",
-	"description": "Door and window sensors, radiator valves, relays and meters paired in Zigbee2MQTT.",
+	"description": "Door and window sensors, radiator valves, lights, locks, relays and meters paired in Zigbee2MQTT.",
 	"author": "LocalAssistant",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"icon": "door-open",
 	"needs": ["mqtt"],
 	"connection": {
@@ -50,6 +50,20 @@
 			"icon": "gauge",
 			"order": 4,
 			"houseMeter": true
+		},
+		{
+			"id": "zigbee-light",
+			"label": "Light",
+			"card": "light",
+			"icon": "lightbulb",
+			"order": 3
+		},
+		{
+			"id": "zigbee-lock",
+			"label": "Lock",
+			"card": "lock",
+			"icon": "lock",
+			"order": 1
 		}
 	]
 }

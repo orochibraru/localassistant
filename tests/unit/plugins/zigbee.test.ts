@@ -263,13 +263,13 @@ describe("Zigbee2MQTT", () => {
 		);
 		handle("zigbee2mqtt/Dryer", JSON.stringify({ state: "OFF" }));
 		plugin.flush(context);
-		expect(
+		await expect(
 			devices.command(byName("Dryer"), { type: "valve", target: 20 }),
 		).rejects.toThrow("not a radiator valve");
-		expect(
+		await expect(
 			devices.command(byName("Linky"), { type: "switch", on: true }),
 		).rejects.toThrow("not a switch");
-		expect(
+		await expect(
 			devices.command(byName("Bedroom radiator"), {
 				type: "valve",
 				target: 20,
@@ -295,6 +295,128 @@ describe("Zigbee2MQTT", () => {
 		await devices.refresh(byName("Dryer"));
 		await plugins.stop("zigbee");
 		expect(subscribed.at(-1)).toBe("-zigbee2mqtt/#");
+		broker.stop();
+	});
+
+	test("brings lights and locks in, reads them and drives them", async () => {
+		const lights = [
+			{
+				ieee_address: "0x10",
+				friendly_name: "Hall bulb",
+				definition: {
+					exposes: [
+						{
+							type: "light",
+							features: [
+								{ property: "state" },
+								{ property: "brightness" },
+								{ property: "color_temp", value_min: 150, value_max: 500 },
+								{ property: "color_hs" },
+							],
+						},
+					],
+				},
+			},
+			{
+				ieee_address: "0x11",
+				friendly_name: "Front lock",
+				definition: {
+					exposes: [
+						{ type: "lock", features: [{ property: "state" }] },
+						{ property: "battery" },
+					],
+				},
+			},
+			{
+				ieee_address: "0x12",
+				friendly_name: "Old bulb",
+				definition: {
+					exposes: [{ type: "light", features: [{ property: "state" }] }],
+				},
+			},
+		];
+		DeviceDTO.upsert({
+			kind: "zigbee-switch",
+			homeId: homeId(),
+			name: "Old bulb",
+			roomId: null,
+			externalId: "0x12",
+			host: "Old bulb",
+			fields: {},
+		});
+		handle("zigbee2mqtt/bridge/devices", JSON.stringify(lights));
+		expect(byName("Hall bulb").state).toMatchObject({
+			type: "light",
+			minTemperature: 2000,
+			maxTemperature: 6667,
+			features: ["brightness", "temperature", "color"],
+		});
+		expect(byName("Front lock").kind).toBe("zigbee-lock");
+		expect(byName("Old bulb").kind).toBe("zigbee-switch");
+		handle(
+			"zigbee2mqtt/Hall bulb",
+			JSON.stringify({
+				state: "ON",
+				brightness: 127,
+				color_temp: 250,
+				color: { hue: 40, saturation: 60 },
+			}),
+		);
+		handle(
+			"zigbee2mqtt/Front lock",
+			JSON.stringify({ lock_state: "locked", battery: 80 }),
+		);
+		plugin.flush(context);
+		expect(byName("Hall bulb").state).toMatchObject({
+			on: true,
+			brightness: 50,
+			temperature: 4000,
+			color: { hue: 40, saturation: 60 },
+		});
+		expect(byName("Front lock").state).toEqual({
+			type: "lock",
+			locked: true,
+			jammed: false,
+			battery: 80,
+		});
+		handle(
+			"zigbee2mqtt/Front lock",
+			JSON.stringify({ lock_state: "not_fully_locked" }),
+		);
+		plugin.flush(context);
+		expect(byName("Front lock").state).toMatchObject({ jammed: true });
+		handle("zigbee2mqtt/Front lock", JSON.stringify({ state: "UNLOCK" }));
+		plugin.flush(context);
+		expect(byName("Front lock").state).toMatchObject({ locked: false });
+
+		setSetting("mqtt", settings());
+		await devices.command(byName("Hall bulb"), {
+			type: "light",
+			change: {
+				brightness: 100,
+				temperature: 2500,
+				color: { hue: 1, saturation: 2 },
+			},
+		});
+		expect(JSON.parse(published.at(-1)?.payload ?? "{}")).toEqual({
+			state: "ON",
+			brightness: 254,
+			color_temp: 400,
+			color: { hue: 1, saturation: 2 },
+		});
+		await devices.command(byName("Hall bulb"), {
+			type: "light",
+			change: { on: false },
+		});
+		expect(JSON.parse(published.at(-1)?.payload ?? "{}")).toEqual({
+			state: "OFF",
+		});
+		expect(byName("Hall bulb").state).toMatchObject({ on: false });
+		await devices.command(byName("Front lock"), { type: "lock", locked: true });
+		expect(JSON.parse(published.at(-1)?.payload ?? "{}")).toEqual({
+			state: "LOCK",
+		});
+		expect(byName("Front lock").state).toMatchObject({ locked: true });
 		broker.stop();
 	});
 

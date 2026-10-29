@@ -68,6 +68,27 @@ class Zigbee implements Plugin {
 			context.found(
 				zigbee
 					.devices(Array.isArray(body) ? (body as BridgeDevice[]) : [])
+					.map((found) =>
+						found.kind === "zigbee-light" &&
+						context
+							.devices()
+							.some(
+								(entry) =>
+									entry.kind === "zigbee-switch" &&
+									entry.externalId === found.ieeeAddress,
+							)
+							? {
+									...found,
+									kind: "zigbee-switch" as const,
+									state: {
+										type: "switch" as const,
+										on: null,
+										power: null,
+										energy: null,
+									},
+								}
+							: found,
+					)
 					.map((found) => ({
 						kind: found.kind,
 						externalId: found.ieeeAddress,
@@ -109,7 +130,7 @@ class Zigbee implements Plugin {
 	}
 
 	/**
-	 * Sets a radiator valve's target or turns a relay on or off, and returns the state it's now in.
+	 * Sets a radiator valve's target, turns a relay or light on or off, or locks a lock, and returns the state it's now in.
 	 *
 	 * @throws When the device can't take that command or the broker can't be reached.
 	 */
@@ -131,6 +152,42 @@ class Zigbee implements Plugin {
 		if (command.type === "switch" && state?.type === "switch") {
 			await context.mqtt.publish(target, { state: command.on ? "ON" : "OFF" });
 			return { ...state, on: command.on };
+		}
+		if (command.type === "lock" && state?.type === "lock") {
+			await context.mqtt.publish(target, {
+				state: command.locked ? "LOCK" : "UNLOCK",
+			});
+			return { ...state, locked: command.locked, jammed: false };
+		}
+		if (command.type === "light" && state?.type === "light") {
+			const change = command.change;
+			const on =
+				change.on ??
+				(change.brightness === undefined ? state.on : change.brightness > 0);
+			await context.mqtt.publish(target, {
+				state: on === false ? "OFF" : "ON",
+				...(change.brightness === undefined || on === false
+					? {}
+					: { brightness: Math.round((change.brightness / 100) * 254) }),
+				...(change.temperature === undefined
+					? {}
+					: { color_temp: Math.round(1_000_000 / change.temperature) }),
+				...(change.color
+					? {
+							color: {
+								hue: change.color.hue,
+								saturation: change.color.saturation,
+							},
+						}
+					: {}),
+			});
+			return {
+				...state,
+				on,
+				brightness: change.brightness ?? state.brightness,
+				temperature: change.temperature ?? state.temperature,
+				color: change.color ?? state.color,
+			};
 		}
 		throw new Error("That device doesn't take that command.");
 	}
