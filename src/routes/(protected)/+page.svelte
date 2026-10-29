@@ -4,6 +4,7 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import HouseIcon from "@lucide/svelte/icons/house";
+	import LayoutDashboardIcon from "@lucide/svelte/icons/layout-dashboard";
 	import LayoutGridIcon from "@lucide/svelte/icons/layout-grid";
 	import PlugIcon from "@lucide/svelte/icons/plug";
 	import XIcon from "@lucide/svelte/icons/x";
@@ -107,6 +108,19 @@
 <div class="mb-8 flex flex-col gap-4">
 	<WeatherCard home={data.home} isAdmin={data.isAdmin} />
 	<PeopleStrip people={data.presence} now={live.now} />
+	{#if data.dashboards.length > 0}
+		<nav aria-label="Your dashboards" class="flex flex-wrap gap-2">
+			{#each data.dashboards as dashboard (dashboard.id)}
+				<Button
+					variant="secondary"
+					class="h-11 rounded-full px-4"
+					href={resolve("/(protected)/dashboards/[dashboardId]", {
+						dashboardId: dashboard.id,
+					})}><LayoutDashboardIcon />{dashboard.name}</Button
+				>
+			{/each}
+		</nav>
+	{/if}
 </div>
 
 {#if data.devices.length === 0}
