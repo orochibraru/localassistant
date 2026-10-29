@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
-import { bucketLabel, monthName } from "#lib/energy.js";
+import { bucketLabel, monthName, rangeLabel } from "#lib/energy.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { shelly } from "#lib/server/devices/shelly.js";
@@ -152,6 +152,18 @@ describe("energy", () => {
 			projection: null,
 		});
 		expect(days.months).toEqual(["2026-10"]);
+		expect(days.profile.cumulative).toHaveLength(30);
+		expect(days.profile.cumulative.at(-1)).toEqual({
+			day: "2026-10-28",
+			current: 15,
+			previous: 0,
+		});
+		expect(days.profile.weekdays).toHaveLength(7);
+		expect(days.profile.weekdays[1]).toBeCloseTo(10 / 5, 1);
+		expect(days.profile.hours).toHaveLength(24);
+		expect(
+			(days.profile.hours ?? []).reduce((sum, value) => sum + value, 0) * 30,
+		).toBeCloseTo(15, 0);
 		const year = energy.report(
 			homeId(),
 			"Europe/Paris",
@@ -250,6 +262,9 @@ describe("energy", () => {
 			[{ preset: "year-to-date" }, ["2026-01-01", today, "month"]],
 			[{ preset: "all-time" }, ["2025-03-04", today, "month"]],
 			[{ month: "2026-02" }, ["2026-02-01", "2026-02-28", "day"]],
+			[{ season: "spring" }, ["2026-03-01", "2026-05-31", "day"]],
+			[{ season: "autumn" }, ["2026-09-01", "2026-11-30", "day"]],
+			[{ season: "winter" }, ["2025-12-01", "2026-02-28", "day"]],
 			[
 				{ from: "2026-10-20", to: "2026-10-01" },
 				["2026-10-01", "2026-10-20", "day"],
@@ -278,6 +293,9 @@ describe("energy", () => {
 		expect(
 			energyRangeSchema.parse({ from: "2026-10-01", to: "2026-10-05" }),
 		).toEqual({ from: "2026-10-01", to: "2026-10-05" });
+		expect(energyRangeSchema.parse({ range: "season:winter" })).toEqual({
+			season: "winter",
+		});
 		expect(energyRangeSchema.parse({ range: "forever" })).toEqual({
 			preset: "this-month",
 		});
@@ -291,5 +309,40 @@ describe("energy", () => {
 		expect(bucketLabel("2026-10-28", "day")).toBe("28/10");
 		expect(bucketLabel("2026-10", "month")).toMatch(/26/);
 		expect(monthName("2026-09")).toMatch(/2026/);
+		expect(
+			rangeLabel({
+				key: "season:winter",
+				from: "2025-12-01",
+				to: "2026-02-28",
+				unit: "day",
+			}),
+		).toBe("Winter 2025–26");
+		expect(
+			rangeLabel({
+				key: "season:summer",
+				from: "2026-06-01",
+				to: "2026-08-31",
+				unit: "day",
+			}),
+		).toBe("Summer 2026");
+		expect(
+			rangeLabel({ key: "this-week", from: "", to: "", unit: "day" }),
+		).toBe("This week");
+		expect(
+			rangeLabel({
+				key: "month:2026-09",
+				from: "2026-09-01",
+				to: "2026-09-30",
+				unit: "day",
+			}),
+		).toMatch(/2026/);
+		expect(
+			rangeLabel({
+				key: "custom",
+				from: "2026-10-01",
+				to: "2026-10-05",
+				unit: "day",
+			}),
+		).toContain(" to ");
 	});
 });

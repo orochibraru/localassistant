@@ -12,6 +12,9 @@ export const energyPresets = [
 ] as const;
 export type EnergyPreset = (typeof energyPresets)[number];
 
+export const energySeasons = ["spring", "summer", "autumn", "winter"] as const;
+export type EnergySeason = (typeof energySeasons)[number];
+
 export const energyPresetLabels: Record<EnergyPreset, string> = {
 	today: "Today",
 	yesterday: "Yesterday",
@@ -53,6 +56,11 @@ export interface EnergyReport {
 		lowest: EnergyBucket | null;
 		projection: number | null;
 	};
+	profile: {
+		cumulative: { day: string; current: number | null; previous: number }[];
+		weekdays: number[];
+		hours: number[] | null;
+	};
 	appliances: {
 		deviceId: string;
 		name: string;
@@ -88,4 +96,37 @@ export function bucketLabel(key: string, unit: EnergyUnit): string {
 /** A month ("2026-09") in words: "September 2026". */
 export function monthName(month: string): string {
 	return longMonthFormat.format(new Date(`${month}-01T00:00:00Z`));
+}
+
+const dayFormat = new Intl.DateTimeFormat(undefined, {
+	day: "numeric",
+	month: "short",
+	year: "numeric",
+	timeZone: "UTC",
+});
+
+/** A day ("2026-10-28") in words: "28 Oct 2026". */
+export function dayName(day: string): string {
+	return dayFormat.format(new Date(`${day}T00:00:00Z`));
+}
+
+/** What a period is called: a preset's name, "September 2026", "Winter 2025–26" or "1 Oct 2026 to 5 Oct 2026". */
+export function rangeLabel(range: EnergyRange): string {
+	const preset = energyPresets.find((entry) => entry === range.key);
+	if (preset) {
+		return energyPresetLabels[preset];
+	}
+	if (range.key.startsWith("month:")) {
+		return monthName(range.key.slice(6));
+	}
+	if (range.key.startsWith("season:")) {
+		const season = range.key.slice(7);
+		const name = `${season.charAt(0).toUpperCase()}${season.slice(1)}`;
+		const start = range.from.slice(0, 4);
+		const end = range.to.slice(0, 4);
+		return start === end
+			? `${name} ${start}`
+			: `${name} ${start}–${end.slice(2)}`;
+	}
+	return `${dayName(range.from)} to ${dayName(range.to)}`;
 }

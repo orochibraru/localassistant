@@ -84,6 +84,7 @@ describe("Linky online", () => {
 		);
 		expect(report.house.metered).toBe(true);
 		expect(report.house.total).toBe(12.5);
+		expect(report.profile.hours).toBeNull();
 
 		answer = () => daily([["2026-10-28", 9000]]);
 		const fresh = DeviceDTO.find(meter.id) as DeviceDTO;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { energyPresets } from "#lib/energy.js";
+import { energyPresets, energySeasons } from "#lib/energy.js";
 import type { EnergyChoice } from "#lib/server/house/energy.js";
 
 const day = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
@@ -20,6 +20,12 @@ export const energyRangeSchema = z
 		)?.[1];
 		if (month) {
 			return { month };
+		}
+		const season = energySeasons.find(
+			(entry) => query.range === `season:${entry}`,
+		);
+		if (season) {
+			return { season };
 		}
 		return {
 			preset:

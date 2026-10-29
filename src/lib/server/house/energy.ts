@@ -5,6 +5,7 @@ import type {
 	EnergyPreset,
 	EnergyRange,
 	EnergyReport,
+	EnergySeason,
 	EnergyUnit,
 } from "#lib/energy.js";
 
@@ -12,7 +13,10 @@ const hourMs = 60 * 60_000;
 const dayMs = 24 * hourMs;
 
 export type EnergyChoice =
-	{ preset: EnergyPreset } | { month: string } | { from: string; to: string };
+	| { preset: EnergyPreset }
+	| { month: string }
+	| { season: EnergySeason }
+	| { from: string; to: string };
 
 interface Reading {
 	hour: Date;
@@ -49,13 +53,7 @@ class Energy {
 		choice: EnergyChoice,
 		now = new Date(),
 	): EnergyReport {
-		const metered = DeviceDTO.inHome(homeId).filter(
-			(device) =>
-				device.kind === "zigbee-meter" ||
-				device.kind === "shelly-meter" ||
-				device.kind === "linky" ||
-				(device.state?.type === "switch" && device.state.energy !== null),
-		);
+		const metered = this.#metered(homeId);
 		const today = this.bucketOf(now, timeZone, "day");
 		const readings = EnergyReadingDTO.since(
 			metered.map((device) => device.id),
@@ -71,20 +69,20 @@ class Energy {
 			to: this.#shift(range.from, -1),
 		};
 		const keys = this.#keys(range);
-		const series = metered.map((device) => {
-			const own = readings.filter((reading) => reading.deviceId === device.id);
-			return {
-				device,
-				buckets: this.#buckets(own, keys, timeZone, range.unit),
-				before: this.#sum(
-					this.#buckets(
-						own,
-						this.#days(before.from, before.to),
-						timeZone,
-						"day",
-					),
-				),
-			};
+		const beforeDays = this.#days(before.from, before.to);
+		const elapsedDays = span.filter((day) => day <= today);
+		const hourKeys = this.#keys({
+			key: "",
+			from: elapsedDays.slice(-92)[0] ?? today,
+			to: elapsedDays.at(-1) ?? today,
+			unit: "hour",
+		});
+		const series = this.#series(metered, readings, timeZone, {
+			keys,
+			unit: range.unit,
+			span,
+			beforeDays,
+			hourKeys,
 		});
 		const wholeHouse = (kind: string) =>
 			kind === "zigbee-meter" || kind === "linky";
@@ -101,10 +99,17 @@ class Energy {
 			),
 		}));
 		const total = this.#sum(buckets);
-		const elapsed = span.filter((day) => day <= today).length;
-		const past = buckets.filter((bucket) => bucket.key.slice(0, 10) <= today);
-		const byValue = (first: EnergyBucket, second: EnergyBucket) =>
-			first.kilowattHours - second.kilowattHours;
+		const profile = this.#profile(
+			{
+				daily: this.#summed(source, (entry) => entry.daily, span.length),
+				before: this.#summed(source, (entry) => entry.beforeDaily, span.length),
+				hourly: source.every((entry) => entry.hourly !== null)
+					? this.#summed(source, (entry) => entry.hourly, hourKeys.length)
+					: null,
+			},
+			span,
+			today,
+		);
 		return {
 			range,
 			today,
@@ -116,15 +121,14 @@ class Energy {
 				previousTotal: this.#round(
 					source.reduce((sum, entry) => sum + entry.before, 0),
 				),
-				averagePerDay: elapsed > 0 ? this.#round(total / elapsed) : 0,
-				peak: past.toSorted(byValue).at(-1) ?? null,
-				lowest:
-					range.unit === "day" ? (past.toSorted(byValue)[0] ?? null) : null,
-				projection:
-					elapsed > 0 && elapsed < span.length
-						? this.#round((total / elapsed) * span.length)
-						: null,
+				...this.#figures(buckets, {
+					unit: range.unit,
+					today,
+					elapsed: elapsedDays.length,
+					length: span.length,
+				}),
 			},
+			profile,
 			appliances: appliances.map(({ device, buckets: own }) => {
 				const used = this.#sum(own);
 				return {
@@ -139,7 +143,135 @@ class Energy {
 		};
 	}
 
-	/** The dates and bar size a preset, a month or a custom span covers, given the local `today` and the first reading. */
+	/** The devices of `homeId` that count energy. */
+	#metered(homeId: string): DeviceDTO[] {
+		return DeviceDTO.inHome(homeId).filter(
+			(device) =>
+				device.kind === "zigbee-meter" ||
+				device.kind === "shelly-meter" ||
+				device.kind === "linky" ||
+				(device.state?.type === "switch" && device.state.energy !== null),
+		);
+	}
+
+	/** The bucket-by-bucket sum of what `pick` takes from every entry of `source`. */
+	#summed<Entry>(
+		source: Entry[],
+		pick: (entry: Entry) => EnergyBucket[] | null,
+		count: number,
+	): number[] {
+		return Array.from({ length: count }, (_, index) =>
+			source.reduce(
+				(sum, entry) => sum + (pick(entry)?.[index]?.kilowattHours ?? 0),
+				0,
+			),
+		);
+	}
+
+	/** The daily average, the busiest and quietest buckets up to `today`, and where an unfinished period is heading. */
+	#figures(
+		buckets: EnergyBucket[],
+		{
+			unit,
+			today,
+			elapsed,
+			length,
+		}: { unit: EnergyUnit; today: string; elapsed: number; length: number },
+	) {
+		const total = this.#sum(buckets);
+		const past = buckets
+			.filter((bucket) => bucket.key.slice(0, 10) <= today)
+			.toSorted((first, second) => first.kilowattHours - second.kilowattHours);
+		return {
+			averagePerDay: elapsed > 0 ? this.#round(total / elapsed) : 0,
+			peak: past.at(-1) ?? null,
+			lowest: unit === "day" ? (past[0] ?? null) : null,
+			projection:
+				elapsed > 0 && elapsed < length
+					? this.#round((total / elapsed) * length)
+					: null,
+		};
+	}
+
+	/** Each metered device's buckets over the range, its days, the days before, and its hours when it reports hourly. */
+	#series(
+		metered: DeviceDTO[],
+		readings: (Reading & { deviceId: string })[],
+		timeZone: string,
+		spans: {
+			keys: string[];
+			unit: EnergyUnit;
+			span: string[];
+			beforeDays: string[];
+			hourKeys: string[];
+		},
+	) {
+		return metered.map((device) => {
+			const own = readings.filter((reading) => reading.deviceId === device.id);
+			const beforeDaily = this.#buckets(own, spans.beforeDays, timeZone, "day");
+			return {
+				device,
+				buckets: this.#buckets(own, spans.keys, timeZone, spans.unit),
+				daily: this.#buckets(own, spans.span, timeZone, "day"),
+				beforeDaily,
+				hourly:
+					device.kind === "linky"
+						? null
+						: this.#buckets(own, spans.hourKeys, timeZone, "hour"),
+				before: this.#sum(beforeDaily),
+			};
+		});
+	}
+
+	/** The running totals against the span before, the average week, and the average day when the meters report hourly. */
+	#profile(
+		{
+			daily,
+			before: beforeDaily,
+			hourly,
+		}: { daily: number[]; before: number[]; hourly: number[] | null },
+		span: string[],
+		today: string,
+	): EnergyReport["profile"] {
+		let running = 0;
+		let runningBefore = 0;
+		const cumulative = span.map((day, index) => {
+			running += daily[index] ?? 0;
+			runningBefore += beforeDaily[index] ?? 0;
+			return {
+				day,
+				current: day <= today ? this.#round(running) : null,
+				previous: this.#round(runningBefore),
+			};
+		});
+		const weekdays = Array.from({ length: 7 }, (_, weekday) => {
+			const values = span.flatMap((day, index) =>
+				day <= today &&
+				(new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7 === weekday
+					? [daily[index] ?? 0]
+					: [],
+			);
+			return values.length > 0
+				? this.#round(
+						values.reduce((sum, value) => sum + value, 0) / values.length,
+					)
+				: 0;
+		});
+		const hourDays = (hourly?.length ?? 0) / 24;
+		const hours =
+			hourly && hourDays > 0
+				? Array.from({ length: 24 }, (_, hour) =>
+						this.#round(
+							hourly
+								.filter((_, index) => index % 24 === hour)
+								.reduce((sum, value) => sum + value, 0) / hourDays,
+						),
+					)
+				: null;
+		return { cumulative, weekdays, hours };
+	}
+
+	/** The dates and bar size a preset, a month, the latest of a season or a custom span covers, given the local `today` and the first reading. */
 	resolve(
 		choice: EnergyChoice,
 		today: string,
@@ -150,6 +282,22 @@ class Energy {
 				key: `month:${choice.month}`,
 				from: `${choice.month}-01`,
 				to: this.#monthEnd(choice.month),
+				unit: "day",
+			};
+		}
+		if ("season" in choice) {
+			const firstMonth = { spring: 3, summer: 6, autumn: 9, winter: 12 }[
+				choice.season
+			];
+			const year = Number(today.slice(0, 4));
+			const thisYear = `${year}-${String(firstMonth).padStart(2, "0")}`;
+			const start =
+				`${thisYear}-01` > today ? `${year - 1}${thisYear.slice(4)}` : thisYear;
+			const end = this.#monthsBefore(start, -2);
+			return {
+				key: `season:${choice.season}`,
+				from: `${start}-01`,
+				to: this.#monthEnd(end),
 				unit: "day",
 			};
 		}
@@ -203,6 +351,7 @@ class Energy {
 		return unit === "day" ? day : day.slice(0, 7);
 	}
 
+	/** The bar size for a custom span: hours up to 3 days, days up to about 3 months, months beyond. */
 	#unitFor(from: string, to: string): EnergyUnit {
 		const length = this.#days(from, to).length;
 		if (length <= 3) {
@@ -211,6 +360,7 @@ class Energy {
 		return length <= 93 ? "day" : "month";
 	}
 
+	/** The bucket keys a range covers, in order. */
 	#keys(range: EnergyRange): string[] {
 		const days = this.#days(range.from, range.to);
 		if (range.unit === "hour") {
@@ -226,12 +376,14 @@ class Energy {
 			: [...new Set(days.map((day) => day.slice(0, 7)))];
 	}
 
+	/** Every month from `from` to `to`, latest first. */
 	#months(from: string, to: string): string[] {
 		return [
 			...new Set(this.#days(from, to).map((day) => day.slice(0, 7))),
 		].toReversed();
 	}
 
+	/** Every day from `from` to `to`, both included. */
 	#days(from: string, to: string): string[] {
 		const days: string[] = [];
 		for (let day = from; day <= to && days.length < 4000;) {
@@ -241,12 +393,14 @@ class Energy {
 		return days;
 	}
 
+	/** The day `by` days after `day`. */
 	#shift(day: string, by: number): string {
 		return new Date(Date.parse(`${day}T00:00:00Z`) + by * dayMs)
 			.toISOString()
 			.slice(0, 10);
 	}
 
+	/** The month `count` months before `month`. */
 	#monthsBefore(month: string, count: number): string {
 		const [year = 0, number = 1] = month.split("-").map(Number);
 		return new Date(Date.UTC(year, number - 1 - count, 1))
@@ -254,21 +408,25 @@ class Energy {
 			.slice(0, 7);
 	}
 
+	/** The last day of `month`. */
 	#monthEnd(month: string): string {
 		const [year = 0, number = 1] = month.split("-").map(Number);
 		return new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10);
 	}
 
+	/** The total of `buckets`, rounded to the hundredth. */
 	#sum(buckets: EnergyBucket[]): number {
 		return this.#round(
 			buckets.reduce((total, bucket) => total + bucket.kilowattHours, 0),
 		);
 	}
 
+	/** `value` rounded to the hundredth. */
 	#round(value: number): number {
 		return Math.round(value * 100) / 100;
 	}
 
+	/** What the counter readings added up in each bucket of `keys`, skipping counter resets. */
 	#buckets(
 		readings: Reading[],
 		keys: string[],

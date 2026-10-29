@@ -3,7 +3,6 @@
 	import { resolve } from "$app/paths";
 	import CalendarDaysIcon from "@lucide/svelte/icons/calendar-days";
 	import CalendarRangeIcon from "@lucide/svelte/icons/calendar-range";
-	import CheckIcon from "@lucide/svelte/icons/check";
 	import FlameIcon from "@lucide/svelte/icons/flame";
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import MoonIcon from "@lucide/svelte/icons/moon";
@@ -14,17 +13,15 @@
 
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import EnergyBars from "#lib/components/energy/energy-bars.svelte";
-	import Picker from "#lib/components/picker.svelte";
+	import EnergyBreakdown from "#lib/components/energy/energy-breakdown.svelte";
+	import EnergyLines from "#lib/components/energy/energy-lines.svelte";
+	import EnergyPeriod from "#lib/components/energy/energy-period.svelte";
 	import StatCard from "#lib/components/stat-card.svelte";
-	import { Button } from "#lib/components/ui/button/index.js";
-	import * as Field from "#lib/components/ui/field/index.js";
-	import { Input } from "#lib/components/ui/input/index.js";
 	import {
 		bucketLabel,
+		dayName,
 		type EnergyBucket,
-		energyPresetLabels,
-		energyPresets,
-		monthName,
+		rangeLabel,
 	} from "#lib/energy.js";
 	import { setPageTitle } from "#lib/page-title.svelte.js";
 
@@ -33,47 +30,46 @@
 	setPageTitle("Energy");
 
 	const report = $derived(data.energy);
-	const custom = "custom";
-	let choosing = $state(false);
-	let from = $state("");
-	let to = $state("");
-
-	const options = $derived([
-		...energyPresets.map((preset) => ({
-			value: preset,
-			label: energyPresetLabels[preset],
-		})),
-		...report.months.map((month) => ({
-			value: `month:${month}`,
-			label: monthName(month),
-		})),
-		{ value: custom, label: "Custom range…" },
-	]);
-	const picked = $derived(choosing ? custom : report.range.key);
-	const rangeLabel = $derived(
-		report.range.key === custom
-			? `${dayName(report.range.from)} to ${dayName(report.range.to)}`
-			: (options.find((option) => option.value === report.range.key)?.label ??
-					""),
-	);
+	const period = $derived(rangeLabel(report.range));
 	const change = $derived(
 		report.house.previousTotal > 0
 			? (report.house.total - report.house.previousTotal) /
 					report.house.previousTotal
 			: null,
 	);
+	const cardCount = $derived(
+		3 +
+			Number(report.house.peak !== null) +
+			Number(report.house.lowest !== null) +
+			Number(report.house.projection !== null),
+	);
+	const weekdayNames = Array.from({ length: 7 }, (_, index) =>
+		new Date(Date.UTC(2024, 0, 1 + index)).toLocaleDateString(undefined, {
+			weekday: "short",
+			timeZone: "UTC",
+		}),
+	);
+	const breakdown = $derived.by(() => {
+		const parts = report.appliances
+			.filter((appliance) => appliance.total > 0)
+			.toSorted((first, second) => second.total - first.total)
+			.map((appliance) => ({
+				key: appliance.deviceId,
+				name: appliance.name,
+				kilowattHours: appliance.total,
+			}));
+		const measured = parts.reduce((sum, part) => sum + part.kilowattHours, 0);
+		const rest = Math.round((report.house.total - measured) * 100) / 100;
+		return report.house.metered && rest > 0
+			? [
+					...parts,
+					{ key: "rest", name: "Everything else", kilowattHours: rest },
+				]
+			: parts;
+	});
 	const appliances = $derived(
 		report.appliances.toSorted((first, second) => second.total - first.total),
 	);
-
-	function dayName(day: string): string {
-		return new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, {
-			day: "numeric",
-			month: "short",
-			year: "numeric",
-			timeZone: "UTC",
-		});
-	}
 
 	function kilowattHours(value: number): string {
 		return `${value.toLocaleString(undefined, {
@@ -90,21 +86,10 @@
 	}
 
 	function show(query: Record<string, string>) {
-		choosing = false;
 		void goto(
 			`${resolve("/(protected)/energy")}?${new URLSearchParams(query)}`,
 			{ reset: false },
 		);
-	}
-
-	function handlePick(next: string) {
-		if (next === custom) {
-			choosing = true;
-			from = report.range.from;
-			to = report.range.to;
-			return;
-		}
-		show({ range: next });
 	}
 </script>
 
@@ -118,67 +103,27 @@
 	</div>
 {:else}
 	<div class="flex flex-col gap-6">
-		<div class="flex flex-col gap-3 md:flex-row md:items-end">
-			<Field.Field class="md:w-72">
-				<Field.Label for="energy-range">Period</Field.Label>
-				<Picker
-					id="energy-range"
-					name=""
-					label="Period"
-					{options}
-					value={picked}
-					onPick={handlePick}
-				/>
-			</Field.Field>
-			{#if choosing}
-				<form
-					class="flex flex-col gap-3 sm:flex-row sm:items-end"
-					onsubmit={(event) => {
-						event.preventDefault();
-						show({ from, to });
-					}}
-				>
-					<Field.Field>
-						<Field.Label for="energy-from">From</Field.Label>
-						<Input
-							id="energy-from"
-							type="date"
-							bind:value={from}
-							max={report.today}
-							required
-							class="h-11"
-						/>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="energy-to">To</Field.Label>
-						<Input
-							id="energy-to"
-							type="date"
-							bind:value={to}
-							required
-							class="h-11"
-						/>
-					</Field.Field>
-					<Button type="submit" class="h-11 rounded-xl px-5"
-						><CheckIcon />Show</Button
-					>
-				</form>
-			{/if}
-		</div>
+		<EnergyPeriod
+			range={report.range}
+			months={report.months}
+			today={report.today}
+			onChoose={show}
+		/>
 
 		<ul
-			class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6"
-			aria-label="Figures for {rangeLabel}"
+			class="flex flex-wrap gap-3 lg:grid lg:grid-cols-[repeat(var(--cards),minmax(0,1fr))]"
+			style:--cards={cardCount}
+			aria-label="Figures for {period}"
 		>
-			<li>
+			<li class="grid min-w-0 flex-[1_1_14rem] *:min-w-0">
 				<StatCard
 					icon={ZapIcon}
 					label={report.house.metered ? "The house used" : "Measured"}
 					value={kilowattHours(report.house.total)}
-					hint={rangeLabel}
+					hint={period}
 				/>
 			</li>
-			<li>
+			<li class="grid min-w-0 flex-[1_1_14rem] *:min-w-0">
 				<StatCard
 					icon={change !== null && change > 0
 						? TrendingUpIcon
@@ -192,12 +137,10 @@
 					value={change === null
 						? "No data"
 						: `${change > 0 ? "+" : ""}${Math.round(change * 100)}%`}
-					hint="{kilowattHours(
-						report.house.previousTotal,
-					)} over the same span before"
+					hint="vs {kilowattHours(report.house.previousTotal)} before"
 				/>
 			</li>
-			<li>
+			<li class="grid min-w-0 flex-[1_1_14rem] *:min-w-0">
 				<StatCard
 					icon={CalendarDaysIcon}
 					label="A day on average"
@@ -205,7 +148,7 @@
 				/>
 			</li>
 			{#if report.house.peak}
-				<li>
+				<li class="grid min-w-0 flex-[1_1_14rem] *:min-w-0">
 					<StatCard
 						icon={FlameIcon}
 						label="The most"
@@ -215,7 +158,7 @@
 				</li>
 			{/if}
 			{#if report.house.lowest}
-				<li>
+				<li class="grid min-w-0 flex-[1_1_14rem] *:min-w-0">
 					<StatCard
 						icon={MoonIcon}
 						label="The quietest day"
@@ -225,7 +168,7 @@
 				</li>
 			{/if}
 			{#if report.house.projection !== null}
-				<li>
+				<li class="grid min-w-0 flex-[1_1_14rem] *:min-w-0">
 					<StatCard
 						icon={TargetIcon}
 						label="Heading for"
@@ -238,10 +181,55 @@
 
 		<section class="glass rounded-2xl p-4 md:p-6">
 			<EnergyBars
-				title="{rangeLabel}{report.house.metered ? '' : ', metered appliances'}"
+				title="{period}{report.house.metered ? '' : ', metered appliances'}"
 				bars={bars(report.house.buckets)}
 			/>
 		</section>
+
+		<div class="grid gap-6 lg:grid-cols-2">
+			<section class="glass rounded-2xl p-4 md:p-6">
+				<EnergyLines
+					title="Running total"
+					currentLabel={period}
+					previousLabel="The same span before"
+					points={report.profile.cumulative.map((point) => ({
+						key: point.day,
+						label: bucketLabel(point.day, "day"),
+						current: point.current,
+						previous: point.previous,
+					}))}
+				/>
+			</section>
+			<section class="glass rounded-2xl p-4 md:p-6">
+				<EnergyBreakdown
+					title="Where it goes"
+					parts={breakdown}
+					total={report.house.total}
+				/>
+			</section>
+			<section class="glass rounded-2xl p-4 md:p-6">
+				<EnergyBars
+					title="An average week"
+					bars={report.profile.weekdays.map((value, index) => ({
+						key: String(index),
+						label: weekdayNames[index] ?? "",
+						value,
+					}))}
+				/>
+			</section>
+			{#if report.profile.hours}
+				<section class="glass rounded-2xl p-4 md:p-6">
+					<EnergyBars
+						title="An average day"
+						bars={report.profile.hours.map((value, hour) => ({
+							key: String(hour),
+							label: `${hour}h`,
+							value,
+						}))}
+					/>
+				</section>
+			{/if}
+		</div>
 
 		{#if appliances.length > 0}
 			<section aria-labelledby="appliances-heading" class="flex flex-col gap-3">
@@ -263,7 +251,7 @@
 									{/if}
 								</p>
 							</div>
-							<EnergyBars title={rangeLabel} bars={bars(appliance.buckets)} />
+							<EnergyBars title={period} bars={bars(appliance.buckets)} />
 						</li>
 					{/each}
 				</ul>
