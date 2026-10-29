@@ -1,0 +1,68 @@
+{
+	"id": "mqtt-discovery",
+	"name": "MQTT discovery",
+	"description": "Tasmota, ESPHome, Shelly and other devices that announce themselves for Home Assistant, without Home Assistant.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "zap",
+	"needs": ["mqtt"],
+	"connection": {
+		"description": "Devices that support Home Assistant's MQTT discovery publish their description on the MQTT broker. Turn discovery on in each device (Tasmota: SetOption19 off and the Home Assistant integration on; ESPHome: the mqtt component), and they show up here on their own.",
+		"connected": "Switches, lights, covers, door and window sensors, power and energy sensors and thermostats show up here on their own.",
+		"find": "Find new devices",
+		"fields": [
+			{
+				"name": "prefix",
+				"label": "Discovery prefix",
+				"type": "text",
+				"default": "homeassistant",
+				"pattern": "^[A-Za-z0-9_/-]{1,60}$",
+				"message": "Type the discovery prefix, homeassistant unless you changed it."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "mqtt-discovery-switch",
+			"label": "Switch or light",
+			"card": "switch",
+			"icon": "lightbulb",
+			"order": 3
+		},
+		{
+			"id": "mqtt-discovery-cover",
+			"label": "Cover",
+			"card": "cover",
+			"icon": "blinds",
+			"order": 1
+		},
+		{
+			"id": "mqtt-discovery-contact",
+			"label": "Door or window sensor",
+			"card": "contact",
+			"icon": "door-open",
+			"order": 1
+		},
+		{
+			"id": "mqtt-discovery-power",
+			"label": "Power sensor",
+			"card": "meter",
+			"icon": "zap",
+			"order": 4
+		},
+		{
+			"id": "mqtt-discovery-energy",
+			"label": "Energy sensor",
+			"card": "meter",
+			"icon": "gauge",
+			"order": 4
+		},
+		{
+			"id": "mqtt-discovery-climate",
+			"label": "Thermostat",
+			"card": "climate",
+			"icon": "thermometer",
+			"order": 0
+		}
+	]
+}

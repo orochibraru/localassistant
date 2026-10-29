@@ -13,6 +13,8 @@ import linky from "#plugins/linky/index.js";
 import linkyManifest from "#plugins/linky/localassistant-plugin.json";
 import melcloud from "#plugins/melcloud/index.js";
 import melcloudManifest from "#plugins/melcloud/localassistant-plugin.json";
+import mqttDiscovery from "#plugins/mqtt-discovery/index.js";
+import mqttDiscoveryManifest from "#plugins/mqtt-discovery/localassistant-plugin.json";
 import shelly from "#plugins/shelly/index.js";
 import shellyManifest from "#plugins/shelly/localassistant-plugin.json";
 import tuya from "#plugins/tuya/index.js";
@@ -31,4 +33,5 @@ export const officialPlugins: { manifest: unknown; plugin: Plugin }[] = [
 	{ manifest: bambuManifest, plugin: bambu },
 	{ manifest: dreameManifest, plugin: dreame },
 	{ manifest: linkyManifest, plugin: linky },
+	{ manifest: mqttDiscoveryManifest, plugin: mqttDiscovery },
 ];
