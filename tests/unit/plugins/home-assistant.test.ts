@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 
 import type { ServerWebSocket } from "bun";
 
+import type { DeviceState } from "#lib/devices.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { plugins } from "#lib/server/plugins/registry.js";
@@ -182,10 +183,15 @@ describe("Home Assistant", () => {
 				url,
 				token: "good-token",
 			}),
-		).toBe(7);
+		).toBe(8);
 		expect(named("Desk lamp").state).toMatchObject({
-			type: "switch",
+			type: "light",
 			on: true,
+			features: [],
+		});
+		expect(named("sensor.temperature").state).toEqual({
+			type: "sensor",
+			readings: [{ name: "temperature", value: 20, unit: null }],
 		});
 		expect(named("Living blind").state).toEqual({
 			type: "cover",
@@ -206,7 +212,10 @@ describe("Home Assistant", () => {
 			snapshot: "snapshot.jpg",
 		});
 
-		await devices.command(named("Desk lamp"), { type: "switch", on: false });
+		await devices.command(named("Desk lamp"), {
+			type: "light",
+			change: { on: false },
+		});
 		await devices.command(named("Living blind"), {
 			type: "cover",
 			move: { action: "stop" },
@@ -229,7 +238,7 @@ describe("Home Assistant", () => {
 		});
 		expect(calls).toEqual([
 			{
-				domain: "homeassistant",
+				domain: "light",
 				service: "turn_off",
 				data: {},
 				entity: "light.desk",
@@ -278,9 +287,72 @@ describe("Home Assistant", () => {
 			targetTemperature: 20,
 		});
 
+		const added = (kind: string, externalId: string, state: DeviceState) => {
+			const device = DeviceDTO.upsert({
+				kind,
+				homeId: homeId(),
+				name: externalId,
+				roomId: null,
+				externalId,
+				host: null,
+				fields: {},
+			});
+			device.saveState(state);
+			return () => named(externalId);
+		};
+		const lock = added("home-assistant-lock", "lock.front", {
+			type: "lock",
+			locked: false,
+			jammed: true,
+			battery: null,
+		});
+		const fan = added("home-assistant-fan", "fan.bedroom", {
+			type: "fan",
+			on: false,
+			speed: 0,
+			speedSteps: 4,
+			oscillating: false,
+		});
+		const speaker = added("home-assistant-media", "media_player.kitchen", {
+			type: "media",
+			power: true,
+			playback: "paused",
+			title: null,
+			artist: null,
+			volume: 10,
+			muted: false,
+			source: null,
+			sources: [],
+		});
+		const scene = added("home-assistant-button", "scene.movie", {
+			type: "button",
+			pressedAt: null,
+		});
+		await devices.command(lock(), { type: "lock", locked: true });
+		await devices.command(fan(), { type: "fan", change: { speed: 50 } });
+		await devices.command(speaker(), {
+			type: "media",
+			change: { action: "play", volume: 20 },
+		});
+		await devices.command(scene(), { type: "button" });
+		expect(lock().state).toMatchObject({ locked: true, jammed: false });
+		expect(fan().state).toMatchObject({ speed: 50 });
+		expect(speaker().state).toMatchObject({ playback: "playing", volume: 20 });
+		await devices.command(speaker(), {
+			type: "media",
+			change: { action: "stop" },
+		});
+		expect(speaker().state).toMatchObject({ playback: "idle" });
+		expect(
+			(scene().state as { pressedAt: string | null }).pressedAt,
+		).not.toBeNull();
+
 		refuseService = true;
 		await expect(
-			devices.command(named("Desk lamp"), { type: "switch", on: true }),
+			devices.command(named("Desk lamp"), {
+				type: "light",
+				change: { on: true },
+			}),
 		).rejects.toThrow("Home Assistant refused it: Service not found.");
 		await expect(
 			devices.command(named("Front door"), { type: "switch", on: true }),
@@ -290,6 +362,7 @@ describe("Home Assistant", () => {
 				"home-assistant-contact",
 				{ type: "switch", on: true },
 				[],
+				"binary_sensor.front_door",
 			),
 		).toThrow("doesn't take that command");
 	});
@@ -384,5 +457,237 @@ describe("Home Assistant", () => {
 				attributes: {},
 			}),
 		).toMatchObject({ offline: true, power: false, modes: [] });
+	});
+
+	test("maps lights, locks, fans, media players, sensors and buttons both ways", () => {
+		const entity = (
+			entityId: string,
+			state: string,
+			attributes: Record<string, unknown> = {},
+		) => ({ entity_id: entityId, state, attributes });
+		const kind = (entityId: string, attributes: Record<string, unknown> = {}) =>
+			haMapping.kind(entity(entityId, "on", attributes));
+		expect(kind("light.a")).toBe("home-assistant-light");
+		expect(kind("lock.a")).toBe("home-assistant-lock");
+		expect(kind("fan.a")).toBe("home-assistant-fan");
+		expect(kind("media_player.a")).toBe("home-assistant-media");
+		expect(kind("scene.a")).toBe("home-assistant-button");
+		expect(kind("input_boolean.a")).toBe("home-assistant-switch");
+		expect(kind("sensor.a", { state_class: "measurement" })).toBe(
+			"home-assistant-sensor",
+		);
+		expect(kind("binary_sensor.a", { device_class: "motion" })).toBe(
+			"home-assistant-sensor",
+		);
+		expect(kind("sensor.sun_next_dawn")).toBeNull();
+		expect(kind("automation.a")).toBeNull();
+
+		expect(
+			haMapping.state(
+				"home-assistant-light",
+				entity("light.a", "on", {
+					supported_color_modes: ["color_temp", "hs"],
+					brightness: 128,
+					color_temp_kelvin: 3000,
+					min_color_temp_kelvin: 2200,
+					max_color_temp_kelvin: 6000,
+					hs_color: [30, 40],
+				}),
+			),
+		).toEqual({
+			type: "light",
+			on: true,
+			brightness: 50,
+			temperature: 3000,
+			minTemperature: 2200,
+			maxTemperature: 6000,
+			color: { hue: 30, saturation: 40 },
+			features: ["brightness", "temperature", "color"],
+		});
+		expect(
+			haMapping.state("home-assistant-lock", entity("lock.a", "jammed")),
+		).toEqual({ type: "lock", locked: false, jammed: true, battery: null });
+		expect(
+			haMapping.state("home-assistant-lock", entity("lock.a", "unavailable")),
+		).toMatchObject({ locked: null });
+		expect(
+			haMapping.state(
+				"home-assistant-fan",
+				entity("fan.a", "on", {
+					percentage: 50,
+					percentage_step: 25,
+					oscillating: true,
+				}),
+			),
+		).toEqual({
+			type: "fan",
+			on: true,
+			speed: 50,
+			speedSteps: 4,
+			oscillating: true,
+		});
+		expect(
+			haMapping.state("home-assistant-fan", entity("fan.a", "off")),
+		).toMatchObject({ speedSteps: 0, oscillating: null });
+		expect(
+			haMapping.state(
+				"home-assistant-media",
+				entity("media_player.a", "playing", {
+					media_title: "Song",
+					media_artist: "Band",
+					volume_level: 0.25,
+					is_volume_muted: false,
+					source: "Radio",
+					source_list: ["Radio", "TV"],
+				}),
+			),
+		).toEqual({
+			type: "media",
+			power: true,
+			playback: "playing",
+			title: "Song",
+			artist: "Band",
+			volume: 25,
+			muted: false,
+			source: "Radio",
+			sources: ["Radio", "TV"],
+		});
+		expect(
+			haMapping.state("home-assistant-media", entity("media_player.a", "off")),
+		).toMatchObject({
+			power: false,
+			playback: null,
+			volume: null,
+			sources: [],
+		});
+		expect(
+			haMapping.state(
+				"home-assistant-button",
+				entity("button.a", "2026-01-02T03:04:05+00:00"),
+			),
+		).toEqual({ type: "button", pressedAt: "2026-01-02T03:04:05.000Z" });
+		expect(
+			haMapping.state("home-assistant-button", entity("script.a", "off")),
+		).toEqual({ type: "button", pressedAt: null });
+		expect(
+			haMapping.state(
+				"home-assistant-sensor",
+				entity("binary_sensor.a", "on", { device_class: "motion" }),
+			),
+		).toMatchObject({ readings: [{ name: "motion", value: true }] });
+		expect(
+			haMapping.state(
+				"home-assistant-sensor",
+				entity("sensor.a", "unknown", { unit_of_measurement: "ppm" }),
+			),
+		).toEqual({
+			type: "sensor",
+			readings: [{ name: "Value", value: null, unit: "ppm" }],
+		});
+
+		expect(
+			haMapping.services(
+				"home-assistant-switch",
+				{ type: "switch", on: true },
+				[],
+				"switch.a",
+			),
+		).toEqual([{ domain: "homeassistant", service: "turn_on", data: {} }]);
+		expect(
+			haMapping.services(
+				"home-assistant-light",
+				{
+					type: "light",
+					change: {
+						brightness: 40,
+						temperature: 2700,
+						color: { hue: 10, saturation: 20 },
+					},
+				},
+				[],
+				"light.a",
+			),
+		).toEqual([
+			{
+				domain: "light",
+				service: "turn_on",
+				data: {
+					brightness_pct: 40,
+					color_temp_kelvin: 2700,
+					hs_color: [10, 20],
+				},
+			},
+		]);
+		expect(
+			haMapping.services(
+				"home-assistant-lock",
+				{ type: "lock", locked: true },
+				[],
+				"lock.a",
+			),
+		).toEqual([{ domain: "lock", service: "lock", data: {} }]);
+		expect(
+			haMapping.services(
+				"home-assistant-fan",
+				{ type: "fan", change: { on: false, speed: 20, oscillating: true } },
+				[],
+				"fan.a",
+			),
+		).toEqual([
+			{ domain: "fan", service: "turn_off", data: {} },
+			{ domain: "fan", service: "set_percentage", data: { percentage: 20 } },
+			{ domain: "fan", service: "oscillate", data: { oscillating: true } },
+		]);
+		expect(
+			haMapping.services(
+				"home-assistant-media",
+				{
+					type: "media",
+					change: {
+						power: true,
+						action: "next",
+						volume: 30,
+						muted: true,
+						source: "TV",
+					},
+				},
+				[],
+				"media_player.a",
+			),
+		).toEqual([
+			{ domain: "media_player", service: "turn_on", data: {} },
+			{ domain: "media_player", service: "media_next_track", data: {} },
+			{
+				domain: "media_player",
+				service: "volume_set",
+				data: { volume_level: 0.3 },
+			},
+			{
+				domain: "media_player",
+				service: "volume_mute",
+				data: { is_volume_muted: true },
+			},
+			{
+				domain: "media_player",
+				service: "select_source",
+				data: { source: "TV" },
+			},
+		]);
+		expect(
+			haMapping.services(
+				"home-assistant-button",
+				{ type: "button" },
+				[],
+				"input_button.a",
+			),
+		).toEqual([{ domain: "input_button", service: "press", data: {} }]);
+		expect(
+			haMapping.services(
+				"home-assistant-button",
+				{ type: "button" },
+				[],
+				"scene.a",
+			),
+		).toEqual([{ domain: "scene", service: "turn_on", data: {} }]);
 	});
 });

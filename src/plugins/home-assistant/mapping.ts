@@ -1,4 +1,10 @@
-import type { ClimateMode, DeviceState } from "#lib/devices.js";
+import type {
+	ClimateMode,
+	DeviceState,
+	LightFeature,
+	MediaAction,
+	MediaPlayback,
+} from "#lib/devices.js";
 import type { DeviceCommand, FoundDevice } from "#lib/plugin-sdk.js";
 
 import type { HaState } from "./client.js";
@@ -10,7 +16,46 @@ export interface ServiceCall {
 }
 
 const contactClasses = new Set(["door", "window", "opening", "garage_door"]);
-const switchDomains = new Set(["switch", "light", "input_boolean", "fan"]);
+const switchDomains = new Set(["switch", "input_boolean"]);
+const buttonDomains = new Set(["button", "input_button", "scene", "script"]);
+const readingClasses = new Set([
+	"temperature",
+	"humidity",
+	"illuminance",
+	"carbon_dioxide",
+	"pm25",
+	"pm10",
+	"pressure",
+	"moisture",
+	"motion",
+	"occupancy",
+	"presence",
+	"smoke",
+	"gas",
+	"carbon_monoxide",
+]);
+const colorModes = new Set(["hs", "xy", "rgb", "rgbw", "rgbww"]);
+const playbacks: Record<string, MediaPlayback> = {
+	playing: "playing",
+	paused: "paused",
+	idle: "idle",
+	on: "idle",
+	standby: "idle",
+	buffering: "playing",
+};
+const mediaServices: Record<MediaAction, string> = {
+	play: "media_play",
+	pause: "media_pause",
+	next: "media_next_track",
+	previous: "media_previous_track",
+	stop: "media_stop",
+};
+const ownKinds: Record<string, string> = {
+	light: "home-assistant-light",
+	lock: "home-assistant-lock",
+	fan: "home-assistant-fan",
+	media_player: "home-assistant-media",
+};
 
 const climateModes: Record<string, ClimateMode> = {
 	heat: "heat",
@@ -31,6 +76,12 @@ class HaMapping {
 		if (switchDomains.has(domain)) {
 			return "home-assistant-switch";
 		}
+		if (ownKinds[domain]) {
+			return ownKinds[domain];
+		}
+		if (buttonDomains.has(domain)) {
+			return "home-assistant-button";
+		}
 		if (domain === "cover" || domain === "climate" || domain === "camera") {
 			return `home-assistant-${domain}`;
 		}
@@ -49,7 +100,13 @@ class HaMapping {
 		) {
 			return "home-assistant-energy";
 		}
-		return null;
+		const measured =
+			(domain === "sensor" &&
+				entity.attributes.state_class === "measurement") ||
+			readingClasses.has(deviceClass);
+		return (domain === "sensor" || domain === "binary_sensor") && measured
+			? "home-assistant-sensor"
+			: null;
 	}
 
 	/** The device an entity becomes, with its current state, or `null` when it has no card. */
@@ -130,6 +187,10 @@ class HaMapping {
 				offline: missing,
 			};
 		}
+		const control = this.#controlState(kind, entity, missing);
+		if (control) {
+			return control;
+		}
 		if (kind === "home-assistant-camera") {
 			return {
 				type: "camera",
@@ -166,7 +227,12 @@ class HaMapping {
 		kind: string,
 		command: DeviceCommand,
 		hvacModes: string[],
+		entityId: string,
 	): ServiceCall[] {
+		const control = this.#controlServices(kind, command, entityId);
+		if (control) {
+			return control;
+		}
 		if (kind === "home-assistant-switch" && command.type === "switch") {
 			return [
 				{
@@ -222,6 +288,236 @@ class HaMapping {
 			return calls;
 		}
 		throw new Error("That device doesn't take that command.");
+	}
+
+	#controlState(
+		kind: string,
+		entity: HaState,
+		missing: boolean,
+	): DeviceState | null {
+		const attributes = entity.attributes;
+		const number = (value: unknown) => {
+			const parsed = Number.parseFloat(String(value));
+			return Number.isFinite(parsed) ? parsed : null;
+		};
+		const on = missing ? null : entity.state === "on";
+		if (kind === "home-assistant-light") {
+			const modes = Array.isArray(attributes.supported_color_modes)
+				? attributes.supported_color_modes.map(String)
+				: [];
+			const features: LightFeature[] = [];
+			if (modes.some((mode) => mode !== "onoff")) {
+				features.push("brightness");
+			}
+			if (modes.includes("color_temp")) {
+				features.push("temperature");
+			}
+			if (modes.some((mode) => colorModes.has(mode))) {
+				features.push("color");
+			}
+			const brightness = number(attributes.brightness);
+			const hs = Array.isArray(attributes.hs_color)
+				? attributes.hs_color.map(number)
+				: [];
+			return {
+				type: "light",
+				on,
+				brightness:
+					brightness === null ? null : Math.round((brightness / 255) * 100),
+				temperature: number(attributes.color_temp_kelvin),
+				minTemperature: number(attributes.min_color_temp_kelvin) ?? 2000,
+				maxTemperature: number(attributes.max_color_temp_kelvin) ?? 6500,
+				color:
+					hs[0] != null && hs[1] != null
+						? { hue: hs[0], saturation: hs[1] }
+						: null,
+				features,
+			};
+		}
+		if (kind === "home-assistant-lock") {
+			return {
+				type: "lock",
+				locked: missing ? null : entity.state === "locked",
+				jammed: entity.state === "jammed",
+				battery: null,
+			};
+		}
+		if (kind === "home-assistant-fan") {
+			const step = number(attributes.percentage_step);
+			return {
+				type: "fan",
+				on,
+				speed: number(attributes.percentage),
+				speedSteps:
+					attributes.percentage === undefined
+						? 0
+						: Math.round(100 / (step && step > 0 ? step : 1)),
+				oscillating:
+					typeof attributes.oscillating === "boolean"
+						? attributes.oscillating
+						: null,
+			};
+		}
+		if (kind === "home-assistant-media") {
+			const volume = number(attributes.volume_level);
+			const text = (value: unknown) =>
+				typeof value === "string" && value ? value : null;
+			return {
+				type: "media",
+				power: missing ? null : entity.state !== "off",
+				playback: playbacks[entity.state] ?? null,
+				title: text(attributes.media_title),
+				artist: text(attributes.media_artist),
+				volume: volume === null ? null : Math.round(volume * 100),
+				muted:
+					typeof attributes.is_volume_muted === "boolean"
+						? attributes.is_volume_muted
+						: null,
+				source: text(attributes.source),
+				sources: Array.isArray(attributes.source_list)
+					? attributes.source_list.map(String)
+					: [],
+			};
+		}
+		if (kind === "home-assistant-button") {
+			const pressed = Date.parse(entity.state);
+			return {
+				type: "button",
+				pressedAt: Number.isNaN(pressed)
+					? null
+					: new Date(pressed).toISOString(),
+			};
+		}
+		if (kind === "home-assistant-sensor") {
+			const deviceClass = attributes.device_class;
+			const unit = attributes.unit_of_measurement;
+			const value = number(entity.state);
+			return {
+				type: "sensor",
+				readings: [
+					{
+						name:
+							typeof deviceClass === "string"
+								? deviceClass.replaceAll("_", " ")
+								: "Value",
+						value: missing
+							? null
+							: entity.entity_id.startsWith("binary_sensor.")
+								? entity.state === "on"
+								: (value ?? entity.state),
+						unit: typeof unit === "string" && unit ? unit : null,
+					},
+				],
+			};
+		}
+		return null;
+	}
+
+	#controlServices(
+		kind: string,
+		command: DeviceCommand,
+		entityId: string,
+	): ServiceCall[] | null {
+		if (kind === "home-assistant-light" && command.type === "light") {
+			const change = command.change;
+			if (change.on === false) {
+				return [{ domain: "light", service: "turn_off", data: {} }];
+			}
+			return [
+				{
+					domain: "light",
+					service: "turn_on",
+					data: {
+						...(change.brightness === undefined
+							? {}
+							: { brightness_pct: change.brightness }),
+						...(change.temperature === undefined
+							? {}
+							: { color_temp_kelvin: change.temperature }),
+						...(change.color
+							? { hs_color: [change.color.hue, change.color.saturation] }
+							: {}),
+					},
+				},
+			];
+		}
+		if (kind === "home-assistant-lock" && command.type === "lock") {
+			return [
+				{
+					domain: "lock",
+					service: command.locked ? "lock" : "unlock",
+					data: {},
+				},
+			];
+		}
+		if (kind === "home-assistant-fan" && command.type === "fan") {
+			const change = command.change;
+			const calls: ServiceCall[] = [];
+			if (change.on !== undefined) {
+				calls.push({
+					domain: "fan",
+					service: change.on ? "turn_on" : "turn_off",
+					data: {},
+				});
+			}
+			if (change.speed !== undefined) {
+				calls.push({
+					domain: "fan",
+					service: "set_percentage",
+					data: { percentage: change.speed },
+				});
+			}
+			if (change.oscillating !== undefined) {
+				calls.push({
+					domain: "fan",
+					service: "oscillate",
+					data: { oscillating: change.oscillating },
+				});
+			}
+			return calls;
+		}
+		if (kind === "home-assistant-media" && command.type === "media") {
+			return this.#mediaServices(command.change);
+		}
+		if (kind === "home-assistant-button" && command.type === "button") {
+			const domain = entityId.split(".")[0] ?? "button";
+			return [
+				{
+					domain,
+					service:
+						domain === "button" || domain === "input_button"
+							? "press"
+							: "turn_on",
+					data: {},
+				},
+			];
+		}
+		return null;
+	}
+
+	#mediaServices(
+		change: Extract<DeviceCommand, { type: "media" }>["change"],
+	): ServiceCall[] {
+		const call = (service: string, data: Record<string, unknown> = {}) => ({
+			domain: "media_player",
+			service,
+			data,
+		});
+		return [
+			...(change.power === undefined
+				? []
+				: [call(change.power ? "turn_on" : "turn_off")]),
+			...(change.action ? [call(mediaServices[change.action])] : []),
+			...(change.volume === undefined
+				? []
+				: [call("volume_set", { volume_level: change.volume / 100 })]),
+			...(change.muted === undefined
+				? []
+				: [call("volume_mute", { is_volume_muted: change.muted })]),
+			...(change.source === undefined
+				? []
+				: [call("select_source", { source: change.source })]),
+		];
 	}
 
 	#haMode(mode: ClimateMode, hvacModes: string[]): string {

@@ -124,7 +124,12 @@ class HomeAssistant implements Plugin {
 		const hvacModes = String(device.fields.hvacModes ?? "")
 			.split(",")
 			.filter(Boolean);
-		const calls = haMapping.services(device.kind, command, hvacModes);
+		const calls = haMapping.services(
+			device.kind,
+			command,
+			hvacModes,
+			device.externalId,
+		);
 		const connection = await this.#open(context);
 		try {
 			for (const call of calls) {

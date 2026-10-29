@@ -162,6 +162,13 @@
       "when": 1793310426123,
       "tag": "0022_plugin_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1793314332390,
+      "tag": "0023_ha_light_fan_kinds",
+      "breakpoints": true
     }
   ]
 }

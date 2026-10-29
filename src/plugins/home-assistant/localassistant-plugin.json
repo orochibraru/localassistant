@@ -3,7 +3,7 @@
 	"name": "Home Assistant",
 	"description": "Every device a Home Assistant instance knows, driven through it.",
 	"author": "LocalAssistant",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"icon": "puzzle",
 	"connection": {
 		"description": "For devices only Home Assistant integrates: LocalAssistant shows its switches, lights, covers, thermostats, door and window sensors, power and energy sensors and cameras. In Home Assistant, open your profile, Security, and create a long-lived access token.",
@@ -30,9 +30,9 @@
 	"kinds": [
 		{
 			"id": "home-assistant-switch",
-			"label": "Switch or light (Home Assistant)",
+			"label": "Switch (Home Assistant)",
 			"card": "switch",
-			"icon": "lightbulb",
+			"icon": "plug",
 			"order": 3
 		},
 		{
@@ -76,6 +76,50 @@
 			"card": "camera",
 			"icon": "cctv",
 			"order": -1
+		},
+		{
+			"id": "home-assistant-light",
+			"label": "Light (Home Assistant)",
+			"card": "light",
+			"icon": "lightbulb",
+			"order": 3
+		},
+		{
+			"id": "home-assistant-lock",
+			"label": "Lock (Home Assistant)",
+			"card": "lock",
+			"icon": "lock",
+			"order": 1
+		},
+		{
+			"id": "home-assistant-fan",
+			"label": "Fan (Home Assistant)",
+			"card": "fan",
+			"icon": "fan",
+			"order": 3
+		},
+		{
+			"id": "home-assistant-media",
+			"label": "Speaker or TV (Home Assistant)",
+			"card": "media",
+			"icon": "tv",
+			"order": 2
+		},
+		{
+			"id": "home-assistant-sensor",
+			"label": "Sensor (Home Assistant)",
+			"card": "sensor",
+			"icon": "gauge",
+			"size": "small",
+			"order": 5
+		},
+		{
+			"id": "home-assistant-button",
+			"label": "Button or scene (Home Assistant)",
+			"card": "button",
+			"icon": "mouse-pointer-click",
+			"size": "small",
+			"order": 6
 		}
 	]
 }
