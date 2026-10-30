@@ -215,3 +215,8 @@ export const deviceHistory = query(
 		};
 	},
 );
+
+export const recheckDevices = command(() => {
+	access.requireUser();
+	return devices.recheckOffline();
+});

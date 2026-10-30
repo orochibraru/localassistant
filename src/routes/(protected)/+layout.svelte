@@ -4,6 +4,7 @@
 	import AppFooter from "#lib/components/app-footer.svelte";
 	import AppBar from "#lib/components/app-shell/app-bar.svelte";
 	import BottomTabBar from "#lib/components/app-shell/bottom-tab-bar.svelte";
+	import DeviceRecheck from "#lib/components/app-shell/device-recheck.svelte";
 	import PageHeader from "#lib/components/app-shell/page-header.svelte";
 	import PullToRefresh from "#lib/components/app-shell/pull-to-refresh.svelte";
 	import Sidebar from "#lib/components/app-shell/sidebar.svelte";
@@ -25,6 +26,7 @@
 {#if panel}
 	{@render children()}
 	<AppReporter />
+	<DeviceRecheck />
 {:else if chat}
 	<div class="h-dvh md:pl-64">
 		{@render children()}
@@ -52,6 +54,7 @@
 	</div>
 	<AppBar />
 	<PullToRefresh />
+	<DeviceRecheck />
 	<Sidebar
 		isAdmin={data.isAdmin}
 		rooms={data.rooms}

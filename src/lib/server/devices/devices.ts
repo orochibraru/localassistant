@@ -12,6 +12,7 @@ import { type HostedPlugin, plugins } from "#lib/server/plugins/registry.js";
 const logger = new Logger("Devices");
 
 const unreachableAlertMs = 60 * 60_000;
+const recheckGapMs = 20_000;
 
 const commandNouns: Record<DeviceCommand["type"], string> = {
 	cover: "a cover",
@@ -29,6 +30,8 @@ const commandNouns: Record<DeviceCommand["type"], string> = {
 
 /** Reads and drives every device through the plugin that provides its kind. */
 class Devices {
+	#lastRecheckAt = 0;
+
 	/**
 	 * Reads `device` through its plugin and records its state, or why it couldn't be read, telling the admins once when
 	 * it has been unreachable for an hour; devices whose plugin pushes their state are left alone. Never throws.
@@ -59,6 +62,37 @@ class Devices {
 			device.saveError(this.message(error));
 			this.#reportOutage(device);
 		}
+	}
+
+	/** Whether `device` is down: unreachable, failing to read, or reported offline by its cloud. */
+	isOffline(device: DeviceDTO): boolean {
+		const { stateError, unreachableSince } = device.toJSON();
+		const state = device.state as { offline?: unknown } | null;
+		return (
+			unreachableSince !== null ||
+			stateError !== null ||
+			state?.offline === true
+		);
+	}
+
+	/**
+	 * Has the worker read every offline device again now, at most once every 20 seconds whoever asks; returns how many
+	 * are offline and whether a recheck was queued.
+	 */
+	recheckOffline(now = Date.now()): { offline: number; queued: boolean } {
+		const offline = DeviceDTO.all().filter((device) => this.isOffline(device));
+		if (offline.length === 0 || now - this.#lastRecheckAt < recheckGapMs) {
+			return { offline: offline.length, queued: false };
+		}
+		this.#lastRecheckAt = now;
+		for (const device of offline) {
+			JobDTO.enqueue(
+				"device.refresh",
+				{ deviceId: device.id },
+				{ maxAttempts: 1 },
+			);
+		}
+		return { offline: offline.length, queued: true };
 	}
 
 	/** Refreshes every device one after the other, so no cloud sees a burst; never throws. */

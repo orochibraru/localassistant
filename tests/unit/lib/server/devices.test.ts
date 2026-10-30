@@ -719,3 +719,49 @@ describe("phones and tablets", () => {
 		expect(DeviceDTO.find(phone.id)?.ownerId).toBeNull();
 	});
 });
+
+describe("rechecking offline devices", () => {
+	beforeEach(resetDatabase);
+
+	test("queues a read of every offline device, at most every 20 seconds", () => {
+		const base = Date.now() * 100_000;
+		const device = (externalId: string) =>
+			DeviceDTO.upsert({
+				kind: "melcloud-ata",
+				homeId: homeId(),
+				name: externalId,
+				externalId,
+			});
+		const healthy = device("healthy");
+		healthy.saveState({ type: "switch", on: true, power: null, energy: null });
+		expect(devices.recheckOffline(base)).toEqual({
+			offline: 0,
+			queued: false,
+		});
+		const failing = device("failing");
+		failing.saveError("The unit is offline in MELCloud.");
+		const cloudOffline = device("cloud-offline");
+		cloudOffline.saveState({
+			type: "climate",
+			power: true,
+			mode: "heat",
+			modes: ["heat"],
+			targetTemperature: 20,
+			roomTemperature: 19,
+			minTemperature: 10,
+			maxTemperature: 30,
+			offline: true,
+		});
+		expect(devices.isOffline(healthy)).toBe(false);
+		expect(devices.recheckOffline(base + 1_000_000)).toEqual({
+			offline: 2,
+			queued: true,
+		});
+		expect(JobDTO.isQueued("device.refresh")).toBe(true);
+		expect(devices.recheckOffline(base + 1_010_000)).toEqual({
+			offline: 2,
+			queued: false,
+		});
+		expect(devices.recheckOffline(base + 1_030_000).queued).toBe(true);
+	});
+});
