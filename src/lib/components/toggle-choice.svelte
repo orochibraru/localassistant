@@ -26,14 +26,28 @@
 				{...props}
 				{value}
 				aria-label={label}
-				class={cn("relative min-w-0 overflow-hidden", className)}
+				class={cn(
+					"relative min-w-0 overflow-hidden",
+					className,
+					!fits && "h-auto min-h-14 px-1 py-1.5",
+				)}
 			>
 				<span
-					class="flex min-w-0 flex-1 items-center justify-center gap-2"
+					class={cn(
+						"flex min-w-0 flex-1 items-center justify-center",
+						fits ? "gap-2" : "flex-col gap-1",
+					)}
 					bind:clientWidth={available}
 				>
 					{#if Icon}<Icon class="shrink-0" />{/if}
-					{#if fits}<span class="truncate">{label}</span>{/if}
+					{#if fits}
+						<span class="truncate">{label}</span>
+					{:else}
+						<span
+							class="line-clamp-2 text-center text-[0.6875rem] leading-tight font-normal wrap-break-word"
+							>{label}</span
+						>
+					{/if}
 				</span>
 				<span
 					class="invisible absolute flex items-center gap-2 whitespace-nowrap"

@@ -62,6 +62,10 @@ test("automations open their editor and the wall panel fits a square screen", as
 	).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(sheet.getByRole("radio", { name: "Sunset" })).toBeVisible();
+	await expect(
+		sheet.getByText("Weather", { exact: true }).first(),
+	).toBeVisible();
+	await sheet.screenshot({ path: "tmp/e2e/routine-phone.png" });
 	await expect(sheet.getByLabel("Name")).toHaveAttribute("data-1p-ignore", "");
 	await expect(sheet.getByLabel("Name")).toHaveAttribute("autocomplete", "off");
 	await page.keyboard.press("Escape");
@@ -75,4 +79,19 @@ test("automations open their editor and the wall panel fits a square screen", as
 		() => document.documentElement.scrollWidth - window.innerWidth,
 	);
 	expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("the assistant takes the whole screen, without the tab bar", async ({
+	page,
+}) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/assistant");
+	await expect(
+		page.getByRole("heading", { name: "The assistant is off" }),
+	).toBeVisible();
+	await expect(page.getByRole("link", { name: "Back to Home" })).toBeVisible();
+	await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0);
+	await page.screenshot({ path: "tmp/e2e/assistant-phone.png" });
 });

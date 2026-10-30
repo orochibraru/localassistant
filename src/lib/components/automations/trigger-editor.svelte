@@ -133,25 +133,25 @@
 	options={[
 		{ value: "sunrise", label: "Sunrise", icon: SunriseIcon },
 		{ value: "sunset", label: "Sunset", icon: SunsetIcon },
-		{ value: "time", label: "A time", icon: ClockIcon },
+		{ value: "time", label: "Time", icon: ClockIcon },
 		{
 			value: "temperature",
-			label: "Outside temperature",
+			label: "Weather",
 			icon: ThermometerIcon,
 		},
 		...(sensorOptions.length > 0
 			? [
 					{
 						value: "contact",
-						label: "A door or window opens",
+						label: "Door opens",
 						icon: DoorOpenIcon,
 					},
 				]
 			: []),
 		...(firstWatchable
-			? [{ value: "device", label: "A device changes", icon: PlugIcon }]
+			? [{ value: "device", label: "Device", icon: PlugIcon }]
 			: []),
-		{ value: "presence", label: "Someone arrives or leaves", icon: UsersIcon },
+		{ value: "presence", label: "People", icon: UsersIcon },
 	]}
 	value={choice}
 	onChange={(next) => (choice = next as Choice)}
