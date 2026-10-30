@@ -216,3 +216,57 @@ test("admin pages float no invite button and Admin, AI shows the MCP address", a
 		page.getByRole("button", { name: "Copy the MCP server address" }),
 	).toBeVisible();
 });
+
+test("a drawer closes by dragging its content down, even over a scrolled page, or by tapping above it", async ({
+	page,
+}) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/");
+	await page.waitForLoadState("networkidle");
+	await page.evaluate(() => {
+		document.body.style.paddingTop = "800px";
+		window.scrollTo(0, 800);
+	});
+	const openMenu = async () => {
+		await page.evaluate(() => {
+			[...document.querySelectorAll("button")]
+				.find((element) =>
+					element.getAttribute("aria-label")?.startsWith("More for"),
+				)
+				?.click();
+		});
+		const sheet = page.getByRole("dialog").last();
+		await expect(sheet).toBeVisible();
+		await page.waitForTimeout(700);
+		return sheet;
+	};
+	const label = await (
+		await openMenu()
+	)
+		.getByText("Card size", { exact: true })
+		.boundingBox();
+	const touch = await page.context().newCDPSession(page);
+	const x = 200;
+	const fromY = (label?.y ?? 400) + 8;
+	await touch.send("Input.dispatchTouchEvent", {
+		type: "touchStart",
+		touchPoints: [{ x, y: fromY }],
+	});
+	for (let y = fromY + 20; y <= fromY + 400; y += 20) {
+		await touch.send("Input.dispatchTouchEvent", {
+			type: "touchMove",
+			touchPoints: [{ x, y }],
+		});
+	}
+	await touch.send("Input.dispatchTouchEvent", {
+		type: "touchEnd",
+		touchPoints: [],
+	});
+	await expect(page.getByRole("dialog")).toHaveCount(0);
+	const sheet = await openMenu();
+	const box = await sheet.boundingBox();
+	await page.touchscreen.tap(x, Math.max((box?.y ?? 60) - 40, 5));
+	await expect(page.getByRole("dialog")).toHaveCount(0);
+});

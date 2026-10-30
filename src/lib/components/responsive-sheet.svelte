@@ -24,6 +24,14 @@
 	}: Props = $props();
 
 	const desktop = new MediaQuery("(min-width: 768px)");
+
+	let atTop = $state(true);
+
+	$effect(() => {
+		if (open) {
+			atTop = true;
+		}
+	});
 </script>
 
 {#if desktop.current}
@@ -58,7 +66,11 @@
 					<Drawer.Description>{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
-			<div class="min-h-0 flex-1 overflow-y-auto px-5">
+			<div
+				class="min-h-0 flex-1 overflow-y-auto px-5"
+				style:touch-action={atTop ? "pan-down" : "pan-y"}
+				onscroll={(event) => (atTop = event.currentTarget.scrollTop <= 0)}
+			>
 				{@render children()}
 			</div>
 			{#if footer}
