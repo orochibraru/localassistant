@@ -95,6 +95,7 @@
 		"agnix"
 	],
 	"patchedDependencies": {
-		"@sveltejs/adapter-bun@1.0.0": "patches/@sveltejs%2Fadapter-bun@1.0.0.patch"
+		"@sveltejs/adapter-bun@1.0.0": "patches/@sveltejs%2Fadapter-bun@1.0.0.patch",
+		"vaul-svelte@1.0.0-next.7": "patches/vaul-svelte@1.0.0-next.7.patch"
 	}
 }

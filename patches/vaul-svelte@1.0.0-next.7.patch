@@ -1,0 +1,13 @@
+diff --git a/dist/use-drawer-root.svelte.js b/dist/use-drawer-root.svelte.js
+index dffcf102fa23b5ab751407901513910d06980e09..69bc7f6e0c825dc648c526928e216afe3721876a 100644
+--- a/dist/use-drawer-root.svelte.js
++++ b/dist/use-drawer-root.svelte.js
+@@ -116,7 +116,7 @@ export function useDrawerRoot(opts) {
+             return false;
+         }
+         // Keep climbing up the DOM tree as long as there's a parent
+-        while (element) {
++        while (element && element !== drawerNode?.parentNode) {
+             // Check if the element is scrollable
+             if (element.scrollHeight > element.clientHeight) {
+                 if (element.scrollTop !== 0) {
