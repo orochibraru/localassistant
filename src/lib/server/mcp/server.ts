@@ -20,6 +20,7 @@ import {
 	vacuumCommands,
 } from "#lib/devices.js";
 import { AiAppDTO } from "#lib/dto/ai-app.js";
+import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
@@ -30,10 +31,13 @@ import { houseGroups } from "#lib/house.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import { kindInfo } from "#lib/plugins.js";
 import { authService } from "#lib/server/auth/auth.js";
+import { library } from "#lib/server/automations/library.js";
 import { scenes } from "#lib/server/automations/scenes.js";
 import { configuration } from "#lib/server/core/config.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { plugins } from "#lib/server/plugins/registry.js";
+import { automationSchema } from "#lib/server/validation/automation.js";
+import { sceneSchema } from "#lib/server/validation/scene.js";
 
 const jwksCacheKey = {};
 
@@ -97,6 +101,8 @@ class McpEndpoint {
 		this.#registerVacuum(server);
 		this.#registerControls(server);
 		this.#registerScenes(server);
+		this.#registerSceneEditing(server);
+		this.#registerRoutines(server);
 		return server;
 	}
 
@@ -435,6 +441,175 @@ class McpEndpoint {
 					: this.#reply({ done: true });
 			},
 		);
+	}
+
+	#registerSceneEditing(server: McpServer): void {
+		server.registerTool(
+			"save_scene",
+			{
+				title: "Create or change a scene",
+				description:
+					"Saves a scene: a name and the command each device gets when it's set, shaped like control_device's commands. Pass sceneId to replace that scene, leave it out to create one. Read list_house for device ids and list_scenes first to avoid duplicates.",
+				inputSchema: z.object({
+					homeId: homeIdField,
+					sceneId: z.string().min(1).optional(),
+					scene: sceneSchema,
+				}),
+			},
+			({ homeId, sceneId, scene }) =>
+				this.#editing(homeId, sceneId, SceneDTO, (home) => {
+					this.refuseHidden(scene.members.map((member) => member.deviceId));
+					return {
+						scene: library.saveScene(home.id, sceneId, scene).toJSON(),
+					};
+				}),
+		);
+		server.registerTool(
+			"delete_scene",
+			{
+				title: "Delete a scene",
+				description:
+					"Deletes a scene for everyone. Routines that set it stop working, so confirm with the person first.",
+				inputSchema: z.object({ sceneId: z.string().min(1) }),
+				annotations: { destructiveHint: true },
+			},
+			({ sceneId }) =>
+				this.#editing(undefined, sceneId, SceneDTO, (home) => ({
+					deleted: library.removeScene(home.id, sceneId),
+				})),
+		);
+	}
+
+	#registerRoutines(server: McpServer): void {
+		server.registerTool(
+			"list_routines",
+			{
+				title: "List routines",
+				description:
+					"A home's routines: each with an id, a name, whether it's on, its trigger, period, conditions and actions. Without homeId, the first home.",
+				inputSchema: z.object({ homeId: homeIdField }),
+				annotations: { readOnlyHint: true },
+			},
+			({ homeId }) => {
+				const home = this.#home(homeId);
+				return home
+					? this.#reply({
+							routines: AutomationDTO.inHome(home.id).map((automation) =>
+								this.routineJson(automation),
+							),
+						})
+					: this.#failure("No home has that id. Call list_homes.");
+			},
+		);
+		server.registerTool(
+			"save_routine",
+			{
+				title: "Create or change a routine",
+				description:
+					"Saves a routine the server runs on its own: a trigger (sun, time, temperature, contact, device state or presence), a period, optional conditions and one to twenty actions (devices, blinds, scenes, delays, notifications). Pass routineId to replace that routine, leave it out to create one. Read list_routines and list_house first; say what it will do before saving.",
+				inputSchema: z.object({
+					homeId: homeIdField,
+					routineId: z.string().min(1).optional(),
+					routine: automationSchema,
+				}),
+			},
+			({ homeId, routineId, routine }) =>
+				this.#editing(homeId, routineId, AutomationDTO, (home) => {
+					this.refuseHidden(library.devicesOf(routine));
+					return {
+						routine: this.routineJson(
+							library.saveRoutine(home.id, routineId, routine),
+						),
+					};
+				}),
+		);
+		server.registerTool(
+			"set_routine_enabled",
+			{
+				title: "Turn a routine on or off",
+				description:
+					"Turns a routine on or off. Get the id from list_routines.",
+				inputSchema: z.object({
+					routineId: z.string().min(1),
+					enabled: z.boolean(),
+				}),
+			},
+			({ routineId, enabled }) =>
+				this.#editing(undefined, routineId, AutomationDTO, (home) => {
+					library.enableRoutine(home.id, routineId, enabled);
+					return { enabled };
+				}),
+		);
+		server.registerTool(
+			"run_routine",
+			{
+				title: "Run a routine now",
+				description:
+					"Runs a routine's actions now, whatever its trigger and conditions. The server runs it in the background.",
+				inputSchema: z.object({ routineId: z.string().min(1) }),
+			},
+			({ routineId }) =>
+				this.#editing(undefined, routineId, AutomationDTO, (home) => {
+					library.runRoutine(home.id, routineId);
+					return { started: true };
+				}),
+		);
+		server.registerTool(
+			"delete_routine",
+			{
+				title: "Delete a routine",
+				description:
+					"Deletes a routine and its history for everyone. Confirm with the person first.",
+				inputSchema: z.object({ routineId: z.string().min(1) }),
+				annotations: { destructiveHint: true },
+			},
+			({ routineId }) =>
+				this.#editing(undefined, routineId, AutomationDTO, (home) => ({
+					deleted: library.removeRoutine(home.id, routineId),
+				})),
+		);
+	}
+
+	#editing(
+		homeId: string | undefined,
+		id: string | undefined,
+		owner: { find(id: string): { homeId: string } | undefined },
+		work: (home: HomeDTO) => unknown,
+	) {
+		const existingHome = id ? owner.find(id)?.homeId : undefined;
+		if (id && !existingHome) {
+			return this.#failure("Nothing has that id. List them again.");
+		}
+		const home = existingHome ? HomeDTO.find(existingHome) : this.#home(homeId);
+		if (!home) {
+			return this.#failure("No home has that id. Call list_homes.");
+		}
+		try {
+			return this.#reply(work(home));
+		} catch (error) {
+			return this.#failure(devices.message(error));
+		}
+	}
+
+	/**
+	 * Refuses device ids an admin hid from AI, as if they didn't exist.
+	 *
+	 * @throws When one of `deviceIds` is hidden.
+	 */
+	refuseHidden(deviceIds: string[]): void {
+		for (const deviceId of deviceIds) {
+			const device = DeviceDTO.find(deviceId);
+			if (device && !this.visible(device)) {
+				throw new Error(`No device has the id ${deviceId}. Call list_house.`);
+			}
+		}
+	}
+
+	/** A routine as AI sees it: its id, name, whether it's on, and what triggers it and what it does. */
+	routineJson(automation: AutomationDTO) {
+		const { id, name, enabled, trigger, period, conditions, actions } =
+			automation.toJSON();
+		return { id, name, enabled, trigger, period, conditions, actions };
 	}
 
 	#home(homeId: string | undefined): HomeDTO | undefined {

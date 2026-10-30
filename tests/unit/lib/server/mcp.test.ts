@@ -4,8 +4,10 @@ import { createMcpHandler } from "@modelcontextprotocol/server";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
+import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { SceneDTO } from "#lib/dto/scene.js";
+import { setSetting } from "#lib/dto/setting.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { mcpEndpoint } from "#lib/server/mcp/server.js";
 
@@ -66,11 +68,18 @@ describe("MCP tools", () => {
 			"control_room_blinds",
 			"control_switch",
 			"control_vacuum",
+			"delete_routine",
+			"delete_scene",
 			"get_device",
 			"list_homes",
 			"list_house",
+			"list_routines",
 			"list_scenes",
 			"press_button",
+			"run_routine",
+			"save_routine",
+			"save_scene",
+			"set_routine_enabled",
 			"set_scene",
 		]);
 	});
@@ -264,5 +273,139 @@ describe("MCP tools", () => {
 			isError: false,
 			text: JSON.stringify({ done: true }),
 		});
+	});
+
+	test("AI apps create, change and delete scenes, never with a device hidden from them", async () => {
+		const lamp = DeviceDTO.upsert({
+			homeId: homeId(),
+			kind: "mqtt-discovery-switch",
+			name: "Lamp",
+			externalId: "lamp",
+		});
+		const scene = {
+			name: "Night",
+			members: [{ deviceId: lamp.id, command: { type: "switch", on: false } }],
+		};
+		const saved = await call("save_scene", { scene });
+		expect(saved.isError).toBe(false);
+		const id = JSON.parse(saved.text).scene.id as string;
+		const renamed = await call("save_scene", {
+			sceneId: id,
+			scene: { ...scene, name: "Sleep" },
+		});
+		expect(JSON.parse(renamed.text).scene.name).toBe("Sleep");
+		expect(SceneDTO.inHome(homeId())).toHaveLength(1);
+		expect((await call("save_scene", { sceneId: "nope", scene })).text).toBe(
+			"Nothing has that id. List them again.",
+		);
+		expect(
+			(
+				await call("save_scene", {
+					scene: {
+						name: "Bad",
+						members: [
+							{ deviceId: lamp.id, command: { type: "lock", locked: true } },
+						],
+					},
+				})
+			).text,
+		).toBe("A device in the scene is gone, or can't take that.");
+		expect((await call("save_scene", { homeId: "nope", scene })).isError).toBe(
+			true,
+		);
+		expect((await call("save_scene", { scene: { name: "" } })).isError).toBe(
+			true,
+		);
+		setSetting("aiHiddenDevices", [lamp.id]);
+		expect((await call("save_scene", { scene })).text).toContain(
+			"No device has the id",
+		);
+		setSetting("aiHiddenDevices", []);
+		expect(
+			JSON.parse((await call("delete_scene", { sceneId: id })).text),
+		).toEqual({ deleted: true });
+		expect(SceneDTO.inHome(homeId())).toHaveLength(0);
+	});
+
+	test("AI apps list, create, turn off, run and delete routines", async () => {
+		const lamp = DeviceDTO.upsert({
+			homeId: homeId(),
+			kind: "mqtt-discovery-switch",
+			name: "Lamp",
+			externalId: "lamp",
+		});
+		const routine = {
+			name: "Lamp at night",
+			trigger: { type: "time", time: "21:00", weekdays: [0, 1, 2, 3, 4, 5, 6] },
+			period: { type: "always" },
+			actions: [
+				{
+					type: "device",
+					deviceId: lamp.id,
+					command: { type: "switch", on: true },
+				},
+			],
+		};
+		const saved = await call("save_routine", { routine });
+		expect(saved.isError).toBe(false);
+		const created = JSON.parse(saved.text).routine;
+		expect(created).toMatchObject({
+			name: "Lamp at night",
+			enabled: true,
+			conditions: [],
+		});
+		const listed = JSON.parse((await call("list_routines")).text).routines;
+		expect(listed.map((entry: { id: string }) => entry.id)).toEqual([
+			created.id,
+		]);
+		expect((await call("list_routines", { homeId: "nope" })).isError).toBe(
+			true,
+		);
+		const changed = await call("save_routine", {
+			routineId: created.id,
+			routine: { ...routine, name: "Evening lamp" },
+		});
+		expect(JSON.parse(changed.text).routine.name).toBe("Evening lamp");
+		expect(
+			(
+				await call("save_routine", {
+					routine: {
+						...routine,
+						actions: [{ type: "scene", sceneId: "gone" }],
+					},
+				})
+			).text,
+		).toBe("A scene it sets is gone.");
+		expect(
+			JSON.parse(
+				(
+					await call("set_routine_enabled", {
+						routineId: created.id,
+						enabled: false,
+					})
+				).text,
+			),
+		).toEqual({ enabled: false });
+		expect(
+			JSON.parse((await call("list_routines")).text).routines[0].enabled,
+		).toBe(false);
+		expect(
+			JSON.parse((await call("run_routine", { routineId: created.id })).text),
+		).toEqual({ started: true });
+		expect(JobDTO.isQueued("automation.run")).toBe(true);
+		expect((await call("run_routine", { routineId: "nope" })).isError).toBe(
+			true,
+		);
+		setSetting("aiHiddenDevices", [lamp.id]);
+		expect((await call("save_routine", { routine })).text).toContain(
+			"No device has the id",
+		);
+		setSetting("aiHiddenDevices", []);
+		expect(
+			JSON.parse(
+				(await call("delete_routine", { routineId: created.id })).text,
+			),
+		).toEqual({ deleted: true });
+		expect(JSON.parse((await call("list_routines")).text).routines).toEqual([]);
 	});
 });
