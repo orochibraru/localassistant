@@ -39,6 +39,7 @@ describe("settings", () => {
 			publicOrigin: null,
 			assistant: null,
 			aiHiddenDevices: [],
+			latestRelease: null,
 		});
 		setSetting("requireTwoFactor", true);
 		setSetting("requireTwoFactor", false);

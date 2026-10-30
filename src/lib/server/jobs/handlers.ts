@@ -8,7 +8,9 @@ import { JobDTO } from "#lib/dto/job.js";
 import { LogbookEntryDTO } from "#lib/dto/logbook-entry.js";
 import { UserDTO } from "#lib/dto/user.js";
 import { automations } from "#lib/server/automations/automations.js";
+import { backups } from "#lib/server/core/backups.js";
 import { Logger } from "#lib/server/core/logger.js";
+import { updates } from "#lib/server/core/updates.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { energy } from "#lib/server/house/energy.js";
@@ -137,6 +139,23 @@ export const jobHandlers: JobHandlers = {
 			{ runAt: new Date(Date.now() + energyIntervalMs), maxAttempts: 1 },
 		);
 		logger.debug("Recorded energy", { meters: energy.record() });
+	},
+	"backup.run": () => {
+		JobDTO.enqueue("backup.run", {}, { runAt: new Date(Date.now() + dayMs) });
+		const backup = backups.create();
+		logger.info("Backed up the database", {
+			name: backup.name,
+			size: backup.size,
+		});
+	},
+	"updates.check": async () => {
+		JobDTO.enqueue(
+			"updates.check",
+			{},
+			{ runAt: new Date(Date.now() + dayMs), maxAttempts: 1 },
+		);
+		const latest = await updates.check();
+		logger.debug("Checked for updates", { latest: latest?.version });
 	},
 	"jobs.prune": ({ olderThanDays }) => {
 		const removed = JobDTO.pruneFinished(

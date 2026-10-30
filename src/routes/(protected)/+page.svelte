@@ -3,6 +3,7 @@
 	import { resolve } from "$app/paths";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
+	import CircleArrowUpIcon from "@lucide/svelte/icons/circle-arrow-up";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayoutDashboardIcon from "@lucide/svelte/icons/layout-dashboard";
 	import LayoutGridIcon from "@lucide/svelte/icons/layout-grid";
@@ -106,6 +107,18 @@
 </script>
 
 <div class="mb-8 flex flex-col gap-4">
+	{#if data.update}
+		<a
+			href={resolve("/(protected)/admin/overview")}
+			class="glass hover:bg-accent/40 flex min-h-11 items-center gap-3 rounded-2xl px-4 py-2 text-sm transition-colors"
+		>
+			<CircleArrowUpIcon class="text-primary size-5 shrink-0" />
+			<span class="min-w-0 flex-1"
+				>LocalAssistant {data.update.version} is out.</span
+			>
+			<ChevronRightIcon class="text-muted-foreground size-4" />
+		</a>
+	{/if}
 	<WeatherCard home={data.home} isAdmin={data.isAdmin} />
 	<PeopleStrip people={data.presence} now={live.now} />
 	{#if data.dashboards.length > 0}

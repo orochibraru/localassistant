@@ -9,6 +9,7 @@ import { getSetting } from "#lib/dto/setting.js";
 import { UserDTO } from "#lib/dto/user.js";
 import { type KindCatalog, kindInfo } from "#lib/plugins.js";
 import { access } from "#lib/server/auth/access.js";
+import { updates } from "#lib/server/core/updates.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { homes } from "#lib/server/house/homes.js";
 import { plugins } from "#lib/server/plugins/registry.js";
@@ -37,6 +38,7 @@ export const load = ({ cookies, locals, url }) => {
 		kinds,
 		...houseOf(homes.current(cookies), kinds),
 		pluginSetups: admin ? pluginSetup.setups() : [],
+		update: admin ? updates.available() : null,
 		brokerUrl:
 			admin && broker.configured() ? (getSetting("mqtt")?.url ?? null) : null,
 	};

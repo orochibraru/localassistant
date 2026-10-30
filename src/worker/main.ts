@@ -45,6 +45,12 @@ if (requeued > 0) {
 if (!JobDTO.isQueued("jobs.prune")) {
 	JobDTO.enqueue("jobs.prune", { olderThanDays: 1 });
 }
+if (!JobDTO.isQueued("backup.run")) {
+	JobDTO.enqueue("backup.run", {});
+}
+if (!JobDTO.isQueued("updates.check")) {
+	JobDTO.enqueue("updates.check", {}, { maxAttempts: 1 });
+}
 if (!JobDTO.isQueued("weather.refresh")) {
 	JobDTO.enqueue("weather.refresh", {}, { maxAttempts: 1 });
 }

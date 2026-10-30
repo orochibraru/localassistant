@@ -48,6 +48,12 @@ export interface VapidKeys {
 	encryptedPrivateKey: string;
 }
 
+export interface LatestRelease {
+	version: string;
+	url: string;
+	checkedAt: string;
+}
+
 export interface AssistantSettings {
 	encryptedApiKey: string;
 }
@@ -72,6 +78,7 @@ export interface SettingValues {
 	publicOrigin: string | null;
 	assistant: AssistantSettings | null;
 	aiHiddenDevices: string[];
+	latestRelease: LatestRelease | null;
 }
 
 const defaults: SettingValues = {
@@ -92,6 +99,7 @@ const defaults: SettingValues = {
 	publicOrigin: null,
 	assistant: null,
 	aiHiddenDevices: [],
+	latestRelease: null,
 };
 
 /** The stored value of `key`, or its default. */
@@ -127,6 +135,7 @@ export function allSettings(): SettingValues {
 		publicOrigin: getSetting("publicOrigin"),
 		assistant: getSetting("assistant"),
 		aiHiddenDevices: getSetting("aiHiddenDevices"),
+		latestRelease: getSetting("latestRelease"),
 	};
 }
 
