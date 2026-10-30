@@ -136,14 +136,26 @@
 				disabled={shown.targetTemperature === null}
 				onclick={() => handleTarget(-step)}
 			/>
-			<p class="text-center">
-				<span class="font-display block text-4xl font-semibold tabular-nums">
-					{shown.targetTemperature === null
-						? "--"
-						: `${shown.targetTemperature}°`}
-				</span>
-				<span class="text-muted-foreground text-xs">target</span>
-			</p>
+			<div class="flex items-end justify-center gap-4">
+				<p class="text-center">
+					<span class="font-display block text-4xl font-semibold tabular-nums">
+						{shown.targetTemperature === null
+							? "--"
+							: `${shown.targetTemperature}°`}
+					</span>
+					<span class="text-muted-foreground text-xs">target</span>
+				</p>
+				{#if shown.roomTemperature !== null}
+					<p class="border-border border-l pl-4 text-center">
+						<span
+							class="font-display text-muted-foreground block text-2xl font-semibold tabular-nums"
+						>
+							{shown.roomTemperature}°
+						</span>
+						<span class="text-muted-foreground text-xs">room</span>
+					</p>
+				{/if}
+			</div>
 			<IconButton
 				label="Raise {name}"
 				icon={PlusIcon}
