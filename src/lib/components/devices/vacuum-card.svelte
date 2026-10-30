@@ -233,9 +233,10 @@
 				{:else if shown}
 					{stageLabels[shown.stage]}{shown.battery === null
 						? ""
-						: `, ${shown.battery}%`}{shown.errorCode
-						? ` (error ${shown.errorCode})`
-						: ""}
+						: `, ${shown.battery}%`}{#if shown.errorCode}
+						<span class="text-destructive">
+							· {shown.errorText ?? `error ${shown.errorCode}`}</span
+						>{/if}
 				{:else}
 					Not read yet
 				{/if}

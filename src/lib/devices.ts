@@ -214,6 +214,7 @@ export interface VacuumState {
 	battery: number | null;
 	charging: boolean;
 	errorCode: number | null;
+	errorText?: string | null;
 	mode: VacuumMode | null;
 	suction: VacuumSuction | null;
 	wetness: number | null;

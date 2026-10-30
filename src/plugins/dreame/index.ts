@@ -20,6 +20,8 @@ import {
 } from "#lib/plugin-sdk.js";
 import type { PluginValues } from "#lib/plugins.js";
 
+import { vacuumError } from "./errors.js";
+
 type DreameRegion = "eu" | "us" | "cn" | "sg" | "ru";
 
 const requestTimeoutMs = 15_000;
@@ -266,6 +268,42 @@ class DreameCloud implements Plugin {
 			context,
 			Object.keys(properties) as PropertyName[],
 		);
+		const state = this.#state(values);
+		this.#alert(device, state, context);
+		return state;
+	}
+
+	/** Tells everyone when a vacuum shows a new error, or its station runs low on detergent. */
+	#alert(
+		device: PluginDevice,
+		next: VacuumState,
+		context: PluginContext,
+	): void {
+		const previous = device.state?.type === "vacuum" ? device.state : null;
+		if (next.errorCode && next.errorCode !== previous?.errorCode) {
+			const { text, hint } = vacuumError(next.errorCode);
+			context.notify({
+				audience: "everyone",
+				title: `${device.name}: ${text}`,
+				body: hint,
+				url: "/",
+			});
+		}
+		if (
+			next.dock.detergent === "low" &&
+			previous &&
+			previous.dock.detergent !== "low"
+		) {
+			context.notify({
+				audience: "everyone",
+				title: `${device.name}: detergent low`,
+				body: "Refill the detergent cartridge in the station.",
+				url: "/",
+			});
+		}
+	}
+
+	#state(values: Readings): VacuumState {
 		return {
 			type: "vacuum",
 			stage:
@@ -274,6 +312,7 @@ class DreameCloud implements Plugin {
 			battery: values.battery ?? null,
 			charging: values.charging === 1,
 			errorCode: values.error || null,
+			errorText: values.error ? vacuumError(values.error).text : null,
 			mode:
 				values.mode === undefined
 					? null

@@ -196,6 +196,7 @@ describe("Dreame cloud", () => {
 			battery: 87,
 			charging: true,
 			errorCode: null,
+			errorText: null,
 			mode: null,
 			suction: null,
 			wetness: null,
@@ -244,6 +245,60 @@ describe("Dreame cloud", () => {
 				{ type: "vacuum", change: { command: "start" } },
 			),
 		).rejects.toThrow("That device is not a robot vacuum.");
+	});
+
+	test("names a new error and a low detergent cartridge, and tells everyone once", async () => {
+		connect();
+		const robot = addRobot();
+		const notify = spyOn(context, "notify").mockImplementation(() => undefined);
+		const answerWith = (error: number, detergent: number) => {
+			answers["/dreame-iot-com-10001/device/sendCommand"] = () =>
+				json({
+					code: 0,
+					data: {
+						result: [
+							{ siid: 2, piid: 1, value: 4, code: 0 },
+							{ siid: 2, piid: 2, value: error, code: 0 },
+							{ siid: 27, piid: 4, value: detergent, code: 0 },
+						],
+					},
+				});
+		};
+		const readAndSave = async () => {
+			const current = DeviceDTO.find(robot.id) as DeviceDTO;
+			const state = await dreameCloud.read(current);
+			if (state) {
+				current.saveState(state);
+			}
+			return state;
+		};
+		answerWith(0, 0);
+		await readAndSave();
+		expect(notify).not.toHaveBeenCalled();
+		answerWith(12, 0);
+		expect(await readAndSave()).toMatchObject({
+			stage: "error",
+			errorCode: 12,
+			errorText: "Main brush wrapped",
+		});
+		await readAndSave();
+		answerWith(121, 2);
+		await readAndSave();
+		answerWith(999, 2);
+		expect(await readAndSave()).toMatchObject({ errorText: "Error 999" });
+		expect(
+			notify.mock.calls.map(([notification]) => notification.title),
+		).toEqual([
+			"X30: Main brush wrapped",
+			"X30: Dust bag full",
+			"X30: detergent low",
+			"X30: Error 999",
+		]);
+		expect(notify.mock.calls[0]?.[0]).toMatchObject({
+			audience: "everyone",
+			body: "Untangle the hair and threads from the main brush.",
+		});
+		notify.mockRestore();
 	});
 
 	test("reads the cleaning settings, last clean and parts, and writes settings in the robot's numbering", async () => {
