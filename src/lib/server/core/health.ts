@@ -1,7 +1,6 @@
 import { existsSync, statfsSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 
-import { backups } from "#lib/server/core/backups.js";
 import { configuration } from "#lib/server/core/config.js";
 import { type UpdateNotice, updates } from "#lib/server/core/updates.js";
 import { pluginManager } from "#lib/server/plugins/manager.js";
@@ -11,12 +10,11 @@ export interface HealthReport {
 	uptimeSeconds: number;
 	databaseBytes: number | null;
 	diskFreeBytes: number | null;
-	lastBackupAt: Date | null;
 	brokenPlugins: { name: string; error: string }[];
 	update: UpdateNotice | null;
 }
 
-/** What an admin checks first when something's off: version, uptime, room on disk, backups, broken integrations. */
+/** What an admin checks first when something's off: version, uptime, room on disk, broken integrations. */
 class SystemHealth {
 	/** The server's health right now. */
 	report(): HealthReport {
@@ -31,7 +29,6 @@ class SystemHealth {
 						.reduce((total, path) => total + statSync(path).size, 0)
 				: null,
 			diskFreeBytes: onDisk ? this.#free(dirname(databasePath)) : null,
-			lastBackupAt: backups.list()[0]?.createdAt ?? null,
 			brokenPlugins: pluginManager
 				.summaries()
 				.flatMap((plugin) =>

@@ -83,15 +83,6 @@ class DatabaseConnection {
 		migrate(database, { migrationsFolder });
 	}
 
-	/**
-	 * Writes a consistent copy of the whole database to `path`, safe while the app keeps writing.
-	 *
-	 * @throws When the file can't be written.
-	 */
-	copyTo(path: string): void {
-		this.#sqlite().run("VACUUM INTO ?", [path]);
-	}
-
 	/** Closes the SQLite handle; the next `get()` reopens it. */
 	close(): void {
 		globalForDb.__localassistantSqlite?.close();

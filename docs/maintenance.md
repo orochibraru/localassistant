@@ -1,30 +1,18 @@
-# Backups, health and updates
+# Health and updates
 
-## Backups
-
-The worker copies the whole database every day into a `backups` folder next to
-it (in the container, `/data/backups`, on the `/data` volume), and keeps the
-last seven. A copy is consistent even while the app keeps writing.
-
-**Admin**, **Backups** lists them: **Back up now** takes one, **Download** saves
-one to keep somewhere else, **Delete** removes it. A backup holds every account,
-device, routine and setting. Secrets in it stay encrypted with the server's
-`AUTH_SECRET`, so keep that secret too: a backup restored under another one
-loses its integration passwords and keys.
-
-To restore:
-
-1. Stop LocalAssistant (`docker compose stop`).
-2. Put the backup in place of the database file (`DATABASE_PATH`, in the
-   container `/data/localassistant.sqlite`), and delete the `-wal` and `-shm`
-   files next to it.
-3. Start it again. It applies any migration the backup is missing.
+Back up LocalAssistant from the server, not the app: the `/data` volume holds
+everything (the SQLite database, installed integrations and camera recordings).
+Snapshot or copy it with the rest of the server's backups, and keep
+`AUTH_SECRET` with it: the secrets in the database are encrypted with it. To
+copy a running database safely, use
+`sqlite3 /data/localassistant.sqlite ".backup /path/to/copy.sqlite"`, or stop
+the container first.
 
 ## Health
 
 **Admin**, **Overview**, **Server** shows the version and how long it has been
 up, the database's size and the free space on its disk (in amber under 1 GB),
-when the last backup was taken, and whether every integration loaded.
+and whether every integration loaded.
 
 ## Updates
 

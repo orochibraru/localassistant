@@ -2,7 +2,6 @@
 	import { resolve } from "$app/paths";
 	import ActivityIcon from "@lucide/svelte/icons/activity";
 	import CircleArrowUpIcon from "@lucide/svelte/icons/circle-arrow-up";
-	import DatabaseBackupIcon from "@lucide/svelte/icons/database-backup";
 	import DoorOpenIcon from "@lucide/svelte/icons/door-open";
 	import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
 	import MailIcon from "@lucide/svelte/icons/mail";
@@ -16,7 +15,6 @@
 	import GettingStarted from "#lib/components/admin/getting-started.svelte";
 	import StatCard from "#lib/components/stat-card.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { readAgo } from "#lib/devices.js";
 	import { formatBytes, formatDuration } from "#lib/format.js";
 
 	const { data } = $props();
@@ -120,15 +118,6 @@
 					? "warning"
 					: "default"}
 				icon={HardDriveIcon}
-			/>
-			<StatCard
-				label="Last backup"
-				value={data.health.lastBackupAt
-					? (readAgo(data.health.lastBackupAt) ?? "Just now")
-					: "None yet"}
-				tone={data.health.lastBackupAt ? "positive" : "warning"}
-				icon={DatabaseBackupIcon}
-				href={resolve("/(protected)/admin/backups")}
 			/>
 			<StatCard
 				label="Integrations"

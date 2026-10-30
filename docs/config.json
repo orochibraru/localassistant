@@ -28,8 +28,8 @@
 				},
 				{
 					"slug": "maintenance",
-					"title": "Backups and updates",
-					"icon": "database-backup"
+					"title": "Health and updates",
+					"icon": "activity"
 				}
 			]
 		},

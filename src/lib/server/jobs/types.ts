@@ -23,7 +23,6 @@ export interface JobPayloads {
 	"plugins.reload": Record<string, never>;
 	"plugins.restart": { pluginId: string };
 	"plugins.check": Record<string, never>;
-	"backup.run": Record<string, never>;
 	"updates.check": Record<string, never>;
 }
 

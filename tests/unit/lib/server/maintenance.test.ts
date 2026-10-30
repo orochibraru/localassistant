@@ -1,57 +1,16 @@
 import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
-import { rmSync } from "node:fs";
+import { mkdtempSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { getSetting, setSetting } from "#lib/dto/setting.js";
+import { getSetting } from "#lib/dto/setting.js";
 import { formatBytes, formatDuration } from "#lib/format.js";
-import { backups } from "#lib/server/core/backups.js";
 import { configuration } from "#lib/server/core/config.js";
 import { systemHealth } from "#lib/server/core/health.js";
 import { isNewer, updates } from "#lib/server/core/updates.js";
-import { jobHandlers } from "#lib/server/jobs/handlers.js";
 
 import { resetDatabase } from "../../database.js";
-
-function clearBackups() {
-	rmSync(backups.folder(), { recursive: true, force: true });
-}
-
-describe("backups", () => {
-	beforeEach(() => {
-		resetDatabase();
-		clearBackups();
-	});
-
-	test("copy the whole database, keep the last seven and refuse odd names", () => {
-		setSetting("multipleHomes", true);
-		const first = backups.create(new Date("2026-01-01T10:00:00Z"));
-		expect(first.name).toBe("localassistant-2026-01-01T10-00-00.sqlite");
-		expect(first.size).toBeGreaterThan(0);
-		const path = backups.path(first.name);
-		expect(path).not.toBeNull();
-		const copy = new Database(path ?? "", { readonly: true });
-		expect(
-			copy.query("SELECT value FROM setting WHERE key = 'multipleHomes'").get(),
-		).toEqual({ value: "true" });
-		copy.close();
-		for (let day = 2; day <= 9; day += 1) {
-			backups.create(new Date(`2026-01-0${Math.min(day, 9)}T10:00:00Z`));
-		}
-		const kept = backups.list();
-		expect(kept).toHaveLength(7);
-		expect(kept[0]?.name).toBe("localassistant-2026-01-09T10-00-00.sqlite");
-		expect(backups.path(first.name)).toBeNull();
-		expect(backups.path("../secrets.sqlite")).toBeNull();
-		backups.remove("../secrets.sqlite");
-		backups.remove(kept[0]?.name ?? "");
-		expect(backups.list()).toHaveLength(6);
-	});
-
-	test("the worker takes one a day", () => {
-		jobHandlers["backup.run"]({});
-		expect(backups.list()).toHaveLength(1);
-	});
-});
 
 describe("updates", () => {
 	beforeEach(resetDatabase);
@@ -96,27 +55,25 @@ describe("updates", () => {
 });
 
 describe("system health", () => {
-	beforeEach(() => {
-		resetDatabase();
-		clearBackups();
-	});
+	beforeEach(resetDatabase);
 
-	test("reports the version, uptime, backups and integrations", () => {
+	test("reports the version, uptime, room on disk and integrations", () => {
 		const report = systemHealth.report();
 		expect(report.version).toBe(configuration.get().appVersion);
 		expect(report.uptimeSeconds).toBeGreaterThanOrEqual(0);
-		expect(report.lastBackupAt).toBeNull();
 		expect(report.brokenPlugins).toEqual([]);
-		const backup = backups.create();
-		expect(systemHealth.report().lastBackupAt).toBeInstanceOf(Date);
+		const path = join(mkdtempSync(join(tmpdir(), "health-")), "test.sqlite");
+		const file = new Database(path, { create: true });
+		file.run("CREATE TABLE t (x)");
+		file.close();
 		const running = configuration.get();
 		try {
 			configuration.set({
 				...running,
-				databasePath: backups.path(backup.name) ?? "",
+				databasePath: path,
 			});
 			const onDisk = systemHealth.report();
-			expect(onDisk.databaseBytes).toBe(backup.size);
+			expect(onDisk.databaseBytes).toBe(statSync(path).size);
 			expect(onDisk.diskFreeBytes).toBeGreaterThan(0);
 		} finally {
 			configuration.set(running);
