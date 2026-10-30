@@ -288,6 +288,7 @@
 				{rooms}
 				{floors}
 				{scenes}
+				{people}
 				followsContact={trigger.type === "contact"}
 			/>
 		</Field.Set>

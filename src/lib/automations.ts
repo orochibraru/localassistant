@@ -187,6 +187,13 @@ export type AutomationAction =
 	| { type: "device"; deviceId: string; command: DeviceCommand }
 	| { type: "scene"; sceneId: string }
 	| { type: "delay"; minutes: number }
+	| {
+			type: "notify";
+			who: string;
+			title: string;
+			body: string;
+			sceneIds: string[];
+	  }
 	| { type: "valves"; deviceIds: string[] }
 	| { type: "heating"; deviceIds: string[]; degrees: number };
 
@@ -604,8 +611,18 @@ export function describeAction(
 		devices: Map<string, string>;
 		rooms: Map<string, string>;
 		scenes?: Map<string, string>;
+		people?: Map<string, string>;
 	},
 ): string {
+	if (action.type === "notify") {
+		const who =
+			action.who === "everyone"
+				? "everyone"
+				: action.who === "admins"
+					? "the admins"
+					: (names.people?.get(action.who) ?? "a removed account");
+		return `Tell ${who} "${action.title}"`;
+	}
 	if (action.type === "blinds") {
 		const where =
 			action.roomId === null

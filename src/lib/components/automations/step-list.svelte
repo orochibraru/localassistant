@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowDownToLineIcon from "@lucide/svelte/icons/arrow-down-to-line";
 	import ArrowUpToLineIcon from "@lucide/svelte/icons/arrow-up-to-line";
+	import BellIcon from "@lucide/svelte/icons/bell";
 	import BlindsIcon from "@lucide/svelte/icons/blinds";
 	import HeaterIcon from "@lucide/svelte/icons/heater";
 	import HourglassIcon from "@lucide/svelte/icons/hourglass";
@@ -36,6 +37,7 @@
 		rooms: HouseRoom[];
 		floors: HouseFloor[];
 		scenes: { id: string; name: string }[];
+		people: { id: string; name: string }[];
 		followsContact: boolean;
 	}
 
@@ -45,8 +47,15 @@
 		rooms,
 		floors,
 		scenes,
+		people,
 		followsContact,
 	}: Props = $props();
+
+	const whoOptions = $derived([
+		{ value: "everyone", label: "Everyone" },
+		{ value: "admins", label: "The admins" },
+		...people.map((person) => ({ value: person.id, label: person.name })),
+	]);
 
 	const ofCards = (...cards: PluginCard[]) =>
 		devices
@@ -69,6 +78,7 @@
 		device: "Drive a device",
 		scene: "Set a scene",
 		delay: "Wait",
+		notify: "Send a notification",
 		blinds: "Move blinds",
 		valves: "Close radiator valves",
 		heating: "Turn the heating down",
@@ -80,6 +90,7 @@
 		device: PlugIcon,
 		scene: SparklesIcon,
 		delay: HourglassIcon,
+		notify: BellIcon,
 		blinds: BlindsIcon,
 		valves: HeaterIcon,
 		heating: ThermometerSnowflakeIcon,
@@ -114,6 +125,17 @@
 					roomId: null,
 					move: "close",
 					position: null,
+				}),
+			},
+			{
+				type: "notify" as const,
+				available: true,
+				make: (): AutomationAction => ({
+					type: "notify",
+					who: "everyone",
+					title: "",
+					body: "",
+					sceneIds: [],
 				}),
 			},
 			{
@@ -198,6 +220,57 @@
 					value={step.sceneId}
 					onPick={(next) => (step.sceneId = next)}
 				/>
+			{:else if step.type === "notify"}
+				<Picker
+					id="step-{index}-who"
+					name=""
+					label="Tell"
+					options={whoOptions}
+					value={step.who}
+					onPick={(next) => (step.who = next)}
+				/>
+				<Field.Field>
+					<Field.Label for="step-{index}-title">Title</Field.Label>
+					<Input
+						id="step-{index}-title"
+						bind:value={step.title}
+						placeholder="The front door is open"
+						maxlength={80}
+						required
+						class="h-11"
+					/>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="step-{index}-body">Message</Field.Label>
+					<Input
+						id="step-{index}-body"
+						bind:value={step.body}
+						placeholder="Optional"
+						maxlength={200}
+						class="h-11"
+					/>
+				</Field.Field>
+				{#if scenes.length > 0}
+					<Field.Field>
+						<Field.Label for="step-{index}-buttons">Buttons</Field.Label>
+						<Picker
+							id="step-{index}-buttons"
+							name=""
+							label="Buttons"
+							options={scenes.map((scene) => ({
+								value: scene.id,
+								label: scene.name,
+							}))}
+							multiple
+							bind:values={step.sceneIds}
+							placeholder="None"
+						/>
+						<Field.Description
+							>Up to two scenes it offers to set, from the notification itself
+							(Android and desktop browsers; iPhones show the message only).</Field.Description
+						>
+					</Field.Field>
+				{/if}
 			{:else if step.type === "delay"}
 				<Field.Field>
 					<Field.Label for="step-{index}-minutes">Minutes</Field.Label>
@@ -273,7 +346,7 @@
 				<p class="text-muted-foreground text-sm">
 					Only the ones in the room of the sensor that opened close.
 				</p>
-			{:else}
+			{:else if step.type === "heating"}
 				<Picker
 					id="step-{index}-heaters"
 					name=""

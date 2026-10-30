@@ -10,6 +10,7 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { SceneDTO } from "#lib/dto/scene.js";
+import { UserDTO } from "#lib/dto/user.js";
 import { kindInfo, type PluginCard } from "#lib/plugins.js";
 import { homes } from "#lib/server/house/homes.js";
 import { plugins } from "#lib/server/plugins/registry.js";
@@ -74,6 +75,18 @@ function brokenReference(
 		}
 		if (action.type === "scene" && !SceneDTO.find(action.sceneId, homeId)) {
 			return "A scene it sets is gone.";
+		}
+		if (action.type === "notify") {
+			if (
+				action.who !== "everyone" &&
+				action.who !== "admins" &&
+				!UserDTO.people().some((person) => person.id === action.who)
+			) {
+				return "The account it tells is gone.";
+			}
+			if (action.sceneIds.some((sceneId) => !SceneDTO.find(sceneId, homeId))) {
+				return "A scene its notification offers is gone.";
+			}
 		}
 		if (
 			action.type === "device" &&

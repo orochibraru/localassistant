@@ -21,6 +21,7 @@ import { LogbookEntryDTO } from "#lib/dto/logbook-entry.js";
 import { PresenceDTO } from "#lib/dto/presence.js";
 import { SceneDTO } from "#lib/dto/scene.js";
 import { UserDTO } from "#lib/dto/user.js";
+import { sceneAction } from "#lib/notifications.js";
 import { kindInfo } from "#lib/plugins.js";
 import { scenes } from "#lib/server/automations/scenes.js";
 import { Logger } from "#lib/server/core/logger.js";
@@ -371,7 +372,39 @@ class Automations {
 			const scene = SceneDTO.find(action.sceneId, automation.homeId);
 			return scene ? scenes.activate(scene) : ["A scene it sets is gone."];
 		}
+		if (action.type === "notify") {
+			return this.#notify(automation, action);
+		}
 		return this.#act(automation.homeId, action);
+	}
+
+	#notify(
+		automation: AutomationDTO,
+		action: Extract<AutomationAction, { type: "notify" }>,
+	): string[] {
+		const people = UserDTO.people().map((person) => person.id);
+		const userIds =
+			action.who === "everyone"
+				? people
+				: action.who === "admins"
+					? UserDTO.adminIds()
+					: people.filter((id) => id === action.who);
+		if (userIds.length === 0) {
+			return ["Nobody to tell: that account is gone."];
+		}
+		JobDTO.enqueue("push.send", {
+			userIds,
+			title: action.title,
+			body: action.body,
+			url: "/",
+			actions: action.sceneIds.flatMap((sceneId) => {
+				const scene = SceneDTO.find(sceneId, automation.homeId);
+				return scene
+					? [{ action: sceneAction(scene.id), title: scene.name }]
+					: [];
+			}),
+		});
+		return [];
 	}
 
 	#cause(automation: AutomationDTO, opened: Opened | undefined): string {

@@ -39,6 +39,7 @@
 		devices: new Map(data.setup.map((device) => [device.id, device.name])),
 		rooms: roomLabels(data.rooms, data.floors),
 		scenes: new Map(data.scenes.map((scene) => [scene.id, scene.name])),
+		people: new Map(data.people.map((person) => [person.id, person.name])),
 	});
 	const deviceName = (deviceId: string) =>
 		names.devices.get(deviceId) ?? "a removed device";

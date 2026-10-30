@@ -169,6 +169,17 @@ export const automationActionSchema = z.discriminatedUnion("type", [
 		sceneId: z.string().trim().min(1, "Pick a scene."),
 	}),
 	z.object({
+		type: z.literal("notify"),
+		who: z.string().trim().min(1, "Pick who to tell."),
+		title: z
+			.string()
+			.trim()
+			.min(1, "Type what it says.")
+			.max(80, "Keep it under 80 characters."),
+		body: z.string().trim().max(200, "Keep it under 200 characters."),
+		sceneIds: z.array(z.string().trim().min(1)).max(2, "Two buttons at most."),
+	}),
+	z.object({
 		type: z.literal("delay"),
 		minutes: z
 			.number("Type how many minutes.")
