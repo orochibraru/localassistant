@@ -49,9 +49,9 @@ jobs:
             exit 0
           fi
           echo "checks=true" >> "$GITHUB_OUTPUT"
-          code="$(git diff --name-only "$base" HEAD | grep -vE '^(docs/|\.agents/|\.claude/)|\.md$' || true)"
+          code="$(git diff --name-only "$base" HEAD | grep -vE '^(docs/|apps/mobile/|\.agents/|\.claude/)|\.md$' || true)"
           if [ -z "$code" ]; then
-            echo "Docs-only change: checks run, no image."
+            echo "Docs or mobile app only: checks run, no image."
             echo "image=false" >> "$GITHUB_OUTPUT"
           else
             echo "image=true" >> "$GITHUB_OUTPUT"
