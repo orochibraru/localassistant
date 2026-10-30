@@ -78,20 +78,30 @@ Docker image is Alpine: build static binaries (`CGO_ENABLED=0`).
 
 ### Fields
 
-| Key                          | What it is                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------ |
-| `name`                       | Letters and digits. Not `id`, `name`, `roomId` or `plugin`.                                |
-| `label`                      | What the form shows.                                                                       |
-| `type`                       | `text`, `secret` (stored encrypted, "leave empty to keep"), `number`, `boolean`, `choice`. |
-| `choices`                    | `[{ "value", "label" }]` for a choice: two to seven show as buttons, more as a list.       |
-| `default`                    | Used when the field is left empty.                                                         |
-| `optional`                   | It may stay empty.                                                                         |
-| `min`, `max`                 | Limits of a number.                                                                        |
-| `pattern`                    | A regular expression the value must match, with `message` saying what's wrong.             |
-| `keyboard`                   | `decimal`, `url` or `email`, for phones.                                                   |
-| `description`, `placeholder` | Help under and inside the field.                                                           |
+| Key                          | What it is                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| `name`                       | Letters and digits. Not `id`, `name`, `roomId` or `plugin`.                          |
+| `label`                      | What the form shows.                                                                 |
+| `type`                       | `text`, `url`, `secret`, `headers`, `number`, `boolean` or `choice` (see below).     |
+| `choices`                    | `[{ "value", "label" }]` for a choice: two to seven show as buttons, more as a list. |
+| `default`                    | Used when the field is left empty.                                                   |
+| `optional`                   | It may stay empty.                                                                   |
+| `min`, `max`                 | Limits of a number.                                                                  |
+| `pattern`                    | A regular expression the value must match, with `message` saying what's wrong.       |
+| `keyboard`                   | `decimal`, `url` or `email`, for phones.                                             |
+| `description`, `placeholder` | Help under and inside the field.                                                     |
 
 The device form also asks for a name and a room; you don't declare those.
+
+- `url` takes an `http://` or `https://` address, internal names and IPs
+  included (`http://frigate:5000`, `http://192.168.1.10:5000`), normalized and
+  without a trailing slash. Saving checks the server can resolve its host.
+- `secret` is stored encrypted and never shown again: "leave empty to keep".
+- `headers` is for a proxy or firewall in front of a service, like Pangolin or
+  an API gateway: one `Name: value` per line, stored encrypted like a secret.
+  Turn it into a record with `requestHeaders(value)` (TypeScript),
+  `localassistant.RequestHeaders(value)` (Go) or `request_headers(value)`
+  (Python) and send it with every request.
 
 ### Kinds and cards
 

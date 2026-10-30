@@ -25,5 +25,6 @@
 - Builds:
   `./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug :shared:compileKotlinIosArm64`
   (the iOS Kotlin compiles on Linux; linking and the Swift shell need a Mac).
-  The `mobile` job in `code_quality.yaml` runs it. If Maven Central answers 429
-  locally, point Gradle at Google's mirror of it with an init script.
+  The `mobile` job in `code_quality.yaml` runs it. `settings.gradle.kts` reads
+  Maven Central through Google's mirror first: Maven Central answers shared IPs
+  with 429s.

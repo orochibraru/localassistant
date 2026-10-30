@@ -36,7 +36,8 @@ Two official integrations open the Home Assistant ecosystem:
   only it integrates: its address and a long-lived access token (your profile,
   Security, in Home Assistant). The same kinds of entities, plus speakers and
   TVs, scenes, scripts, people and cameras, follow it live, and taps become Home
-  Assistant service calls.
+  Assistant service calls. Behind a proxy like Pangolin, **Extra headers** adds
+  the header it checks to every request and to the live connection.
 
 Either way, a device only shows when it fits one of LocalAssistant's cards:
 vacuums with maps and alarm panels don't yet, and only sensors that measure

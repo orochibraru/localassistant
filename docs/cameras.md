@@ -27,6 +27,10 @@ devices; their pages show Frigate's live view and its events, each playing its
 clip. Frigate records; LocalAssistant only proxies its pictures and clips to
 signed-in people.
 
+Behind a proxy like Pangolin, use its public address and put the header it
+checks in **Extra headers**, one `Name: value` per line (stored encrypted):
+every request to Frigate carries it.
+
 With the MQTT broker connected (see [Zigbee and Shelly](zigbee)), a new
 detection of one of those labels pushes a notification to everyone, once every
 five minutes per camera and label.
