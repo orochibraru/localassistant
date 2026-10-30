@@ -91,6 +91,11 @@
 					"icon": "workflow"
 				},
 				{
+					"slug": "notifications",
+					"title": "Notifications",
+					"icon": "bell"
+				},
+				{
 					"slug": "dashboards",
 					"title": "Dashboards",
 					"icon": "layout-dashboard"

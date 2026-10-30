@@ -25,6 +25,8 @@ your phone like an app.
   night). They drive any device, set scenes and wait between steps, and every
   run is in their history. Presets to start from, like radiators off while a
   window is open.
+- **Notifications**: your own "tell me when" alerts, and routines that tell the
+  household with buttons that set a scene from the lock screen.
 - **Dashboards** of your own: devices, scenes, the weather, who's home and
   history graphs, in your order, one tap away on Home.
 - **History and logbook**: 30 days of each device's numbers as a graph in its

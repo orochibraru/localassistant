@@ -48,6 +48,8 @@ Steps run one after the other:
   brightness, white), a switch, a lock, a fan, a speaker or TV, a heat pump, a
   valve, a blind, a button, a printer or a robot vacuum;
 - **Set a scene**;
+- **Send a notification** to everyone, the admins or one person, with up to two
+  scenes as buttons (see [Notifications](notifications.md));
 - **Move blinds** of a room or every blind in the house;
 - **Wait** some minutes before the next steps. Changing or switching off the
   routine cancels the steps still waiting.
