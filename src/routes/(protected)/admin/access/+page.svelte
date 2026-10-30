@@ -14,7 +14,7 @@
 
 <form
 	method="POST"
-	class="grid gap-6 lg:grid-cols-2 lg:items-start"
+	class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start"
 	use:enhance={saveToast("Access settings")}
 >
 	<section class="glass rounded-2xl p-4 md:p-6">

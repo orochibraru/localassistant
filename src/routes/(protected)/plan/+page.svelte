@@ -410,7 +410,7 @@
 						Right-click a room, or long-press it on a phone, to extend it, split
 						it or remove a part.
 					</p>
-					<ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+					<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
 						{#each groupRooms as room (room.id)}
 							{@const Icon = roomIcon(room.icon)}
 							{@const onPlan = room.plan !== null}
@@ -452,7 +452,7 @@
 		'This floor'} as drawn, with its rooms, devices and the base floor's outline."
 >
 	<div class="flex flex-col gap-3 pb-6">
-		<div class="grid gap-3 sm:grid-cols-3">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 			<Button class="h-11 rounded-xl" onclick={handlePng}
 				><ImageIcon />PNG image</Button
 			>

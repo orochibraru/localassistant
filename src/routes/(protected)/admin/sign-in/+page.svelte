@@ -35,7 +35,9 @@
 	}
 </script>
 
-<div class="grid gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start">
+<div
+	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start"
+>
 	<form
 		method="POST"
 		action="?/methods"
@@ -239,7 +241,7 @@
 				errors={errors.discoveryUrl?.map((message) => ({ message }))}
 			/>
 		</Field.Field>
-		<div class="grid gap-4 md:grid-cols-2">
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<Field.Field>
 				<Field.Label for="sso-client-id">Client ID</Field.Label>
 				<Input

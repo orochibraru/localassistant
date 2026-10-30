@@ -283,7 +283,7 @@
 	</div>
 
 	{#if shown && !compact}
-		<div class="grid gap-4 @xl:grid-cols-2">
+		<div class="grid grid-cols-1 gap-4 @xl:grid-cols-2">
 			<div class="@container flex min-w-0 flex-col gap-4">
 				{#if shown.cleanGenius !== null}
 					<div

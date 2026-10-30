@@ -185,7 +185,7 @@
 								an admin lets AI see, and acts as you.
 							</p>
 						</div>
-						<div class="grid w-full max-w-md gap-2 sm:grid-cols-2">
+						<div class="grid grid-cols-1 w-full max-w-md gap-2 sm:grid-cols-2">
 							{#each suggestions as suggestion (suggestion)}
 								<button
 									type="button"

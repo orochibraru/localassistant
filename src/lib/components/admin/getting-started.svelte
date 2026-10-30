@@ -50,7 +50,7 @@
 				</p>
 			</div>
 		</div>
-		<ul class="mt-4 grid gap-2 md:grid-cols-3">
+		<ul class="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
 			{#each steps as step (step.href)}
 				<li>
 					<a

@@ -131,7 +131,7 @@
 </script>
 
 <ul
-	class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(22rem,1fr))]"
+	class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(22rem,1fr))]"
 	aria-label="Accounts"
 >
 	{#each data.users as user (user.id)}

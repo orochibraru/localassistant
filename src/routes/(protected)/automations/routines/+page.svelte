@@ -69,7 +69,7 @@
 	</div>
 {:else}
 	<ul
-		class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(22rem,1fr))] md:gap-4"
+		class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(22rem,1fr))] md:gap-4"
 	>
 		{#each data.automations as automation (automation.id)}
 			<li class="glass flex flex-col gap-3 rounded-2xl p-4">

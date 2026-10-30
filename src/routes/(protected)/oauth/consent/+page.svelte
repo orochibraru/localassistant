@@ -21,7 +21,7 @@
 <form
 	method="POST"
 	action="?/decide"
-	class="grid gap-4 lg:grid-cols-3"
+	class="grid grid-cols-1 gap-4 lg:grid-cols-3"
 	use:enhance={enhanceToast({
 		loading: "Sending your answer",
 		success: "Done. Head back to your AI app.",

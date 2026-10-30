@@ -30,7 +30,9 @@
 	}
 </script>
 
-<div class="grid gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start">
+<div
+	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start"
+>
 	<form
 		method="POST"
 		action="?/create"

@@ -62,7 +62,9 @@
 	}
 </script>
 
-<div class="grid gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start">
+<div
+	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start"
+>
 	<div class="flex flex-col gap-6">
 		<form
 			class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6"
@@ -275,7 +277,7 @@
 				>
 			</form>
 		</div>
-		<div class="grid gap-4 xl:grid-cols-2">
+		<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
 			{#each data.plugins as plugin (plugin.id)}
 				<PluginRow {plugin} />
 			{/each}

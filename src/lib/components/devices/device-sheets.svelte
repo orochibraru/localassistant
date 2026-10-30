@@ -152,7 +152,7 @@
 	description="Pick what to connect. Each one walks you through what it needs."
 	wide
 >
-	<ul class="grid gap-2 pb-4 sm:grid-cols-2">
+	<ul class="grid grid-cols-1 gap-2 pb-4 sm:grid-cols-2">
 		{#each setups as setup (setup.id)}
 			{@const Icon = pluginIconComponents[setup.icon]}
 			<li>

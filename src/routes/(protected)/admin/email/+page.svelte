@@ -19,7 +19,7 @@
 </script>
 
 <div
-	class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)] lg:items-start"
+	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)] lg:items-start"
 >
 	<form
 		method="POST"
@@ -42,7 +42,7 @@
 				worker, with retries.
 			</p>
 		</div>
-		<div class="grid gap-5 md:grid-cols-[1fr_8rem]">
+		<div class="grid grid-cols-1 gap-5 md:grid-cols-[1fr_8rem]">
 			<Field.Field>
 				<Field.Label for="smtp-host">Host</Field.Label>
 				<Input
@@ -85,7 +85,7 @@
 				value={data.smtp?.security ?? "starttls"}
 			/>
 		</Field.Field>
-		<div class="grid gap-5 md:grid-cols-2">
+		<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
 			<Field.Field>
 				<Field.Label for="smtp-username">Username</Field.Label>
 				<Input
@@ -111,7 +111,7 @@
 				>
 			</Field.Field>
 		</div>
-		<div class="grid gap-5 md:grid-cols-2">
+		<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
 			<Field.Field>
 				<Field.Label for="smtp-from-address">From address</Field.Label>
 				<Input

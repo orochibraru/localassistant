@@ -136,7 +136,7 @@
 	}
 </script>
 
-<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
 	<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
 		<div class="flex items-start gap-3">
 			<span

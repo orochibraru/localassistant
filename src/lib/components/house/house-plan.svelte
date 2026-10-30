@@ -516,7 +516,9 @@
 	</li>
 {/snippet}
 
-<div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
+<div
+	class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start"
+>
 	<div class="relative">
 		<div
 			bind:this={viewport}

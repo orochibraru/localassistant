@@ -54,7 +54,7 @@
 	{/if}
 	<GettingStarted {...data.gettingStarted} />
 	<div
-		class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] md:gap-4"
+		class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] md:gap-4"
 	>
 		<StatCard
 			label="Users"
@@ -96,7 +96,7 @@
 			Server
 		</h2>
 		<div
-			class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] md:gap-4"
+			class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] md:gap-4"
 		>
 			<StatCard
 				label="Version"

@@ -39,7 +39,9 @@
 		</EmptyState>
 	</div>
 {:else}
-	<ul class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
+	<ul
+		class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]"
+	>
 		{#each data.dashboards as dashboard (dashboard.id)}
 			<li class="glass flex min-h-14 items-center gap-1 rounded-2xl pr-2">
 				<a

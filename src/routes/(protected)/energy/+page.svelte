@@ -186,7 +186,7 @@
 			/>
 		</section>
 
-		<div class="grid gap-6 lg:grid-cols-2">
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<section class="glass rounded-2xl p-4 md:p-6">
 				<EnergyLines
 					title="Running total"
@@ -237,7 +237,7 @@
 					Appliances
 				</h2>
 				<ul
-					class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(22rem,1fr))] md:gap-4"
+					class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(22rem,1fr))] md:gap-4"
 				>
 					{#each appliances as appliance (appliance.deviceId)}
 						<li class="glass flex flex-col gap-3 rounded-2xl p-4">

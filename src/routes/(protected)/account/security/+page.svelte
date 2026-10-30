@@ -15,7 +15,7 @@
 	} as const;
 </script>
 
-<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
 	{#if data.missing.length > 0}
 		<Alert.Root class="lg:col-span-2">
 			<TriangleAlertIcon />

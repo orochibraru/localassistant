@@ -42,7 +42,9 @@
 	}
 </script>
 
-<div class="grid gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start">
+<div
+	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start"
+>
 	<section
 		class="glass flex flex-col gap-2 rounded-2xl p-2"
 		aria-labelledby="integrations-heading"

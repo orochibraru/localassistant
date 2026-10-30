@@ -50,7 +50,7 @@
 	</div>
 {:else}
 	<ul
-		class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] md:gap-4"
+		class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] md:gap-4"
 	>
 		{#each data.scenes as scene (scene.id)}
 			<li class="glass flex flex-col gap-3 rounded-2xl p-4">

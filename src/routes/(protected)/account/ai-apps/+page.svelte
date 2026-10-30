@@ -16,7 +16,7 @@
 	}
 </script>
 
-<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
 	<section class="glass flex min-w-0 flex-col gap-4 rounded-2xl p-4 md:p-6">
 		<div>
 			<h2 class="font-semibold">Connect an AI app</h2>

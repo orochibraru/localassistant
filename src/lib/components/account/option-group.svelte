@@ -30,7 +30,7 @@
 
 <fieldset>
 	<legend class="mb-2 px-1 text-sm font-medium">{legend}</legend>
-	<div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+	<div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
 		{#each options as option (option.value)}
 			<label
 				class="group border-border bg-card has-checked:border-primary has-checked:ring-primary/30 has-focus-visible:ring-ring/50 flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-all has-checked:ring-2 has-focus-visible:ring-3"

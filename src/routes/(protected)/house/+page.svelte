@@ -78,7 +78,9 @@
 	{#if data.homes.length > 0}
 		<HomeSwitcher home={data.home} homes={data.homes} class="md:hidden" />
 	{/if}
-	<ul class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))]">
+	<ul
+		class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))]"
+	>
 		<li>
 			{@render roomCard(
 				resolve("/(protected)/rooms/[roomId]", { roomId: "house" }),
@@ -143,7 +145,7 @@
 			</div>
 			{#if group.rooms.length > 0}
 				<ul
-					class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))]"
+					class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))]"
 				>
 					{#each group.rooms as room (room.id)}
 						<li>
