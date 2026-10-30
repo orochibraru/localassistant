@@ -5,6 +5,7 @@ import { createMcpHandler } from "@modelcontextprotocol/server";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { SceneDTO } from "#lib/dto/scene.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { mcpEndpoint } from "#lib/server/mcp/server.js";
 
@@ -68,7 +69,9 @@ describe("MCP tools", () => {
 			"get_device",
 			"list_homes",
 			"list_house",
+			"list_scenes",
 			"press_button",
+			"set_scene",
 		]);
 	});
 
@@ -240,5 +243,26 @@ describe("MCP tools", () => {
 			new URL("http://home.lan/mcp"),
 		);
 		expect(refused.status).toBe(404);
+	});
+
+	test("scenes are listed and set", async () => {
+		const scene = SceneDTO.create(homeId(), {
+			name: "Night",
+			members: [{ deviceId: "gone", command: { type: "switch", on: false } }],
+		});
+		const listed = await call("list_scenes");
+		expect(JSON.parse(listed.text).scenes[0]).toMatchObject({ name: "Night" });
+		expect((await call("list_scenes", { homeId: "nope" })).isError).toBe(true);
+		const failed = await call("set_scene", { sceneId: scene.id });
+		expect(failed).toEqual({
+			isError: true,
+			text: "A device in the scene is gone.",
+		});
+		expect((await call("set_scene", { sceneId: "nope" })).isError).toBe(true);
+		scene.update({ name: "Night", members: [] });
+		expect(await call("set_scene", { sceneId: scene.id })).toEqual({
+			isError: false,
+			text: JSON.stringify({ done: true }),
+		});
 	});
 });

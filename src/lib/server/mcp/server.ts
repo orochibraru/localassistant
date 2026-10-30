@@ -24,11 +24,13 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { SceneDTO } from "#lib/dto/scene.js";
 import { getSetting } from "#lib/dto/setting.js";
 import { houseGroups } from "#lib/house.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import { kindInfo } from "#lib/plugins.js";
 import { authService } from "#lib/server/auth/auth.js";
+import { scenes } from "#lib/server/automations/scenes.js";
 import { configuration } from "#lib/server/core/config.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { plugins } from "#lib/server/plugins/registry.js";
@@ -94,6 +96,7 @@ class McpEndpoint {
 		this.#registerPrinter(server);
 		this.#registerVacuum(server);
 		this.#registerControls(server);
+		this.#registerScenes(server);
 		return server;
 	}
 
@@ -390,6 +393,46 @@ class McpEndpoint {
 					await devices.command(device, toCommand(schema.parse(rest)));
 					return { done: true };
 				});
+			},
+		);
+	}
+
+	#registerScenes(server: McpServer): void {
+		server.registerTool(
+			"list_scenes",
+			{
+				title: "List scenes",
+				description:
+					"A home's scenes, each with an id, a name and the devices it sets. Without homeId, the first home.",
+				inputSchema: z.object({ homeId: homeIdField }),
+				annotations: { readOnlyHint: true },
+			},
+			({ homeId }) => {
+				const home = this.#home(homeId);
+				return home
+					? this.#reply({
+							scenes: SceneDTO.inHome(home.id).map((scene) => scene.toJSON()),
+						})
+					: this.#failure("No home has that id. Call list_homes.");
+			},
+		);
+		server.registerTool(
+			"set_scene",
+			{
+				title: "Set a scene",
+				description:
+					"Sets a scene: every device in it goes the way the scene says. Get the id from list_scenes.",
+				inputSchema: z.object({ sceneId: z.string().min(1) }),
+			},
+			async ({ sceneId }) => {
+				const scene = SceneDTO.find(sceneId);
+				if (!scene) {
+					return this.#failure("No scene has that id. Call list_scenes.");
+				}
+				const failures = await scenes.activate(scene);
+				return failures.length > 0
+					? this.#failure(failures.join(" "))
+					: this.#reply({ done: true });
 			},
 		);
 	}

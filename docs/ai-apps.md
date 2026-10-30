@@ -24,9 +24,13 @@ register on the fly; either way you approve each one.
 - Pause, resume or stop a print, and set the printer's light and speed. It's
   told to ask before stopping a print.
 - Start, pause, stop or dock a robot vacuum.
+- Turn switches, lights, fans and speakers on or off and adjust them, lock or
+  unlock a door, press a button.
+- List the scenes and set one.
 
-It can't add, change or remove devices, rooms or floors, and never sees your
-email, the device keys, the printer's access code or the MELCloud password.
+It only sees the devices **Admin**, **AI** lets AI see. It can't add, change or
+remove devices, rooms or floors, and never sees your email, the device keys, the
+printer's access code or the MELCloud password.
 
 ## The assistant in the app
 
