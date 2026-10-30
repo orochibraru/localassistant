@@ -22,9 +22,9 @@
 			<h2 class="font-semibold">Connect an AI app</h2>
 			<p class="text-muted-foreground mt-1 text-sm">
 				Claude, ChatGPT or Gemini can see your floors, rooms and devices with
-				their last readings, and drive the blinds, heat pumps and printers like
-				you do on Home. They can't add, change or remove devices or rooms, and
-				never see your email, the device keys or the MELCloud password.
+				their last readings, drive them like you do on Home, and create and
+				change routines and scenes. They can't add, change or remove devices or
+				rooms, and never see your email, the device keys or any password.
 			</p>
 		</div>
 		{#if data.mcpUrl}

@@ -91,6 +91,7 @@
 				hot water
 			</li>
 			<li>Pause, resume or stop a print, the printer's light and speed</li>
+			<li>Set scenes, and create, change, run or delete routines and scenes</li>
 		</ul>
 	</section>
 	<section class="glass flex flex-col gap-3 rounded-3xl p-5 md:p-6">
