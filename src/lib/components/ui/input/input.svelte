@@ -37,6 +37,20 @@
 				}
 			: {},
 	);
+
+	const literal = $derived(
+		type === "url" ||
+			type === "email" ||
+			type === "password" ||
+			restProps.inputmode === "url" ||
+			restProps.inputmode === "email"
+			? {
+					autocapitalize: "none" as const,
+					autocorrect: "off" as const,
+					spellcheck: false,
+				}
+			: {},
+	);
 </script>
 
 {#if type === "file"}
@@ -63,6 +77,7 @@
 		)}
 		{type}
 		bind:value
+		{...literal}
 		{...restProps}
 		{...unmanaged}
 	/>

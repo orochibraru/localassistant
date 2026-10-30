@@ -48,6 +48,8 @@
 				<Input
 					id="smtp-host"
 					name="host"
+					autocapitalize="none"
+					spellcheck={false}
 					value={data.smtp?.host ?? ""}
 					placeholder="smtp.example.com"
 					required
