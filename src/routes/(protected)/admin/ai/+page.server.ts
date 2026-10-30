@@ -5,6 +5,7 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { getSetting, setSetting } from "#lib/dto/setting.js";
 import { assistant } from "#lib/server/assistant/assistant.js";
 import { access } from "#lib/server/auth/access.js";
+import { authService } from "#lib/server/auth/auth.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { homes } from "#lib/server/house/homes.js";
 import {
@@ -13,9 +14,11 @@ import {
 } from "#lib/server/validation/assistant.js";
 import { parseForm } from "#lib/server/validation/form.js";
 
-export const load = async ({ parent }) => {
+export const load = async ({ parent, url }) => {
 	await parent();
 	return {
+		mcpUrl:
+			authService.mcpResource(authService.publicOrigin() ?? url.origin) ?? null,
 		configured: assistant.configured(),
 		hidden: getSetting("aiHiddenDevices"),
 	};

@@ -199,3 +199,20 @@ test("pulling Home down refreshes it", async ({ page }) => {
 	await expect(page.getByText("Refreshing")).toBeAttached();
 	await expect(page.getByText("Refreshing")).not.toBeAttached();
 });
+
+test("admin pages float no invite button and Admin, AI shows the MCP address", async ({
+	page,
+}) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/admin/users");
+	await expect(
+		page.getByRole("button", { name: "Invite someone" }),
+	).toHaveCount(0);
+	await page.goto("/admin/ai");
+	await expect(page.getByText(/\/mcp$/)).toBeVisible();
+	await expect(
+		page.getByRole("button", { name: "Copy the MCP server address" }),
+	).toBeVisible();
+});
