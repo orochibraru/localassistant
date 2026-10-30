@@ -117,7 +117,18 @@ describe("the assistant", () => {
 		});
 		expect(
 			requests[0]?.tools?.map((tool) => (tool as { name: string }).name),
-		).toEqual(["get_house", "control_device", "set_scene"]);
+		).toEqual([
+			"get_house",
+			"control_device",
+			"set_scene",
+			"list_routines",
+			"save_routine",
+			"set_routine_enabled",
+			"run_routine",
+			"delete_routine",
+			"save_scene",
+			"delete_scene",
+		]);
 		const results = requests[2]?.messages.at(-1)?.content as {
 			tool_use_id: string;
 			is_error?: boolean;
@@ -248,6 +259,93 @@ describe("the assistant", () => {
 			text: "Hello",
 			actions: [],
 		});
+	});
+
+	test("its tools manage routines and scenes, and refuse hidden devices", async () => {
+		const home = HomeDTO.first();
+		const device = lamp();
+		const routine = {
+			name: "Lamp at night",
+			trigger: { type: "time", time: "21:00", weekdays: [1, 2, 3] },
+			period: { type: "always" },
+			actions: [
+				{
+					type: "device",
+					deviceId: device.id,
+					command: { type: "light", change: { on: true } },
+				},
+			],
+		};
+		const saved = await assistant.run(home, "save_routine", { routine });
+		expect(saved.action).toBe("Saved the routine Lamp at night");
+		const routineId = JSON.parse(saved.content).id as string;
+		const listed = JSON.parse(
+			(await assistant.run(home, "list_routines", {})).content,
+		);
+		expect(listed.routines).toHaveLength(1);
+		expect(
+			await assistant.run(home, "set_routine_enabled", {
+				routineId,
+				enabled: false,
+			}),
+		).toMatchObject({ action: "Turned a routine off" });
+		expect(
+			await assistant.run(home, "set_routine_enabled", {
+				routineId,
+				enabled: true,
+			}),
+		).toMatchObject({ action: "Turned a routine on" });
+		expect(
+			await assistant.run(home, "run_routine", { routineId }),
+		).toMatchObject({
+			action: "Ran a routine",
+		});
+		expect(
+			await assistant.run(home, "run_routine", { routineId: "gone" }),
+		).toEqual({
+			content: "That routine is gone.",
+			error: true,
+		});
+		expect(
+			(await assistant.run(home, "save_routine", { routine: {} })).content,
+		).toContain("That input isn't valid");
+		const scene = {
+			name: "Night",
+			members: [
+				{
+					deviceId: device.id,
+					command: { type: "light", change: { on: false } },
+				},
+			],
+		};
+		const sceneSaved = await assistant.run(home, "save_scene", { scene });
+		expect(sceneSaved.action).toBe("Saved the scene Night");
+		const sceneId = JSON.parse(sceneSaved.content).id as string;
+		setSetting("aiHiddenDevices", [device.id]);
+		expect((await assistant.run(home, "save_scene", { scene })).error).toBe(
+			true,
+		);
+		expect((await assistant.run(home, "save_routine", { routine })).error).toBe(
+			true,
+		);
+		setSetting("aiHiddenDevices", []);
+		expect(
+			await assistant.run(home, "delete_scene", { sceneId }),
+		).toMatchObject({
+			action: "Deleted a scene",
+		});
+		expect((await assistant.run(home, "delete_scene", { sceneId })).error).toBe(
+			true,
+		);
+		expect(
+			await assistant.run(home, "delete_routine", { routineId }),
+		).toMatchObject({
+			action: "Deleted a routine",
+		});
+		expect(
+			(await assistant.run(home, "delete_routine", { routineId })).error,
+		).toBe(true);
+		expect((await assistant.run(home, "nope", {})).error).toBe(true);
 	});
 
 	test("its forms check turns, keys and visibility", () => {
