@@ -11,6 +11,7 @@
 		description?: string;
 		wide?: boolean;
 		children: Snippet;
+		footer?: Snippet;
 	}
 
 	let {
@@ -19,6 +20,7 @@
 		description,
 		wide = false,
 		children,
+		footer,
 	}: Props = $props();
 
 	const desktop = new MediaQuery("(min-width: 768px)");
@@ -27,7 +29,9 @@
 {#if desktop.current}
 	<Dialog.Root bind:open>
 		<Dialog.Content
-			class="max-h-[calc(100dvh-4rem)] grid-rows-[auto_minmax(0,1fr)] {wide
+			class="max-h-[calc(100dvh-4rem)] {footer
+				? 'grid-rows-[auto_minmax(0,1fr)_auto]'
+				: 'grid-rows-[auto_minmax(0,1fr)]'} {wide
 				? 'sm:max-w-xl'
 				: 'sm:max-w-md'}"
 		>
@@ -40,6 +44,9 @@
 			<div class="-mx-6 grid min-h-0 gap-6 overflow-y-auto px-6">
 				{@render children()}
 			</div>
+			{#if footer}
+				<div class="flex flex-col gap-2">{@render footer()}</div>
+			{/if}
 		</Dialog.Content>
 	</Dialog.Root>
 {:else}
@@ -51,9 +58,14 @@
 					<Drawer.Description>{description}</Drawer.Description>
 				{/if}
 			</Drawer.Header>
-			<div class="min-h-0 overflow-y-auto px-5">
+			<div class="min-h-0 flex-1 overflow-y-auto px-5">
 				{@render children()}
 			</div>
+			{#if footer}
+				<div class="flex shrink-0 flex-col gap-2 border-t px-5 pt-3 pb-2">
+					{@render footer()}
+				</div>
+			{/if}
 		</Drawer.Content>
 	</Drawer.Root>
 {/if}
