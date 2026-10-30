@@ -10,7 +10,11 @@ import type {
 	PluginDevice,
 	PluginNotification,
 } from "#lib/plugin-sdk.js";
-import type { PluginManifest, PluginValues } from "#lib/plugins.js";
+import {
+	isSecretField,
+	type PluginManifest,
+	type PluginValues,
+} from "#lib/plugins.js";
 import { Logger } from "#lib/server/core/logger.js";
 
 export const protocolVersion = 1;
@@ -75,7 +79,7 @@ class Child {
 			...(manifest.device?.fields ?? []),
 			...(manifest.connection?.fields ?? []),
 		]
-			.filter((field) => field.type === "secret")
+			.filter((field) => isSecretField(field))
 			.map((field) => field.name);
 	}
 

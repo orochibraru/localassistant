@@ -48,12 +48,37 @@ export type PluginIcon = (typeof pluginIcons)[number];
 
 export const pluginFieldTypes = [
 	"text",
+	"url",
 	"secret",
+	"headers",
 	"number",
 	"boolean",
 	"choice",
 ] as const;
 export type PluginFieldType = (typeof pluginFieldTypes)[number];
+
+const headerLine = /^([!#$%&'*+.^_`|~0-9A-Za-z-]+):[ \t]*(\S.*)$/;
+
+/** Whether a field's value is stored encrypted and never sent back to a page: secrets and headers, which carry tokens. */
+export function isSecretField(field: { type: PluginFieldType }): boolean {
+	return field.type === "secret" || field.type === "headers";
+}
+
+/** The `Name: value` lines of a headers field as a record, or `null` when a line isn't one; blank lines are skipped. */
+export function parseHeaders(text: string): Record<string, string> | null {
+	const headers: Record<string, string> = {};
+	for (const line of text.split(/\r?\n/)) {
+		if (line.trim() === "") {
+			continue;
+		}
+		const match = headerLine.exec(line.trim());
+		if (!match?.[1] || !match[2]) {
+			return null;
+		}
+		headers[match[1]] = match[2].trim();
+	}
+	return headers;
+}
 
 export const pluginNeeds = ["mqtt"] as const;
 

@@ -8,7 +8,7 @@ import type {
 	PrinterChange,
 	VacuumChange,
 } from "#lib/devices.js";
-import type { PluginValues } from "#lib/plugins.js";
+import type { PluginValue, PluginValues } from "#lib/plugins.js";
 
 export type DeviceCommand =
 	| { type: "cover"; move: CoverMove }
@@ -158,4 +158,20 @@ export interface Plugin {
 /** Marks `plugin` as a LocalAssistant plugin and types its hooks; it returns it unchanged. */
 export function definePlugin(plugin: Plugin): Plugin {
 	return plugin;
+}
+
+/** The HTTP headers in a `headers` field's value, `Name: value` per line, to send with every request; empty without any. */
+export function requestHeaders(
+	value: PluginValue | undefined,
+): Record<string, string> {
+	const headers: Record<string, string> = {};
+	for (const line of String(value ?? "").split(/\r?\n/)) {
+		const separator = line.indexOf(":");
+		const name = line.slice(0, separator).trim();
+		const content = line.slice(separator + 1).trim();
+		if (separator > 0 && name && content) {
+			headers[name] = content;
+		}
+	}
+	return headers;
 }

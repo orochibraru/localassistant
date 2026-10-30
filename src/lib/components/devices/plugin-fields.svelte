@@ -4,8 +4,13 @@
 	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import * as ToggleGroup from "#lib/components/ui/toggle-group/index.js";
-	import type { PluginField, PluginValues } from "#lib/plugins.js";
+	import {
+		isSecretField,
+		type PluginField,
+		type PluginValues,
+	} from "#lib/plugins.js";
 
 	interface Props {
 		prefix: string;
@@ -24,11 +29,25 @@
 		String(values[field.name] ?? field.default ?? "");
 
 	const choices = $state<Record<string, string>>({});
+
+	const typed = (field: PluginField) =>
+		field.type === "url" || field.keyboard === "url"
+			? "url"
+			: field.keyboard === "email"
+				? "email"
+				: field.type === "secret"
+					? "password"
+					: "text";
+	const plain = (field: PluginField) =>
+		field.type === "url" ||
+		field.type === "secret" ||
+		field.keyboard === "url" ||
+		field.keyboard === "email";
 </script>
 
 {#each fields as field (field.name)}
 	{@const id = `${prefix}-${field.name}`}
-	{@const kept = field.type === "secret" && secretsSet.includes(field.name)}
+	{@const kept = isSecretField(field) && secretsSet.includes(field.name)}
 	{#if field.type === "boolean"}
 		<Field.Field orientation="horizontal">
 			<Checkbox
@@ -88,6 +107,32 @@
 			{/if}
 			<Field.Error errors={errorsOf(field)} />
 		</Field.Field>
+	{:else if field.type === "headers"}
+		<Field.Field>
+			<Field.Label for={id}>{field.label}</Field.Label>
+			<Textarea
+				{id}
+				name={inputName(field)}
+				placeholder={kept
+					? "Unchanged"
+					: (field.placeholder ?? "X-Api-Key: secret")}
+				autocomplete="off"
+				autocapitalize="none"
+				spellcheck={false}
+				rows={2}
+				class="min-h-20 font-mono text-sm"
+			/>
+			<Field.Description
+				>{[
+					field.description,
+					"One Name: value per line, stored encrypted.",
+					kept ? "Leave empty to keep." : null,
+				]
+					.filter(Boolean)
+					.join(" ")}</Field.Description
+			>
+			<Field.Error errors={errorsOf(field)} />
+		</Field.Field>
 	{:else}
 		<Field.Field>
 			<Field.Label for={id}>{field.label}</Field.Label>
@@ -96,12 +141,15 @@
 				name={inputName(field)}
 				value={field.type === "secret" ? "" : initial(field)}
 				placeholder={kept ? "Unchanged" : field.placeholder}
-				type={field.type === "secret" ? "password" : "text"}
+				type={typed(field)}
 				inputmode={field.type === "number"
 					? "decimal"
-					: field.keyboard === "decimal"
-						? "decimal"
+					: field.type === "url"
+						? "url"
 						: field.keyboard}
+				autocapitalize={plain(field) ? "none" : undefined}
+				autocorrect={plain(field) ? "off" : undefined}
+				spellcheck={plain(field) ? false : undefined}
 				autocomplete="off"
 				required={!field.optional && !kept && field.default === undefined}
 				class="h-11"

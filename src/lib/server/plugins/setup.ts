@@ -1,8 +1,14 @@
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { getPluginSettings, setPluginSettings } from "#lib/dto/setting.js";
-import type { PluginField, PluginSetup, PluginValues } from "#lib/plugins.js";
+import {
+	isSecretField,
+	type PluginField,
+	type PluginSetup,
+	type PluginValues,
+} from "#lib/plugins.js";
 import { secrets } from "#lib/server/core/secrets.js";
+import { addresses } from "#lib/server/http/addresses.js";
 import { pluginContexts } from "#lib/server/plugins/context.js";
 import { type HostedPlugin, plugins } from "#lib/server/plugins/registry.js";
 
@@ -60,6 +66,7 @@ class PluginSetupService {
 			...(pluginContexts.settings(manifest.id) ?? {}),
 			...values,
 		};
+		await addresses.check(fields, values);
 		await plugin.connect?.(merged, context);
 		const split = this.#split(fields, values);
 		setPluginSettings(manifest.id, {
@@ -116,6 +123,7 @@ class PluginSetupService {
 		values: PluginValues,
 	): Promise<DeviceDTO> {
 		const fields = hosted.manifest.device?.fields ?? [];
+		await addresses.check(fields, values);
 		const found = await this.#found(hosted, values);
 		const split = this.#split(fields, values);
 		const device = this.#unique(() =>
@@ -151,12 +159,12 @@ class PluginSetupService {
 		const current = pluginContexts.device(device);
 		const decrypted = Object.fromEntries(
 			fields.flatMap((field) => {
-				const secret =
-					field.type === "secret" ? current.secret(field.name) : null;
+				const secret = isSecretField(field) ? current.secret(field.name) : null;
 				return secret === null ? [] : [[field.name, secret]];
 			}),
 		);
 		const merged = { ...current.fields, ...decrypted, ...values };
+		await addresses.check(fields, values);
 		const found = await this.#found(hosted, merged);
 		const split = this.#split(fields, merged);
 		this.#unique(() =>
@@ -213,9 +221,7 @@ class PluginSetupService {
 
 	#split(fields: PluginField[], values: PluginValues): Split {
 		const secretNames = new Set(
-			fields
-				.filter((field) => field.type === "secret")
-				.map((field) => field.name),
+			fields.filter((field) => isSecretField(field)).map((field) => field.name),
 		);
 		const plain: PluginValues = {};
 		const encrypted: Record<string, string> = {};

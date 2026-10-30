@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { cardSizes } from "#lib/devices.js";
 import {
+	isSecretField,
+	parseHeaders,
 	pluginCards,
 	type PluginField,
 	pluginFieldTypes,
@@ -14,6 +16,7 @@ import {
 	type PluginValue,
 	type PluginValues,
 } from "#lib/plugins.js";
+import { addressSchema } from "#lib/server/validation/address.js";
 
 const reservedFields = new Set(["id", "name", "roomId", "plugin"]);
 
@@ -189,7 +192,7 @@ function valueSchema(field: PluginField, keepSecrets: boolean) {
 				return raw === "true" || raw === "on";
 			}
 			if (blank(raw)) {
-				if (field.type === "secret" && keepSecrets) {
+				if (isSecretField(field) && keepSecrets) {
 					return undefined;
 				}
 				if (field.default !== undefined) {
@@ -218,6 +221,25 @@ function valueSchema(field: PluginField, keepSecrets: boolean) {
 					});
 				}
 				return number;
+			}
+			if (field.type === "url") {
+				const parsed = addressSchema.safeParse(value);
+				if (!parsed.success) {
+					context.addIssue({
+						code: "custom",
+						message:
+							field.message ??
+							parsed.error.issues[0]?.message ??
+							"Type an address.",
+					});
+				}
+				return parsed.success ? parsed.data : value;
+			}
+			if (field.type === "headers" && parseHeaders(value) === null) {
+				context.addIssue({
+					code: "custom",
+					message: "Write one header per line, like X-Api-Key: secret.",
+				});
 			}
 			if (
 				field.type === "choice" &&

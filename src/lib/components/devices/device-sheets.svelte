@@ -19,6 +19,7 @@
 	import type { DeviceRow } from "#lib/dto/device.js";
 	import { type HouseFloor, type HouseRoom, roomLabels } from "#lib/house.js";
 	import {
+		isSecretField,
 		type KindCatalog,
 		kindInfo,
 		type PluginSetup,
@@ -223,7 +224,13 @@
 								id="broker-{input.name}"
 								name={input.name}
 								placeholder={input.placeholder}
-								type={input.secret ? "password" : "text"}
+								type={input.secret
+									? "password"
+									: input.name === "url"
+										? "url"
+										: "text"}
+								autocapitalize="none"
+								spellcheck={false}
 								autocomplete="off"
 								required={!input.optional}
 								class="h-11"
@@ -394,7 +401,7 @@
 					fields={editingSetup.device.fields}
 					values={editing.fields}
 					secretsSet={editingSetup.device.fields
-						.filter((field) => field.type === "secret")
+						.filter((field) => isSecretField(field))
 						.map((field) => field.name)}
 					{errors}
 				/>
