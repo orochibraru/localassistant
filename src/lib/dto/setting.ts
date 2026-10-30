@@ -48,6 +48,10 @@ export interface VapidKeys {
 	encryptedPrivateKey: string;
 }
 
+export interface AssistantSettings {
+	encryptedApiKey: string;
+}
+
 export const sessionDayOptions = [1, 7, 30] as const;
 
 export interface SettingValues {
@@ -66,6 +70,8 @@ export interface SettingValues {
 	ssoProviders: SsoProvider[];
 	vapid: VapidKeys | null;
 	publicOrigin: string | null;
+	assistant: AssistantSettings | null;
+	aiHiddenDevices: string[];
 }
 
 const defaults: SettingValues = {
@@ -84,6 +90,8 @@ const defaults: SettingValues = {
 	ssoProviders: [],
 	vapid: null,
 	publicOrigin: null,
+	assistant: null,
+	aiHiddenDevices: [],
 };
 
 /** The stored value of `key`, or its default. */
@@ -117,6 +125,8 @@ export function allSettings(): SettingValues {
 		ssoProviders: getSetting("ssoProviders"),
 		vapid: getSetting("vapid"),
 		publicOrigin: getSetting("publicOrigin"),
+		assistant: getSetting("assistant"),
+		aiHiddenDevices: getSetting("aiHiddenDevices"),
 	};
 }
 

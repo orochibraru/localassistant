@@ -24,6 +24,7 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { RoomDTO } from "#lib/dto/room.js";
+import { getSetting } from "#lib/dto/setting.js";
 import { houseGroups } from "#lib/house.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import { kindInfo } from "#lib/plugins.js";
@@ -96,6 +97,11 @@ class McpEndpoint {
 		return server;
 	}
 
+	/** Whether AI apps and the in-app assistant may see and drive `device`: an admin can hide it. */
+	visible(device: DeviceDTO): boolean {
+		return !getSetting("aiHiddenDevices").includes(device.id);
+	}
+
 	/** A home as an AI app sees it: floors, rooms and outside spaces, each device with its room and last state. */
 	house(home: HomeDTO) {
 		const rooms = RoomDTO.inHome(home.id).map((room) => room.toJSON());
@@ -110,9 +116,9 @@ class McpEndpoint {
 					kind: icon,
 				})),
 			})),
-			devices: DeviceDTO.inHome(home.id).map((device) =>
-				this.#deviceJson(device),
-			),
+			devices: DeviceDTO.inHome(home.id)
+				.filter((device) => this.visible(device))
+				.map((device) => this.#deviceJson(device)),
 		};
 	}
 
@@ -157,7 +163,7 @@ class McpEndpoint {
 			},
 			({ deviceId }) => {
 				const device = DeviceDTO.find(deviceId);
-				return device
+				return device && this.visible(device)
 					? this.#reply(this.#deviceJson(device))
 					: this.#failure("No device has that id. Call list_house.");
 			},
@@ -215,7 +221,7 @@ class McpEndpoint {
 				const covers = DeviceDTO.inRoom(
 					home.id,
 					roomId === wholeHouse ? null : roomId,
-				);
+				).filter((device) => this.visible(device));
 				const failed = await devices.coverGroup(covers, action);
 				const blinds = covers.filter(
 					(device) => kindInfo(plugins.catalog(), device.kind).card === "cover",
@@ -397,7 +403,7 @@ class McpEndpoint {
 		work: (device: DeviceDTO) => Promise<unknown>,
 	) {
 		const device = DeviceDTO.find(deviceId);
-		if (!device) {
+		if (!device || !this.visible(device)) {
 			return this.#failure("No device has that id. Call list_house.");
 		}
 		try {

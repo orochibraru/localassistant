@@ -37,6 +37,8 @@ describe("settings", () => {
 			ssoProviders: [],
 			vapid: null,
 			publicOrigin: null,
+			assistant: null,
+			aiHiddenDevices: [],
 		});
 		setSetting("requireTwoFactor", true);
 		setSetting("requireTwoFactor", false);
