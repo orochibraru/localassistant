@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
 import type { AssistantTurn } from "#lib/assistant.js";
@@ -8,11 +9,13 @@ import type { HomeDTO } from "#lib/dto/home.js";
 import { SceneDTO } from "#lib/dto/scene.js";
 import { getSetting } from "#lib/dto/setting.js";
 import { scenes } from "#lib/server/automations/scenes.js";
+import { Logger } from "#lib/server/core/logger.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { mcpEndpoint } from "#lib/server/mcp/server.js";
 import { deviceCommandSchema } from "#lib/server/validation/automation.js";
 
+const logger = new Logger("Assistant");
 const model = "claude-opus-5-5";
 const longestLoop = 8;
 
@@ -88,6 +91,35 @@ class Assistant {
 			throw new Error("An admin has to add a Claude API key first.");
 		}
 		return new Anthropic({ apiKey: secrets.decrypt(stored.encryptedApiKey) });
+	}
+
+	/**
+	 * Like `reply`, for a request: what went wrong becomes an HTTP error with a message fit for the person asking.
+	 *
+	 * @throws A 409 error with no key saved, a 502 or 503 one when the Claude API refuses or can't be reached.
+	 */
+	async answer(
+		home: HomeDTO,
+		history: AssistantTurn[],
+	): Promise<AssistantReply> {
+		if (!this.configured()) {
+			error(409, "An admin has to add a Claude API key first, in Admin, AI.");
+		}
+		try {
+			return await this.reply(home, history);
+		} catch (failure) {
+			if (failure instanceof Anthropic.AuthenticationError) {
+				error(
+					502,
+					"The Claude API refused the key: an admin has to replace it.",
+				);
+			}
+			if (failure instanceof Anthropic.RateLimitError) {
+				error(503, "The Claude API is busy right now. Try again in a minute.");
+			}
+			logger.warn("The assistant failed", undefined, failure);
+			error(502, "The Claude API can't be reached right now.");
+		}
 	}
 
 	/**

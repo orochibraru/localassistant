@@ -8,7 +8,7 @@ import {
 	test,
 } from "bun:test";
 
-import type Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
@@ -217,6 +217,37 @@ describe("the assistant", () => {
 			action: "Set Night",
 		});
 		command.mockRestore();
+	});
+
+	test("a request learns why it failed in words, never the API's own error", async () => {
+		const home = HomeDTO.first();
+		const turns = [{ role: "user" as const, text: "Hi" }];
+		await expect(assistant.answer(home, turns)).rejects.toMatchObject({
+			status: 409,
+		});
+		setSetting("assistant", { encryptedApiKey: secrets.encrypt("sk-ant-x") });
+		const reply = spyOn(assistant, "reply");
+		for (const [failure, status] of [
+			[
+				new Anthropic.AuthenticationError(401, undefined, "no", new Headers()),
+				502,
+			],
+			[
+				new Anthropic.RateLimitError(429, undefined, "slow", new Headers()),
+				503,
+			],
+			[new Error("down"), 502],
+		] as const) {
+			reply.mockRejectedValueOnce(failure);
+			await expect(assistant.answer(home, turns)).rejects.toMatchObject({
+				status,
+			});
+		}
+		reply.mockResolvedValueOnce({ text: "Hello", actions: [] });
+		expect(await assistant.answer(home, turns)).toEqual({
+			text: "Hello",
+			actions: [],
+		});
 	});
 
 	test("its forms check turns, keys and visibility", () => {
