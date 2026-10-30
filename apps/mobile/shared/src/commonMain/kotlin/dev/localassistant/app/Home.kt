@@ -119,6 +119,11 @@ fun sections(house: House): List<Pair<String, List<Device>>> {
 /** Home: who's in, the scenes, and every device by room. */
 @Composable
 fun HomeScreen(model: HouseModel) {
+    Refreshable(model) { HomeGrid(model) }
+}
+
+@Composable
+private fun HomeGrid(model: HouseModel) {
     val house by model.house.collectAsState()
     val error by model.loadError.collectAsState()
     val progress by model.progress.collectAsState()

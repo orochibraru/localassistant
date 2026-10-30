@@ -34,6 +34,11 @@ import androidx.compose.ui.unit.dp
 /** Scenes to set and routines to run or turn off. */
 @Composable
 fun RoutinesScreen(model: HouseModel) {
+    Refreshable(model) { RoutineList(model) }
+}
+
+@Composable
+private fun RoutineList(model: HouseModel) {
     val house by model.house.collectAsState()
     val routines by model.routines.collectAsState()
     val progress by model.progress.collectAsState()
