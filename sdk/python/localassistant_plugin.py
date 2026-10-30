@@ -147,6 +147,16 @@ class Context:
             handler(topic, payload)
 
 
+def request_headers(value):
+    """The HTTP headers in a headers field's value, one "Name: value" per line, to send with every request."""
+    headers = {}
+    for line in str(value or "").splitlines():
+        name, separator, content = line.partition(":")
+        if separator and name.strip() and content.strip():
+            headers[name.strip()] = content.strip()
+    return headers
+
+
 def matches(topic_filter, topic):
     """Whether topic matches the MQTT topic_filter, with + for one level and a trailing # for the rest."""
     wanted = topic_filter.split("/")

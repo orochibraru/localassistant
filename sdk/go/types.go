@@ -1,6 +1,9 @@
 package localassistant
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // Values holds what an admin typed in a plugin's form, by field name.
 type Values map[string]any
@@ -296,4 +299,20 @@ func Bool(value bool) *bool {
 // String returns a pointer to value, for the optional strings in states.
 func String(value string) *string {
 	return &value
+}
+
+// RequestHeaders returns the HTTP headers in a headers field's value, one "Name: value" per line, to send with every
+// request; lines that aren't headers are skipped.
+func RequestHeaders(value any) map[string]string {
+	headers := map[string]string{}
+	text, _ := value.(string)
+	for _, line := range strings.Split(text, "\n") {
+		name, content, found := strings.Cut(line, ":")
+		name = strings.TrimSpace(name)
+		content = strings.TrimSpace(content)
+		if found && name != "" && content != "" {
+			headers[name] = content
+		}
+	}
+	return headers
 }

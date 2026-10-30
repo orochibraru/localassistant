@@ -272,3 +272,13 @@ func TestNewStateShapes(t *testing.T) {
 		t.Fatalf("media change decoded as %+v", change)
 	}
 }
+
+func TestRequestHeaders(t *testing.T) {
+	headers := RequestHeaders("X-Token: abc\r\nbroken\n: nothing\nAuthorization: Bearer x")
+	if len(headers) != 2 || headers["X-Token"] != "abc" || headers["Authorization"] != "Bearer x" {
+		t.Fatalf("unexpected headers %v", headers)
+	}
+	if len(RequestHeaders(nil)) != 0 {
+		t.Fatal("no value means no headers")
+	}
+}

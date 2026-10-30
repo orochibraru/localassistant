@@ -176,6 +176,13 @@ class SdkTest(unittest.TestCase):
             context.settings()
         context._answered({"id": 1, "result": None})
 
+    def test_request_headers(self):
+        self.assertEqual(
+            sdk.request_headers("X-Token: abc\nbroken\n: nothing\nAuthorization: Bearer x"),
+            {"X-Token": "abc", "Authorization": "Bearer x"},
+        )
+        self.assertEqual(sdk.request_headers(None), {})
+
     def test_refusals_and_helpers(self):
         """Host errors become PluginError; topics match MQTT wildcards."""
         output = io.StringIO()
