@@ -149,6 +149,11 @@ export class HaConnection {
 	}
 }
 
+type HeaderedSocket = new (
+	url: string,
+	options: { headers: Record<string, string> },
+) => WebSocket;
+
 /** Opens signed-in connections to Home Assistant from its address and a long-lived access token. */
 class HaClient {
 	/** Home Assistant's WebSocket address for its web address. */
@@ -157,15 +162,24 @@ class HaClient {
 	}
 
 	/**
-	 * Connects and signs in with `token`.
+	 * Connects and signs in with `token`, sending `headers` with the upgrade for a proxy in front of it.
 	 *
 	 * @throws When Home Assistant can't be reached or refuses the token.
 	 */
-	open(url: string, token: string): Promise<HaConnection> {
+	open(
+		url: string,
+		token: string,
+		headers: Record<string, string> = {},
+	): Promise<HaConnection> {
 		const { promise, resolve, reject } = Promise.withResolvers<HaConnection>();
 		let socket: WebSocket;
 		try {
-			socket = new WebSocket(this.socketUrl(url));
+			socket = new (WebSocket as unknown as HeaderedSocket)(
+				this.socketUrl(url),
+				{
+					headers,
+				},
+			);
 		} catch (error) {
 			return Promise.reject(
 				new Error("That isn't a Home Assistant address.", { cause: error }),

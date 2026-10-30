@@ -6,6 +6,7 @@ import {
 	type Plugin,
 	type PluginContext,
 	type PluginDevice,
+	requestHeaders,
 } from "#lib/plugin-sdk.js";
 import type { PluginValues } from "#lib/plugins.js";
 
@@ -35,6 +36,7 @@ class HomeAssistant implements Plugin {
 		const connection = await haClient.open(
 			String(values.url),
 			String(values.token),
+			requestHeaders(values.headers),
 		);
 		connection.close();
 	}
@@ -177,13 +179,13 @@ class HomeAssistant implements Plugin {
 		if (!proxy || device.kind !== "home-assistant-camera") {
 			return new Response("Not found", { status: 404 });
 		}
-		const { url, token } = this.#settings(context);
+		const { url, token, headers } = this.#settings(context);
 		let response: Response;
 		try {
 			response = await fetch(
 				`${url.replace(/\/+$/, "")}/api/${proxy}/${encodeURIComponent(device.externalId)}`,
 				{
-					headers: { Authorization: `Bearer ${token}` },
+					headers: { ...headers, Authorization: `Bearer ${token}` },
 					...(path === "stream"
 						? {}
 						: { signal: AbortSignal.timeout(requestTimeoutMs) }),
@@ -203,7 +205,11 @@ class HomeAssistant implements Plugin {
 		});
 	}
 
-	#settings(context: PluginContext): { url: string; token: string } {
+	#settings(context: PluginContext): {
+		url: string;
+		token: string;
+		headers: Record<string, string>;
+	} {
 		const settings = context.settings();
 		if (
 			typeof settings?.url !== "string" ||
@@ -211,12 +217,16 @@ class HomeAssistant implements Plugin {
 		) {
 			throw new Error("Connect Home Assistant first.");
 		}
-		return { url: settings.url, token: settings.token };
+		return {
+			url: settings.url,
+			token: settings.token,
+			headers: requestHeaders(settings.headers),
+		};
 	}
 
 	#open(context: PluginContext): Promise<HaConnection> {
-		const { url, token } = this.#settings(context);
-		return haClient.open(url, token);
+		const { url, token, headers } = this.#settings(context);
+		return haClient.open(url, token, headers);
 	}
 }
 

@@ -5,6 +5,7 @@ import { JobDTO } from "#lib/dto/job.js";
 import { setPluginSettings } from "#lib/dto/setting.js";
 import type { CameraClips } from "#lib/plugin-sdk.js";
 import { broker } from "#lib/server/devices/broker.js";
+import { addresses } from "#lib/server/http/addresses.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 import { pluginSetup } from "#lib/server/plugins/setup.js";
 
@@ -13,7 +14,10 @@ import { hosted, pluginOf, seen } from "./support.js";
 
 const frigate = pluginOf<{
 	alert(context: unknown, payload: unknown, now?: number): void;
-	cameraNames(url: string): Promise<string[]>;
+	cameraNames(target: {
+		url: string;
+		headers: Record<string, string>;
+	}): Promise<string[]>;
 }>("frigate");
 const context = hosted("frigate").context;
 
@@ -21,7 +25,12 @@ describe("Frigate", () => {
 	beforeEach(resetDatabase);
 
 	test("imports cameras, lists events, proxies media and pushes new detections once", async () => {
-		const fetched: { url: string; range: string | null }[] = [];
+		const resolves = spyOn(addresses, "resolves").mockResolvedValue(true);
+		const fetched: {
+			url: string;
+			range: string | null;
+			token: string | null;
+		}[] = [];
 		const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (
 			input: string,
 			init?: RequestInit,
@@ -29,6 +38,7 @@ describe("Frigate", () => {
 			fetched.push({
 				url: input,
 				range: new Headers(init?.headers).get("range"),
+				token: new Headers(init?.headers).get("x-pangolin-token"),
 			});
 			if (input.endsWith("/api/config")) {
 				return Response.json({ cameras: { front_door: {}, garden: {} } });
@@ -63,9 +73,11 @@ describe("Frigate", () => {
 		);
 		const found = await pluginSetup.connect(hosted("frigate"), homeId(), {
 			url: "http://frigate.local:5000/",
+			headers: "X-Pangolin-Token: abc\n",
 			notifyLabels: "Person, car",
 		});
 		expect(found).toBe(2);
+		expect(fetched.every((entry) => entry.token === "abc")).toBe(true);
 		expect(await pluginSetup.discover(hosted("frigate"))).toBe(0);
 		const names = DeviceDTO.inHome(homeId())
 			.map((device) => device.toJSON().name)
@@ -134,10 +146,12 @@ describe("Frigate", () => {
 		frigate.alert(context, null);
 		expect(JobDTO.isQueued("push.send")).toBe(true);
 		fetchSpy.mockRejectedValue(new Error("offline"));
-		expect(frigate.cameraNames("http://frigate.local:5000")).rejects.toThrow(
-			"can't be reached",
-		);
+		expect(
+			frigate.cameraNames({ url: "http://frigate.local:5000", headers: {} }),
+		).rejects.toThrow("can't be reached");
+		expect(fetched.every((entry) => entry.token === "abc")).toBe(true);
 		fetchSpy.mockRestore();
+		resolves.mockRestore();
 	});
 
 	test("listens to detections once Frigate is connected, broker or not yet", async () => {

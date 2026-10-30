@@ -77,11 +77,13 @@ const calls: {
 }[] = [];
 const sockets = new Set<ServerWebSocket<unknown>>();
 let refuseService = false;
+const proxyTokens: (string | null)[] = [];
 
 const server = Bun.serve({
 	port: 0,
 	fetch(request, self) {
 		const url = new URL(request.url);
+		proxyTokens.push(request.headers.get("x-proxy-token"));
 		if (url.pathname === "/api/websocket" && self.upgrade(request)) {
 			return undefined;
 		}
@@ -169,6 +171,7 @@ beforeEach(async () => {
 	resetDatabase();
 	await plugins.stop("home-assistant");
 	calls.length = 0;
+	proxyTokens.length = 0;
 	refuseService = false;
 });
 
@@ -371,6 +374,7 @@ describe("Home Assistant", () => {
 		await pluginSetup.connect(hosted("home-assistant"), homeId(), {
 			url,
 			token: "good-token",
+			headers: "X-Proxy-Token: pangolin",
 		});
 		await plugins.start("home-assistant");
 		await plugin.keepConnected(context);
@@ -395,6 +399,8 @@ describe("Home Assistant", () => {
 		);
 		expect(await snapshot?.text()).toBe("jpeg");
 		expect(snapshot?.headers.get("content-type")).toBe("image/jpeg");
+		expect(proxyTokens.at(-1)).toBe("pangolin");
+		expect(proxyTokens).toContain("pangolin");
 		expect(
 			(
 				await hosted("home-assistant").plugin.serve?.(

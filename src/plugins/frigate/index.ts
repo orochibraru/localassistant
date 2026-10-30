@@ -6,6 +6,7 @@ import {
 	type Plugin,
 	type PluginContext,
 	type PluginDevice,
+	requestHeaders,
 } from "#lib/plugin-sdk.js";
 import type { PluginValues } from "#lib/plugins.js";
 
@@ -39,6 +40,11 @@ interface RawEvent {
 	has_snapshot: boolean;
 }
 
+interface Target {
+	url: string;
+	headers: Record<string, string>;
+}
+
 /**
  * Frigate NVR over its HTTP API and MQTT events: its cameras come in as devices, their snapshots, live MJPEG, events
  * and clips are proxied to signed-in people, and a new detection of a chosen kind pushes a notification.
@@ -52,7 +58,10 @@ class Frigate implements Plugin {
 	 * @throws When Frigate can't be reached there.
 	 */
 	async connect(values: PluginValues): Promise<void> {
-		await this.cameraNames(String(values.url));
+		await this.cameraNames({
+			url: String(values.url),
+			headers: requestHeaders(values.headers),
+		});
 	}
 
 	/**
@@ -61,7 +70,7 @@ class Frigate implements Plugin {
 	 * @throws When Frigate isn't connected or can't be reached.
 	 */
 	async discover(context: PluginContext): Promise<FoundDevice[]> {
-		const names = await this.cameraNames(this.#url(context));
+		const names = await this.cameraNames(this.#target(context));
 		return names.map((name) => ({
 			kind: "frigate-camera",
 			externalId: name,
@@ -90,10 +99,10 @@ class Frigate implements Plugin {
 	/**
 	 * The camera names Frigate is set up with.
 	 *
-	 * @throws When Frigate can't be reached at `url`.
+	 * @throws When Frigate can't be reached at `target`.
 	 */
-	async cameraNames(url: string): Promise<string[]> {
-		const response = await this.#get(url, "/api/config");
+	async cameraNames(target: Target): Promise<string[]> {
+		const response = await this.#get(target, "/api/config");
 		const config = (await response.json()) as {
 			cameras?: Record<string, unknown>;
 		};
@@ -114,7 +123,7 @@ class Frigate implements Plugin {
 			limit: "24",
 		});
 		const response = await this.#get(
-			this.#url(context),
+			this.#target(context),
 			`/api/events?${query}`,
 		);
 		return {
@@ -157,7 +166,7 @@ class Frigate implements Plugin {
 		}
 		const range = request.headers.get("range");
 		const response = await this.#get(
-			this.#url(context),
+			this.#target(context),
 			upstream,
 			range ? { Range: range } : {},
 			null,
@@ -211,24 +220,24 @@ class Frigate implements Plugin {
 		});
 	}
 
-	#url(context: PluginContext): string {
-		const url = context.settings()?.url;
-		if (typeof url !== "string") {
+	#target(context: PluginContext): Target {
+		const settings = context.settings();
+		if (typeof settings?.url !== "string") {
 			throw new Error("Connect Frigate first.");
 		}
-		return url;
+		return { url: settings.url, headers: requestHeaders(settings.headers) };
 	}
 
 	async #get(
-		base: string,
+		target: Target,
 		path: string,
 		headers: Record<string, string> = {},
 		timeoutMs: number | null = requestTimeoutMs,
 	): Promise<Response> {
 		let response: Response;
 		try {
-			response = await fetch(`${base.replace(/\/$/, "")}${path}`, {
-				headers,
+			response = await fetch(`${target.url.replace(/\/$/, "")}${path}`, {
+				headers: { ...target.headers, ...headers },
 				...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
 			});
 		} catch (error) {

@@ -3,7 +3,7 @@
 	"name": "Home Assistant",
 	"description": "Every device a Home Assistant instance knows, driven through it.",
 	"author": "LocalAssistant",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"icon": "puzzle",
 	"connection": {
 		"description": "For devices only Home Assistant integrates: LocalAssistant shows its switches, lights, covers, thermostats, door and window sensors, power and energy sensors and cameras. In Home Assistant, open your profile, Security, and create a long-lived access token.",
@@ -13,17 +13,21 @@
 			{
 				"name": "url",
 				"label": "Address",
-				"type": "text",
-				"placeholder": "http://192.168.1.10:8123",
-				"keyboard": "url",
-				"pattern": "^https?://[A-Za-z0-9.-]+(:\\d{1,5})?/?$",
-				"message": "Type Home Assistant's address, like http://192.168.1.10:8123."
+				"type": "url",
+				"placeholder": "http://192.168.1.10:8123"
 			},
 			{
 				"name": "token",
 				"label": "Long-lived access token",
 				"type": "secret",
 				"description": "Stored encrypted, never shown again."
+			},
+			{
+				"name": "headers",
+				"label": "Extra headers",
+				"type": "headers",
+				"optional": true,
+				"description": "For a proxy or firewall in front of it, like Pangolin or an API gateway: the header it checks, with its token."
 			}
 		]
 	},
