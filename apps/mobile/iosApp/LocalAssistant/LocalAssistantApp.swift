@@ -1,0 +1,20 @@
+import Shared
+import SwiftUI
+
+@main
+struct LocalAssistantApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ComposeView().ignoresSafeArea()
+                .onOpenURL { url in MainViewControllerKt.openLink(url: url.absoluteString) }
+        }
+    }
+}
+
+struct ComposeView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        MainViewControllerKt.MainViewController()
+    }
+
+    func updateUIViewController(_ controller: UIViewController, context: Context) {}
+}
