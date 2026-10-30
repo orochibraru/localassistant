@@ -25,6 +25,8 @@ your phone like an app.
   night). They drive any device, set scenes and wait between steps, and every
   run is in their history. Presets to start from, like radiators off while a
   window is open.
+- **Backups and health**: a daily copy of the database to download, the server's
+  health at a glance, and a notice when a new release is out.
 - **Assistant**: a chat in the app, on Claude, that reads the house and drives
   devices and scenes; admins choose which devices AI can see.
 - **Notifications**: your own "tell me when" alerts, and routines that tell the

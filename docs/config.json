@@ -25,6 +25,11 @@
 					"slug": "first-run",
 					"title": "First run",
 					"icon": "play"
+				},
+				{
+					"slug": "maintenance",
+					"title": "Backups and updates",
+					"icon": "database-backup"
 				}
 			]
 		},
