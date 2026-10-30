@@ -173,3 +173,29 @@ test("no page is wider than the phone, so drawers stay on screen", async ({
 	}
 	expect(wider).toEqual([]);
 });
+
+test("pulling Home down refreshes it", async ({ page }) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/");
+	await page.waitForLoadState("networkidle");
+	const touch = await page.context().newCDPSession(page);
+	const point = (y: number) => [{ x: 200, y }];
+	await touch.send("Input.dispatchTouchEvent", {
+		type: "touchStart",
+		touchPoints: point(200),
+	});
+	for (let y = 220; y <= 420; y += 20) {
+		await touch.send("Input.dispatchTouchEvent", {
+			type: "touchMove",
+			touchPoints: point(y),
+		});
+	}
+	await touch.send("Input.dispatchTouchEvent", {
+		type: "touchEnd",
+		touchPoints: [],
+	});
+	await expect(page.getByText("Refreshing")).toBeAttached();
+	await expect(page.getByText("Refreshing")).not.toBeAttached();
+});
