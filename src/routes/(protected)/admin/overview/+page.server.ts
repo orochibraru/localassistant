@@ -4,6 +4,7 @@ import { JobDTO } from "#lib/dto/job.js";
 import { PasskeyDTO } from "#lib/dto/passkey.js";
 import { allSettings } from "#lib/dto/setting.js";
 import { UserDTO } from "#lib/dto/user.js";
+import { systemHealth } from "#lib/server/core/health.js";
 
 export const load = async ({ locals, parent }) => {
 	const { user } = await parent();
@@ -17,6 +18,7 @@ export const load = async ({ locals, parent }) => {
 		requireTwoFactor: settings.requireTwoFactor,
 		requirePasskey: settings.requirePasskey,
 		jobs: JobDTO.counts(),
+		health: systemHealth.report(),
 		failures: JobDTO.recentFailures(),
 		gettingStarted: {
 			emailConfigured: settings.smtp !== null,
