@@ -8,6 +8,12 @@ with their state and battery, and start, pause, stop and dock from their card.
 LocalAssistant signs in the way the Dreamehome app does, over plain TLS; Dreame
 can refuse clients other than its app at any time, and the error then says so.
 
+When a robot reports an error (wheels suspended, stuck or blocked by an
+obstacle, main brush wrapped, water tank empty, dirty water full, dust bag full,
+washboard to clean...), its card says what it is and everyone gets a
+notification with what to do, once per new error. A detergent cartridge running
+low notifies too. Errors show within the two-minute polling interval.
+
 ## Mitsubishi through ESPHome
 
 For a Mitsubishi indoor unit with an ESP32 on its CN105 port running ESPHome
