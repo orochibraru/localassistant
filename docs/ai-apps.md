@@ -27,6 +27,9 @@ register on the fly; either way you approve each one.
 - Turn switches, lights, fans and speakers on or off and adjust them, lock or
   unlock a door, press a button.
 - List the scenes and set one.
+- Create, change and delete scenes and routines, turn a routine on or off and
+  run it now. It's told to say what a routine will do before saving it and to
+  ask before deleting anything. Devices an admin hides from AI stay out of them.
 
 It only sees the devices **Admin**, **AI** lets AI see. It can't add, change or
 remove devices, rooms or floors, and never sees your email, the device keys, the
@@ -37,7 +40,9 @@ printer's access code or the MELCloud password.
 **Assistant**, in the sidebar (under **More** on a phone), is a chat built into
 LocalAssistant: ask what's on, who's home, or tell it to close the blinds or set
 a scene. It reads the house and drives devices as the person asking, and says
-what it did under its answer.
+what it did under its answer. It also writes routines and scenes ("turn the
+porch light on at sunset on weekdays"), turns them on or off, runs and deletes
+them.
 
 It runs on Claude through Anthropic's API, so an admin turns it on with an API
 key: make one at console.anthropic.com, then **Admin**, **AI**, **Claude API

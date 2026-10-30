@@ -27,8 +27,9 @@ your phone like an app.
   window is open.
 - **Health**: the server's health at a glance, and a notice when a new release
   is out.
-- **Assistant**: a chat in the app, on Claude, that reads the house and drives
-  devices and scenes; admins choose which devices AI can see.
+- **Assistant**: a chat in the app, on Claude, that reads the house, drives
+  devices and scenes, and writes routines and scenes for you; admins choose
+  which devices AI can see.
 - **Notifications**: your own "tell me when" alerts, and routines that tell the
   household with buttons that set a scene from the lock screen.
 - **Dashboards** of your own: devices, scenes, the weather, who's home and
@@ -54,8 +55,8 @@ your phone like an app.
   a wall tablet or a Shelly Wall Display that stays on.
 - **Phones as devices**: each phone in the house with its owner, battery and, if
   shared, where it is.
-- **AI apps**: Claude, ChatGPT or Gemini drive the house over MCP, each person
-  signing in and allowing their own app.
+- **AI apps**: Claude, ChatGPT or Gemini drive the house and manage routines and
+  scenes over MCP, each person signing in and allowing their own app.
 - **Instant controls**: every tap shows on the card at once and goes out as one
   command when you stop, with a spinner while it's sent and no pop-ups.
 - **Your house**, or several: floors, rooms with icons, outside ones like the
