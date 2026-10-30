@@ -18,10 +18,24 @@
 	provideSheets();
 
 	const panel = $derived(page.route.id === "/(protected)/panel");
+	const chat = $derived(page.route.id === "/(protected)/assistant");
 </script>
 
 {#if panel}
 	{@render children()}
+	<AppReporter />
+{:else if chat}
+	<div class="h-dvh md:pl-64">
+		{@render children()}
+	</div>
+	<Sidebar
+		isAdmin={data.isAdmin}
+		rooms={data.rooms}
+		floors={data.floors}
+		devices={data.setup}
+		home={data.home}
+		homes={data.homes}
+	/>
 	<AppReporter />
 {:else}
 	<div class="flex min-h-dvh flex-col md:pl-64">
