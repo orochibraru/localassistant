@@ -5,10 +5,16 @@ import { getSetting, setSetting } from "#lib/dto/setting.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
 
+export interface PushAction {
+	action: string;
+	title: string;
+}
+
 export interface PushNotification {
 	title: string;
 	body: string;
 	url: string;
+	actions?: PushAction[];
 }
 
 export type SendPush = (

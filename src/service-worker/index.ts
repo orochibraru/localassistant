@@ -111,6 +111,7 @@ worker.addEventListener("push", (event) => {
 		title?: string;
 		body?: string;
 		url?: string;
+		actions?: { action: string; title: string }[];
 	};
 	event.waitUntil(
 		worker.registration.showNotification(payload.title ?? "LocalAssistant", {
@@ -118,12 +119,35 @@ worker.addEventListener("push", (event) => {
 			icon: "/pwa-192x192.png",
 			badge: "/pwa-64x64.png",
 			data: { url: payload.url ?? "/" },
-		}),
+			...(payload.actions ? { actions: payload.actions } : {}),
+		} as NotificationOptions),
 	);
 });
 
+async function runAction(action: string, title: string): Promise<void> {
+	const response = await fetch("/api/notification-action", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ action }),
+		credentials: "same-origin",
+	}).catch(() => null);
+	const answer = response
+		? ((await response.json().catch(() => ({}))) as { message?: string })
+		: { message: "The server can't be reached." };
+	await worker.registration.showNotification(title, {
+		body: response?.ok ? "Done." : (answer.message ?? "That didn't work."),
+		icon: "/pwa-192x192.png",
+		badge: "/pwa-64x64.png",
+		data: { url: "/" },
+	});
+}
+
 worker.addEventListener("notificationclick", (event) => {
 	event.notification.close();
+	if (event.action) {
+		event.waitUntil(runAction(event.action, event.notification.title));
+		return;
+	}
 	const target = new URL(
 		String((event.notification.data as { url?: string } | null)?.url ?? "/"),
 		worker.location.origin,

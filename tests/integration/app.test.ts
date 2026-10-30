@@ -33,6 +33,15 @@ describe("a fresh instance", () => {
 		expect(response.status).toBe(200);
 	});
 
+	test("notification buttons need a session", async () => {
+		const response = await fetch(`${app.origin}/api/notification-action`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ action: "scene:x" }),
+		});
+		expect(response.status).toBe(401);
+	});
+
 	test("takes remote calls from its own plain-HTTP origin, by name or address, and refuses other sites", async () => {
 		const call = (origin: string, host?: string) =>
 			fetch(`${origin}/_app/remote/aaaaaa/nothing`, {
