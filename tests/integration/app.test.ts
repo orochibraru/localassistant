@@ -149,6 +149,124 @@ describe("setting up and using it", () => {
 		);
 	});
 
+	test("the mobile app signs in with PKCE or a pairing code, then drives the house with its token", async () => {
+		const verifier = "v".repeat(64);
+		const challenge = new Bun.CryptoHasher("sha256")
+			.update(verifier)
+			.digest("base64url");
+		const sheet = {
+			code_challenge: challenge,
+			state: "xyz",
+			redirect_uri: "localassistant://auth",
+			device: "Pixel",
+		};
+		const page = await client().get(
+			`/mobile/authorize?${new URLSearchParams(sheet)}`,
+		);
+		expect(page.headers.get("location")).toBeNull();
+		expect(page.status).toBe(200);
+		expect(
+			(
+				await client().get(
+					"/mobile/authorize?redirect_uri=https://evil.example",
+				)
+			).status,
+		).toBe(400);
+		const approve = async () => {
+			const result = await client().action(
+				"/mobile/authorize",
+				"approve",
+				sheet,
+			);
+			expect(result).toMatchObject({ type: "redirect" });
+			const link = new URL(result.location ?? "");
+			expect(link.searchParams.get("state")).toBe("xyz");
+			return link.searchParams.get("code") ?? "";
+		};
+		const token = (body: Record<string, string>) =>
+			fetch(`${app.origin}/api/v1/mobile/token`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(body),
+			});
+		expect(
+			(await token({ code: await approve(), codeVerifier: "w".repeat(64) }))
+				.status,
+		).toBe(400);
+		const code = await approve();
+		const signedIn = await token({ code, codeVerifier: verifier });
+		expect(signedIn.status).toBe(200);
+		const { token: bearer } = (await signedIn.json()) as { token: string };
+		expect((await token({ code, codeVerifier: verifier })).status).toBe(400);
+		const api = (path: string, init: RequestInit = {}) =>
+			fetch(`${app.origin}/api/v1${path}`, {
+				...init,
+				headers: {
+					authorization: `Bearer ${bearer}`,
+					"content-type": "application/json",
+				},
+			});
+		expect((await fetch(`${app.origin}/api/v1/house`)).status).toBe(401);
+		const house = (await (await api("/house")).json()) as {
+			user: { email: string; isAdmin: boolean };
+		};
+		expect(house.user).toMatchObject({ email: admin.email, isAdmin: true });
+		expect((await api("/routines")).status).toBe(200);
+		expect(
+			(await api("/scenes/gone/activate", { method: "POST" })).status,
+		).toBe(404);
+		expect(
+			(
+				await api("/devices/gone/command", {
+					method: "POST",
+					body: JSON.stringify({ type: "switch", on: true }),
+				})
+			).status,
+		).toBe(404);
+		expect(
+			(
+				await api("/devices/gone/command", {
+					method: "POST",
+					body: JSON.stringify({ type: "warp" }),
+				})
+			).status,
+		).toBe(400);
+		const registered = await api("/mobile/device", {
+			method: "PUT",
+			body: JSON.stringify({
+				installationId: crypto.randomUUID(),
+				name: "Ada's Pixel",
+			}),
+		});
+		const { deviceId } = (await registered.json()) as { deviceId: string };
+		expect(
+			(
+				await api("/mobile/report", {
+					method: "POST",
+					body: JSON.stringify({
+						deviceId,
+						battery: 80,
+						charging: false,
+						platform: "Android",
+					}),
+				})
+			).status,
+		).toBe(204);
+		expect(
+			row<{ owner_id: string }>(
+				"select owner_id from device where id = ?",
+				deviceId,
+			)?.owner_id,
+		).toBeTruthy();
+		const paired = await client().action("/account/device", "pair", {});
+		expect(paired.type).toBe("success");
+		const pairingCode = /code=([\w-]+)/.exec(paired.data ?? "")?.[1] ?? "";
+		const viaPairing = await token({ code: pairingCode, device: "iPhone" });
+		expect(viaPairing.status).toBe(200);
+		expect((await api("/mobile/token", { method: "DELETE" })).status).toBe(204);
+		expect((await api("/house")).status).toBe(401);
+	});
+
 	test("an admin adds a blind, its key stays encrypted and the worker reads it", async () => {
 		const added = await client().action("/devices", "add", {
 			plugin: "tuya",
