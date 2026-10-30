@@ -27,7 +27,7 @@
 		errors[name]?.map((message) => ({ message }));
 </script>
 
-<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
 	<form
 		method="POST"
 		action="?/multiple"
