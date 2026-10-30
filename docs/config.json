@@ -77,6 +77,11 @@
 					"slug": "ai-apps",
 					"title": "AI apps",
 					"icon": "bot"
+				},
+				{
+					"slug": "mobile-app",
+					"title": "Mobile app",
+					"icon": "smartphone"
 				}
 			]
 		},

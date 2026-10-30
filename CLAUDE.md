@@ -7,7 +7,7 @@ household: Tuya blinds, Bambu printers, ESPHome and Zigbee2MQTT devices, Shelly
 meters and RTSP cameras locally; MELCloud, Dreame, Enedis and Frigate when they
 must, each a plugin hosted on GitHub, GitLab, Gitea or a folder. Automations,
 energy charts and a wall panel on top. Admins add devices; everyone signed in
-drives them. A PWA on phones, a full app on desktop.
+drives them. A native app and a PWA on phones, a full app on desktop.
 
 SvelteKit 3 with Svelte 5 runes on Bun, compiled by `@sveltejs/adapter-bun` into
 `build/server`, which spawns and supervises the compiled worker `build/worker`:
@@ -167,14 +167,14 @@ Each is a hard rule.
 
 ## Reference notes
 
-Read only the note for the area you touch. A new area with its own decisions
-gets its own note and row.
+Read only the note for the area you touch; a new area gets its own note and row.
 
 | Area                                                     | Note                           |
 | -------------------------------------------------------- | ------------------------------ |
 | Scripts, mise tasks, git hooks, tests, the worker in dev | `.agents/notes/commands.md`    |
 | The PR gate, canaries, the release PR, images, secrets   | `.agents/notes/ci-releases.md` |
 | Plugins: runtimes, installs, maintenance, the SDKs       | `.agents/notes/plugins.md`     |
+| The native app, its sign-in and `/api/v1`                | `.agents/notes/mobile.md`      |
 
 ## AI-assisted development
 

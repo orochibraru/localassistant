@@ -63,7 +63,8 @@ your phone like an app.
 - **Accounts for the household**, invite-only: the admin adds devices, everyone
   signed in drives them. Authenticator apps, passkeys, single sign-on and email
   sign-in when you want them.
-- **Installable on phones**, with a desktop layout that uses the screen.
+- **A native app** for Android and iPhone that signs in with a QR code, and the
+  web app installs on phones too, with a desktop layout that uses the screen.
 
 ## Documentation
 
