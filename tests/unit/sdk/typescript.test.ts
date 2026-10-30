@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import type * as App from "#lib/devices.js";
 import type * as AppSdk from "#lib/plugin-sdk.js";
-import { definePlugin as appDefine } from "#lib/plugin-sdk.js";
+import {
+	definePlugin as appDefine,
+	requestHeaders as appRequestHeaders,
+} from "#lib/plugin-sdk.js";
 import type * as AppPlugins from "#lib/plugins.js";
 import {
 	pluginCards as appCards,
@@ -58,6 +61,16 @@ describe("the TypeScript SDK", () => {
 		expect(Sdk.pluginCards).toEqual(appCards);
 		expect(Sdk.pluginIcons).toEqual(appIcons);
 		expect(Sdk.pluginPlatforms).toEqual(appPlatforms);
+	});
+
+	test("reads a headers field like the app does", () => {
+		const value = "X-Token: abc\r\nbroken\n: nothing\nAuthorization: Bearer x";
+		expect(Sdk.requestHeaders(value)).toEqual({
+			"X-Token": "abc",
+			Authorization: "Bearer x",
+		});
+		expect(Sdk.requestHeaders(value)).toEqual(appRequestHeaders(value));
+		expect(Sdk.requestHeaders(undefined)).toEqual({});
 	});
 
 	test("definePlugin hands the plugin back as it is", () => {
