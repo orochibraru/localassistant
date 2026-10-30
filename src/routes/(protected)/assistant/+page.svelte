@@ -10,6 +10,7 @@
 
 	import type { AssistantTurn } from "#lib/assistant.js";
 	import IconButton from "#lib/components/icon-button.svelte";
+	import Markdown from "#lib/components/markdown.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { askAssistant } from "#lib/remote/assistant.remote.js";
 	import { toastError } from "#lib/toast.js";
@@ -210,10 +211,10 @@
 							>
 								<SparklesIcon class="size-4" />
 							</span>
-							<div class="flex min-w-0 flex-col gap-1.5">
-								<p class="text-[0.9375rem] leading-relaxed whitespace-pre-wrap">
-									{line.text}
-								</p>
+							<div
+								class="bg-card flex min-w-0 flex-col gap-2 rounded-3xl rounded-tl-lg border px-4 py-2.5 text-[0.9375rem] leading-relaxed"
+							>
+								<Markdown text={line.text} />
 								{#if line.actions && line.actions.length > 0}
 									<ul class="flex flex-wrap gap-1.5">
 										{#each line.actions as action (action)}
