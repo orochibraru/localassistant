@@ -95,3 +95,81 @@ test("the assistant takes the whole screen, without the tab bar", async ({
 	await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0);
 	await page.screenshot({ path: "tmp/e2e/assistant-phone.png" });
 });
+
+test("addresses get a URL keyboard and the home's location saves from its drawer", async ({
+	page,
+}) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/devices");
+	await page.getByRole("button", { name: /Frigate/ }).click();
+	const frigate = page.getByRole("dialog").last();
+	const address = frigate.getByLabel("Address");
+	await expect(address).toHaveAttribute("type", "url");
+	await expect(address).toHaveAttribute("autocapitalize", "none");
+	await expect(frigate.getByLabel("Extra headers")).toBeVisible();
+	await page.screenshot({ path: "tmp/e2e/frigate-phone.png" });
+	await page.keyboard.press("Escape");
+
+	await page.goto("/admin/homes");
+	await page.getByRole("button", { name: "More actions" }).first().click();
+	await page.getByRole("button", { name: "Set location" }).click();
+	const sheet = page.getByRole("dialog").last();
+	const save = sheet.getByRole("button", { name: "Save the location" });
+	await expect(save).toBeVisible();
+	await expect(save).toBeDisabled();
+	await expect(sheet.getByText("Type at least two letters")).toBeVisible();
+	await page.screenshot({ path: "tmp/e2e/location-phone.png" });
+});
+
+test("no page is wider than the phone, so drawers stay on screen", async ({
+	page,
+}) => {
+	test.setTimeout(120_000);
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	const wider: string[] = [];
+	for (const path of [
+		"/",
+		"/account/ai-apps",
+		"/account/appearance",
+		"/account/device",
+		"/account/notifications",
+		"/account/profile",
+		"/account/security",
+		"/admin/access",
+		"/admin/ai",
+		"/admin/configuration",
+		"/admin/email",
+		"/admin/homes",
+		"/admin/invites",
+		"/admin/overview",
+		"/admin/plugins",
+		"/admin/sign-in",
+		"/admin/users",
+		"/assistant",
+		"/automations/history",
+		"/automations/routines",
+		"/automations/scenes",
+		"/dashboards",
+		"/devices",
+		"/energy",
+		"/house",
+		"/logbook",
+		"/panel",
+		"/plan",
+	]) {
+		await page.goto(path);
+		const overflow = await page.evaluate(
+			() =>
+				document.documentElement.scrollWidth -
+				document.documentElement.clientWidth,
+		);
+		if (overflow > 0) {
+			wider.push(`${path} by ${overflow}px`);
+		}
+	}
+	expect(wider).toEqual([]);
+});
