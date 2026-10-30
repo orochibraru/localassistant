@@ -4,13 +4,16 @@
 	import BellIcon from "@lucide/svelte/icons/bell";
 	import BellOffIcon from "@lucide/svelte/icons/bell-off";
 	import BellRingIcon from "@lucide/svelte/icons/bell-ring";
+	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 
+	import { describeTest } from "#lib/automations.js";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import ItemMenu from "#lib/components/item-menu.svelte";
+	import RuleSheet from "#lib/components/notifications/rule-sheet.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { base64UrlBytes, deviceName } from "#lib/device-name.js";
@@ -24,6 +27,11 @@
 	let permission = $state<NotificationPermission>("default");
 	let currentEndpoint = $state<string | null>(null);
 	let pending = $state(false);
+	let ruleOpen = $state(false);
+
+	const ruleDeviceName = (deviceId: string) =>
+		data.setup.find((device) => device.id === deviceId)?.name ??
+		"A removed device";
 
 	const thisDeviceOn = $derived(
 		currentEndpoint !== null &&
@@ -251,4 +259,55 @@
 			</ul>
 		{/if}
 	</section>
+	<section
+		class="flex flex-col gap-3 lg:col-span-2"
+		aria-labelledby="rules-heading"
+	>
+		<div class="flex items-center justify-between gap-3">
+			<div>
+				<h2 id="rules-heading" class="font-semibold">Tell me when</h2>
+				<p class="text-muted-foreground text-sm">
+					Your own alerts: the washing machine is done, the garage opens, the
+					freezer gets warm. Only you get them.
+				</p>
+			</div>
+			<Button
+				variant="outline"
+				class="h-11 shrink-0 rounded-xl px-4"
+				onclick={() => (ruleOpen = true)}><PlusIcon />Add</Button
+			>
+		</div>
+		{#if data.rules.length > 0}
+			<ul
+				class="glass divide-border flex flex-col divide-y rounded-2xl px-4 md:px-6"
+			>
+				{#each data.rules as rule (rule.id)}
+					<li class="flex min-h-14 items-center gap-3">
+						<BellIcon class="text-muted-foreground size-4 shrink-0" />
+						<span class="min-w-0 flex-1 text-sm"
+							>{describeTest(rule.test, ruleDeviceName)}</span
+						>
+						<form
+							method="POST"
+							action="?/removeRule"
+							use:enhance={enhanceToast({
+								loading: "Removing",
+								success: "You won't be told anymore.",
+							})}
+						>
+							<input type="hidden" name="id" value={rule.id} />
+							<Button
+								type="submit"
+								variant="ghost"
+								class="text-destructive h-11 rounded-xl px-4"
+								><Trash2Icon />Remove</Button
+							>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 </div>
+
+<RuleSheet bind:open={ruleOpen} devices={data.setup} />

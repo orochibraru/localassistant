@@ -197,6 +197,13 @@
       "when": 1793317675370,
       "tag": "0027_dashboards",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1793318434060,
+      "tag": "0028_notification_rules",
+      "breakpoints": true
     }
   ]
 }

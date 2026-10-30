@@ -7,6 +7,7 @@ import { broker } from "#lib/server/devices/broker.js";
 import { deviceEvents } from "#lib/server/devices/device-events.js";
 import { history } from "#lib/server/house/history.js";
 import { jobHandlers } from "#lib/server/jobs/handlers.js";
+import { notificationRules } from "#lib/server/notifications/rules.js";
 import { plugins } from "#lib/server/plugins/registry.js";
 
 import { JobRunner } from "./runner.js";
@@ -24,6 +25,9 @@ deviceEvents.onChange((device, previous, next) =>
 deviceEvents.onChange((device, previous, next) =>
 	history.record(device, previous, next),
 );
+deviceEvents.onChange((device, previous, next) => {
+	notificationRules.onChange(device, previous, next);
+});
 deviceEvents.onChange((device, _previous, next) => {
 	if (device.ownerId && (next.type === "presence" || next.type === "app")) {
 		JobDTO.enqueue(

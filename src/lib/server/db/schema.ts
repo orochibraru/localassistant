@@ -444,6 +444,21 @@ export const dashboard = sqliteTable(
 	(table) => [index("dashboard_user_idx").on(table.userId)],
 );
 
+export const notificationRule = sqliteTable(
+	"notification_rule",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		test: text("test", { mode: "json" }).notNull(),
+		createdAt: createdAt(),
+	},
+	(table) => [index("notification_rule_user_idx").on(table.userId)],
+);
+
 export const presence = sqliteTable("presence", {
 	userId: text("user_id")
 		.primaryKey()
