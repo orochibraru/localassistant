@@ -7,6 +7,7 @@ import KeyRoundIcon from "@lucide/svelte/icons/key-round";
 import MailIcon from "@lucide/svelte/icons/mail";
 import MailPlusIcon from "@lucide/svelte/icons/mail-plus";
 import PuzzleIcon from "@lucide/svelte/icons/puzzle";
+import SparklesIcon from "@lucide/svelte/icons/sparkles";
 import UsersIcon from "@lucide/svelte/icons/users";
 
 import type { SectionTab } from "#lib/components/nav-cards.svelte";
@@ -63,6 +64,13 @@ export function adminTabs(): SectionTab[] {
 			label: "Sign-in methods",
 			description: "Passwords, passkeys and single sign-on providers.",
 			icon: KeyRoundIcon,
+		},
+		{
+			href: resolve("/(protected)/admin/ai"),
+			label: "AI",
+			description:
+				"The in-app assistant's Claude key, and which devices AI can see.",
+			icon: SparklesIcon,
 		},
 		{
 			href: resolve("/(protected)/admin/email"),
