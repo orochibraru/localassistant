@@ -32,7 +32,9 @@
 ## Releases
 
 - Every merge to `main` ships a canary: releaser computes `X.Y.Z-canary.N`,
-  every commit type bumps. The merged PR's image is retagged when its
+  every commit type bumps. While the app is early, every bump is a patch,
+  breaking changes (`!`) included (`breaking=patch` in `publish.yaml`), so
+  releases go 1.0.1, 1.0.2… The merged PR's image is retagged when its
   `app.source-tree` label matches the commit's tree (only `APP_VERSION`
   changes), otherwise it's rebuilt. Tags: `X.Y.Z-canary.N` and `canary`.
 - releaser keeps a `chore(release): X.Y.Z` PR open. Merging it retags the last

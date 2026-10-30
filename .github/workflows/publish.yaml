@@ -19,7 +19,7 @@ env:
   TZ: Europe/Paris
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CI: true
-  RELEASE_RULES: breaking=major,feat=patch,docs=patch,refactor=patch,style=patch,test=patch,build=patch,ci=patch,chore=patch
+  RELEASE_RULES: breaking=patch,feat=patch,docs=patch,refactor=patch,style=patch,test=patch,build=patch,ci=patch,chore=patch
 
 permissions:
   contents: read
