@@ -1,5 +1,6 @@
 import { resolve } from "$app/paths";
 import ActivityIcon from "@lucide/svelte/icons/activity";
+import DatabaseBackupIcon from "@lucide/svelte/icons/database-backup";
 import DoorOpenIcon from "@lucide/svelte/icons/door-open";
 import FileJsonIcon from "@lucide/svelte/icons/file-json";
 import HousePlusIcon from "@lucide/svelte/icons/house-plus";
@@ -34,6 +35,12 @@ export function adminTabs(): SectionTab[] {
 			description:
 				"Manage several homes, each with its own floors and devices.",
 			icon: HousePlusIcon,
+		},
+		{
+			href: resolve("/(protected)/admin/backups"),
+			label: "Backups",
+			description: "Daily copies of the database: download or take one now.",
+			icon: DatabaseBackupIcon,
 		},
 		{
 			href: resolve("/(protected)/admin/configuration"),
