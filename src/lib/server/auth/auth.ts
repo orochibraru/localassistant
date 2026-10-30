@@ -19,6 +19,7 @@ import {
 import { deleteSessionCookie } from "better-auth/cookies";
 import { generateRandomString } from "better-auth/crypto";
 import {
+	bearer,
 	emailOTP,
 	genericOAuth,
 	jwt,
@@ -223,6 +224,7 @@ class AuthService {
 					this.forwardLog(level, message, ...args),
 			},
 			plugins: [
+				bearer(),
 				twoFactor({ issuer: "LocalAssistant" }),
 				this.#trustDevicePlugin(),
 				passkey({ rpName: "LocalAssistant" }),

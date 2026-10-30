@@ -10,14 +10,14 @@ const yearSeconds = 365 * 24 * 60 * 60;
 class Homes {
 	/** The home this browser looks at. */
 	current(cookies: Cookies): HomeDTO {
-		if (getSetting("multipleHomes")) {
-			const picked = cookies.get(cookieName);
-			const home = picked ? HomeDTO.find(picked) : undefined;
-			if (home) {
-				return home;
-			}
-		}
-		return HomeDTO.first();
+		return this.pick(cookies.get(cookieName));
+	}
+
+	/** The home with `homeId` while several homes are on and it exists, the first one otherwise. */
+	pick(homeId: string | null | undefined): HomeDTO {
+		const home =
+			homeId && getSetting("multipleHomes") ? HomeDTO.find(homeId) : undefined;
+		return home ?? HomeDTO.first();
 	}
 
 	/** Makes `homeId` the home this browser looks at; `false` when no home has that id. */

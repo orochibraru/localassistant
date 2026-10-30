@@ -4,6 +4,7 @@
 	import { resolve } from "$app/paths";
 	import MonitorIcon from "@lucide/svelte/icons/monitor";
 	import PlusIcon from "@lucide/svelte/icons/plus";
+	import QrCodeIcon from "@lucide/svelte/icons/qr-code";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
@@ -33,6 +34,7 @@
 	let shareLocation = $state(false);
 	let errors = $state<Record<string, string[]>>({});
 	let panel = $state(false);
+	let pairing = $state<{ qrCode: string; url: string } | null>(null);
 
 	const registered = $derived(
 		stored
@@ -197,6 +199,48 @@
 				>
 			</form>
 		{/if}
+	</section>
+
+	<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
+		<div class="flex items-start gap-3">
+			<span
+				class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+			>
+				<QrCodeIcon class="size-5" />
+			</span>
+			<div>
+				<h2 class="font-semibold">The LocalAssistant app</h2>
+				<p class="text-muted-foreground mt-1 text-sm">
+					Sign the Android or iPhone app in by scanning a code from here, or by
+					typing this server's address in it. The code works once, for two
+					minutes.
+				</p>
+			</div>
+		</div>
+		{#if pairing}
+			<a
+				href={pairing.url}
+				class="size-48 self-center rounded-xl bg-white p-2 [&_svg]:size-full"
+				aria-label="Pairing code: scan it with the app, or tap it on the phone to sign in"
+			>
+				{@html pairing.qrCode}
+			</a>
+		{/if}
+		<form
+			method="POST"
+			action="?/pair"
+			use:enhance={enhanceToast({
+				loading: "Making a pairing code",
+				success: "Scan it with the app within two minutes.",
+				onSuccess: (result) => {
+					pairing = (result?.pairing as typeof pairing) ?? null;
+				},
+			})}
+		>
+			<Button type="submit" variant="outline" class="h-11 rounded-xl px-5"
+				><QrCodeIcon />{pairing ? "New code" : "Show a pairing code"}</Button
+			>
+		</form>
 	</section>
 
 	<section class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6">
