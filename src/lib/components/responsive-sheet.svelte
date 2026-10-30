@@ -49,7 +49,7 @@
 					<Dialog.Description>{description}</Dialog.Description>
 				{/if}
 			</Dialog.Header>
-			<div class="-mx-6 grid min-h-0 gap-6 overflow-y-auto px-6">
+			<div class="-mx-6 grid min-h-0 grid-cols-1 gap-6 overflow-y-auto px-6">
 				{@render children()}
 			</div>
 			{#if footer}

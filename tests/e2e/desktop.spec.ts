@@ -71,3 +71,28 @@ test("a dashboard is made with a heading and the weather, then shows on Home", a
 	await page.goto("/");
 	await expect(page.getByRole("link", { name: "Evening" })).toBeVisible();
 });
+
+test("wide content never widens a device's dialog", async ({ page }) => {
+	await page.goto("/");
+	await page
+		.getByRole("button", { name: /^More for/ })
+		.first()
+		.click();
+	const dialog = page.getByRole("dialog").last();
+	await expect(dialog).toBeVisible();
+	const sizes = await dialog.evaluate((element) => {
+		const body = element.querySelector("div.overflow-y-auto");
+		if (!(body instanceof HTMLElement)) {
+			return { column: Number.NaN, body: 0 };
+		}
+		const chart = document.createElement("div");
+		chart.className = "w-full";
+		chart.innerHTML = '<svg width="1200" height="10"></svg>';
+		body.prepend(chart);
+		return {
+			column: Number.parseFloat(getComputedStyle(body).gridTemplateColumns),
+			body: body.clientWidth,
+		};
+	});
+	expect(sizes.column).toBeLessThanOrEqual(sizes.body);
+});
