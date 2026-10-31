@@ -4,6 +4,14 @@ LocalAssistant sends push notifications to the phones, tablets and computers
 each person turned them on for: **Account**, **Notifications**, **Turn on for
 this device**. On an iPhone or iPad, add the app to the Home Screen first.
 
+## The inbox
+
+Every notification also lands in **Notifications** (the bell in the phone's app
+bar, or the sidebar on a computer), push or not, and stays there for 30 days.
+The bell shows a dot and the sidebar a count while some are unread; opening the
+inbox marks them read. Tap one to go where it points, tap a scene button to set
+it, or remove them one by one or all at once.
+
 ## Tell me when
 
 Your own alerts, sent to you alone: **Account**, **Notifications**, **Tell me

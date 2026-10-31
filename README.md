@@ -31,7 +31,8 @@ your phone like an app.
   devices and scenes, and writes routines and scenes for you; admins choose
   which devices AI can see.
 - **Notifications**: your own "tell me when" alerts, and routines that tell the
-  household with buttons that set a scene from the lock screen.
+  household with buttons that set a scene from the lock screen, all kept in an
+  inbox for 30 days.
 - **Dashboards** of your own: devices, scenes, the weather, who's home and
   history graphs, in your order, one tap away on Home.
 - **History and logbook**: 30 days of each device's numbers as a graph in its
