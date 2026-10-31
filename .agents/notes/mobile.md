@@ -19,6 +19,9 @@
   with `mobileApi.body(request, schema)`. `?home=` picks a home when several are
   on. Every mutating call must send `content-type: application/json`, or
   `csrfHandler` takes it for a cross-site form.
+- `/api/v1/notifications` reads the inbox (`GET`, with the unread count, also in
+  the house payload), marks it read (`POST /read`), and removes one
+  (`DELETE /[id]`) or all (`DELETE`).
 - Device controls follow the web rule: `PendingChanges` shows a change at once,
   merges taps for 400 ms into one command, spins, and on failure falls back to
   the reading with the reason in red. No toasts or snackbars.

@@ -21,6 +21,13 @@ the browser ones, where you can sign it out.
 On plain HTTP the address must start with `http://`; without a scheme the app
 assumes HTTPS.
 
+## Notifications
+
+The bell on Home opens the same inbox as the web app's **Notifications**, with a
+badge while some are unread: tap a scene button to set it, remove one, or clear
+them all. Opening it marks them read everywhere. The app shows what's in the
+inbox; push notifications on the phone itself come later.
+
 ## This phone in the house
 
 **Settings** in the app adds the phone to the house, owned by you. It then sends
