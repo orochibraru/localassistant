@@ -14,6 +14,11 @@ washboard to clean...), its card says what it is and everyone gets a
 notification with what to do, once per new error. A detergent cartridge running
 low notifies too. Errors show within the two-minute polling interval.
 
+Robots sometimes say they're stuck when they aren't. Turn on **Restart when
+stuck** in the Dreame connection and a robot reporting it's stuck or blocked is
+told to carry on, up to twice per clean (the count starts over once it's back on
+its dock). The notification says it was restarted, or that it gave up.
+
 ## Mitsubishi through ESPHome
 
 For a Mitsubishi indoor unit with an ESP32 on its CN105 port running ESPHome
