@@ -24,3 +24,7 @@ export const notificationRuleSchema = z.object({
 		})
 		.pipe(stateTestSchema),
 });
+
+export const notificationIdSchema = z.object({
+	id: z.coerce.number().int().positive(),
+});

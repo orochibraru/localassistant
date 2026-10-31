@@ -4,6 +4,7 @@ import { DashboardDTO } from "#lib/dto/dashboard.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
+import { NotificationDTO } from "#lib/dto/notification.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { getSetting } from "#lib/dto/setting.js";
 import { UserDTO } from "#lib/dto/user.js";
@@ -35,6 +36,7 @@ export const load = ({ cookies, locals, url }) => {
 			name: dashboard.name,
 		})),
 		people: UserDTO.people(),
+		unreadNotifications: NotificationDTO.unreadCount(locals.user.id),
 		kinds,
 		...houseOf(homes.current(cookies), kinds),
 		pluginSetups: admin ? pluginSetup.setups() : [],
