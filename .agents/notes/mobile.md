@@ -25,7 +25,8 @@
 - Device controls follow the web rule: `PendingChanges` shows a change at once,
   merges taps for 400 ms into one command, spins, and on failure falls back to
   the reading with the reason in red. No toasts or snackbars.
-- Builds:
+- Day to day through the `mobile:*` mise tasks (`.agents/notes/commands.md`).
+  CI's build:
   `./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug :shared:compileKotlinIosArm64`
   (the iOS Kotlin compiles on Linux; linking and the Swift shell need a Mac).
   The `mobile` job in `code_quality.yaml` runs it. `settings.gradle.kts` reads

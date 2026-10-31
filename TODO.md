@@ -5,6 +5,11 @@ box while it's being worked on, and delete the entry once it's done.
 
 ## Medium
 
+- [ ] `bunx prek run --all-files` fails in the `lint` hook: 31 `bun lint` errors
+      across untouched TypeScript (complexity, require-await,
+      no-floating-promises, no-named-as-default-member). Find whether a lockfile
+      drift brought new rules, then fix or configure them.
+
 - [ ] Python plugins only get the standard library in the image: support a
       `requirements` list in the manifest, installed into the plugin's folder.
 - [ ] A plugin can only show its devices on the built-in cards: a generic

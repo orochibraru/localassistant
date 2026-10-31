@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-#MISE description="Install dependencies and write .env with a fresh AUTH_SECRET"
+#MISE description="Get a fresh clone ready: dependencies, .env with a fresh AUTH_SECRET, the Android SDK and emulator, then both doctors"
 set -e
 bun install
 if [ ! -f .env ]; then
   sed "s|^AUTH_SECRET=.*|AUTH_SECRET=$(openssl rand -base64 32)|" .env.example > .env
 fi
+mise run mobile:setup
+status=0
+mise run doctor || status=1
+mise run mobile:doctor || status=1
+exit "$status"

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Unit tests of the shared mobile code on the JVM, as CI runs them"
+set -e
+cd apps/mobile
+./gradlew -q :shared:testAndroidHostTest

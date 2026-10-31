@@ -6,7 +6,7 @@ import json
 import os
 import threading
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import localassistant_plugin as sdk
 
@@ -113,10 +113,12 @@ class SdkTest(unittest.TestCase):
         self.assertEqual(subscribe["method"], "mqtt.subscribe")
         host.write({"id": subscribe["id"], "result": None})
         self.assertEqual(host.read()["id"], 60)
-        host.write({
-            "method": "mqtt.message",
-            "params": {"topic": "lamps/desk", "payload": base64.b64encode(b"on").decode()},
-        })
+        host.write(
+            {
+                "method": "mqtt.message",
+                "params": {"topic": "lamps/desk", "payload": base64.b64encode(b"on").decode()},
+            }
+        )
         host.write({"method": "mqtt.message", "params": {"topic": "other/desk", "payload": ""}})
         self.assertEqual(host.call("command", {"command": {"on": True}})["result"], {"type": "switch", "on": True})
         self.assertEqual(plugin.heard, [("lamps/desk", b"on")])
@@ -167,7 +169,7 @@ class SdkTest(unittest.TestCase):
             lambda: context.refresh_later("d1", 1.5),
             lambda: context.notify("Hi", "There", url="/devices"),
             lambda: context.publish("lamps/desk", {"state": "ON"}),
-            lambda: context.record_energy("d1", datetime(2026, 10, 28, 12, tzinfo=timezone.utc), 1.5),
+            lambda: context.record_energy("d1", datetime(2026, 10, 28, 12, tzinfo=UTC), 1.5),
         ):
             answered(call)
         context.log("info", "hello", device="d1")
@@ -187,7 +189,9 @@ class SdkTest(unittest.TestCase):
         """Host errors become PluginError; topics match MQTT wildcards."""
         output = io.StringIO()
         context = sdk.Context(output)
-        thread = threading.Thread(target=lambda: context._answered({"id": context._next_id, "error": {"message": "No."}}))
+        thread = threading.Thread(
+            target=lambda: context._answered({"id": context._next_id, "error": {"message": "No."}})
+        )
 
         def refuse():
             threading.Event().wait(0.01)
@@ -200,7 +204,7 @@ class SdkTest(unittest.TestCase):
         self.assertTrue(sdk.matches("a/#", "a/b/c"))
         self.assertFalse(sdk.matches("a/+", "a/b/c"))
         self.assertFalse(sdk.matches("a/b", "a"))
-        self.assertEqual(sdk.now().tzinfo, timezone.utc)
+        self.assertEqual(sdk.now().tzinfo, UTC)
 
 
 if __name__ == "__main__":

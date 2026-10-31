@@ -11,17 +11,27 @@ version: what you need to get a change landed.
 
 ## Requirements
 
-- [mise](https://mise.jdx.dev), which pins Bun, Go and prek. Or
-  [Bun](https://bun.sh) alone.
+- [mise](https://mise.jdx.dev), which pins Bun, prek, Go and Python with their
+  linters, and the mobile app's JDK, Android SDK tools and xcodegen. Or
+  [Bun](https://bun.sh) alone for the web app.
 - Docker, to build the image.
-- Go and Python 3, only to test the plugin SDKs (`sdk/go`, `sdk/python`) and the
-  process-plugin unit tests.
+- ffmpeg and Python 3 (`mise run doctor` checks them).
+- For the iOS app, a Mac with Xcode and an iOS simulator runtime.
 
 ## Setup
 
 ```bash
-mise run bootstrap   # bun install, then .env with a fresh AUTH_SECRET
-bun run dev          # dev server on :5173, worker included
+mise run bootstrap   # bun install, .env, the Android SDK and emulator, the doctors
+mise run dev         # dev server on :5173, worker included
+```
+
+## The mobile app
+
+```bash
+mise run mobile:emulator     # boot the emulator mobile:setup made
+mise run mobile:run:android  # build and launch on it, localhost:5173 reaching the dev server
+mise run mobile:run:ios      # build and launch on a simulator
+mise run mobile:test         # the shared code's tests, as CI runs them
 ```
 
 Without mise: `bun install`, copy `.env.example` to `.env` and set `AUTH_SECRET`
@@ -46,8 +56,8 @@ bunx prek run --all-files  # every hook over every file, bun lint included
 bun run format       # bun fmt, Markdown included
 bun run circular     # fails on an import cycle
 bun run test         # unit tests
-(cd sdk/go && go test ./...)         # Go SDK
-(cd sdk/python && python3 -m unittest)  # Python SDK
+mise run sdk:test    # Go and Python SDKs
+mise run test        # unit tests of the app, the SDKs and the mobile app
 bun run test:integration  # HTTP flows against the built server
 bun run test:e2e     # Playwright against the built server
 bun run db:generate  # a migration from the schema

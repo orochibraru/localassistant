@@ -4,7 +4,21 @@ experimental = true
 [tools]
 bun = "1.4.4"
 go = "1.27.3"
+golangci-lint = "2.15.0"
+python = "3.14.10"
+ruff = "0.17.3"
 prek = "0.5.7"
+java = "temurin-21.0.13+9.0.LTS"
+android-sdk = "23.0"
+xcodegen = "2.46.0"
+
+[env]
+ANDROID_HOME = "{{env.HOME}}/.local/share/android-sdk"
+ANDROID_SDK_ROOT = "{{env.HOME}}/.local/share/android-sdk"
+_.path = [
+	"{{env.HOME}}/.local/share/android-sdk/platform-tools",
+	"{{env.HOME}}/.local/share/android-sdk/emulator",
+]
 
 [hooks]
 postinstall = "prek install"

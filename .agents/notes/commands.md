@@ -39,13 +39,32 @@ never Node.
 
 ## mise
 
-`mise.toml` pins Bun (matching `packageManager`), Go (pinact builds with it),
-and prek, and its `postinstall` hook runs `prek install`. Every task is a file
+`mise.toml` pins Bun (matching `packageManager`), Go and golangci-lint for the
+Go SDK, Python (the image's version) and ruff for the Python SDK, prek, and the
+mobile toolchain: a JDK 21 (as CI), the Android command-line tools and xcodegen.
+It points `ANDROID_HOME` at `~/.local/share/android-sdk`, outside mise's
+versioned folders so a tools bump keeps the SDK, and puts `adb` and `emulator`
+on the path. Its `postinstall` hook runs `prek install`. Every task is a file
 under `.mise/tasks/`, never a `[tasks]` table:
 
-- `bootstrap`: install, then `.env` from `.env.example` with a fresh
-  `AUTH_SECRET`.
+- `bootstrap`: install, `.env` from `.env.example` with a fresh `AUTH_SECRET`,
+  `mobile:setup`, then both doctors.
+- `dev`: `bun run dev`.
+- `doctor`: ffmpeg and python3, which the app needs outside mise.
+- `test`: the app's unit tests, `sdk:test` and `mobile:test`, what CI runs short
+  of the integration and E2E suites.
+- `sdk:test`: `go test` and `unittest` over the SDKs. golangci-lint
+  (`sdk/go/.golangci.yaml`) and ruff (`ruff.toml`, 120 columns) are prek hooks
+  that build their own copies, so CI's prek job runs them without mise.
 - `verify`: prek over every file at the commit and push stages, what CI runs.
+- `mobile:setup`: accepts the SDK licences, installs the SDK packages and
+  creates the `localassistant` emulator. `mobile:doctor` checks them and the iOS
+  simulator runtime, which only `xcodebuild -downloadPlatform iOS` installs.
+- `mobile:emulator`, `mobile:run:android`, `mobile:run:ios`: boot the emulator,
+  build and launch the debug app on it (with `adb reverse` so the device's
+  `localhost:5173` is `mise run dev`) or on a simulator.
+- `mobile:test` (the JVM tests, as CI), `mobile:test:ios`, `mobile:build`
+  (release APK and bundle, unsigned iOS app).
 - `screenshots`: builds the app, seeds a throwaway demo database through the
   DTOs, boots `build/server` on it and has Playwright's Chromium shoot the docs
   screenshots into `docs/images/`. Scratch files go to `tmp/`.

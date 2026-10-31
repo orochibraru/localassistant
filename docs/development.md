@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-mise run bootstrap   # bun install, then .env with a fresh AUTH_SECRET
-bun run dev          # dev server on :5173, worker included
+mise run bootstrap   # bun install, .env, the Android SDK and emulator, the doctors
+mise run dev         # dev server on :5173, worker included
 ```
 
 The dev server migrates `./data/localassistant.sqlite` and starts the worker

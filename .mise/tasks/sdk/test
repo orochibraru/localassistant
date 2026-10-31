@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="The Go and Python plugin SDKs' tests (golangci-lint and ruff are prek hooks)"
+set -e
+go -C sdk/go test ./...
+cd sdk/python
+python3 -m unittest

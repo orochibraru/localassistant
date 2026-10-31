@@ -1,7 +1,7 @@
 """A plugin that calls every host method, for the process runtime tests."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from localassistant_plugin import PluginError, run
 
@@ -46,7 +46,7 @@ class Fixture:
         same = context.device(device["id"])
         folder = context.folder("x")
         readings = context.energy_readings(device["id"])
-        context.record_energy(device["id"], datetime(2026, 10, 28, 12, tzinfo=timezone.utc), len(readings) + 1.0)
+        context.record_energy(device["id"], datetime(2026, 10, 28, 12, tzinfo=UTC), len(readings) + 1.0)
         context.refresh_later(device["id"], 30)
         context.notify("Read", device["name"], audience="admins")
         context.mqtt_configured()

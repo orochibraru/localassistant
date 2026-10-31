@@ -72,10 +72,7 @@ jobs:
 
       - name: Go SDK
         working-directory: sdk/go
-        run: |
-          test -z "$(gofmt -l .)"
-          go vet ./...
-          go test ./...
+        run: go test ./...
 
       - name: Python SDK
         working-directory: sdk/python

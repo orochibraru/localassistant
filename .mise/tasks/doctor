@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Check what the app needs outside mise: ffmpeg for the cameras and python3 for Python plugins"
+ok=0
+command -v ffmpeg >/dev/null || { echo "ffmpeg missing (macOS: brew install ffmpeg; Debian: apt install ffmpeg)" >&2; ok=1; }
+command -v python3 >/dev/null || { echo "python3 missing (macOS: brew install python; Debian: apt install python3)" >&2; ok=1; }
+[ "$ok" = 0 ] && echo "ffmpeg and python3 ok"
+exit "$ok"

@@ -8,7 +8,7 @@ import base64
 import json
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 PROTOCOL_VERSION = 1
 HOOKS = ("connect", "discover", "add", "start", "stop", "read", "command", "serve", "clips")
@@ -137,7 +137,7 @@ class Context:
 
     def record_energy(self, device_id, hour, total):
         """Stores a meter's counter, in kWh, for the hour starting at hour, a datetime."""
-        stamp = hour.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        stamp = hour.astimezone(UTC).isoformat().replace("+00:00", "Z")
         self._call("energy.record", {"deviceId": device_id, "hour": stamp, "total": total})
 
     def _message(self, topic, payload):
@@ -188,11 +188,18 @@ def _dispatch(plugin, context, method, params):
     if method == "command":
         return hook(context, device, params.get("command") or {})
     if method == "serve":
-        answer = hook(context, device, {
-            "path": params.get("path", ""),
-            "method": params.get("method", "GET"),
-            "headers": params.get("headers") or {},
-        }) or {}
+        answer = (
+            hook(
+                context,
+                device,
+                {
+                    "path": params.get("path", ""),
+                    "method": params.get("method", "GET"),
+                    "headers": params.get("headers") or {},
+                },
+            )
+            or {}
+        )
         body = answer.get("body", b"")
         if isinstance(body, str):
             body = body.encode()
@@ -212,7 +219,7 @@ def _handle(plugin, context, message):
     try:
         result = _dispatch(plugin, context, message["method"], message.get("params") or {})
         reply = {"id": message.get("id"), "result": result}
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 any plugin failure becomes the error reply
         reply = {"id": message.get("id"), "error": {"code": -32000, "message": str(error) or type(error).__name__}}
     if message.get("id") is not None:
         context._send(reply)
@@ -246,4 +253,4 @@ def run(plugin):
 
 def now():
     """The current time in UTC, for state timestamps."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)

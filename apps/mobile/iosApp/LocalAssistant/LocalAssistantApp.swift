@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct LocalAssistantApp: App {
-    var body: some Scene {
+    var body: some SwiftUI.Scene {
         WindowGroup {
             ComposeView().ignoresSafeArea()
                 .onOpenURL { url in MainViewControllerKt.openLink(url: url.absoluteString) }

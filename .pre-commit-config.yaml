@@ -63,6 +63,15 @@ repos:
       - id: hadolint
         name: Lint Dockerfile
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+        name: Lint Python (ruff)
+        args: [--fix]
+      - id: ruff-format
+        name: Format Python (ruff)
+
   - repo: local
     hooks:
       - id: pinact
@@ -73,6 +82,16 @@ repos:
         additional_dependencies:
           - github.com/suzuki-shunsuke/pinact/v5/cmd/pinact@v5.0.2
         files: ^\.github/(workflows|actions)/.*\.ya?ml$
+
+      - id: golangci-lint
+        name: Lint Go (golangci-lint)
+        entry: bash -c 'cd sdk/go && golangci-lint run --fix ./...'
+        language: golang
+        language_version: "1.27.3"
+        additional_dependencies:
+          - github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+        pass_filenames: false
+        files: ^sdk/go/
 
       - id: lint
         name: Lint (bun lint)

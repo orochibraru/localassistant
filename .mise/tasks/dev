@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Run the dev server, which migrates the database and supervises the worker"
+exec bun run dev "$@"

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Every unit suite CI runs: the app, the Go and Python SDKs, the mobile app (integration and E2E are bun scripts)"
+#MISE depends=["sdk:test", "mobile:test"]
+exec bun run test

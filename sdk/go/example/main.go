@@ -41,7 +41,7 @@ func (plugin tasmota) power(device localassistant.Device, command string) (local
 	if err != nil {
 		return localassistant.SwitchState{}, fmt.Errorf("the plug can't be reached: check its address")
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	var answer struct {
 		Power string `json:"POWER"`
 	}
