@@ -301,6 +301,74 @@ describe("Dreame cloud", () => {
 		notify.mockRestore();
 	});
 
+	test("restarts a robot that says it's stuck when asked to, twice per clean at most", async () => {
+		const robot = addRobot();
+		const notify = spyOn(context, "notify").mockImplementation(() => undefined);
+		const answerWith = (stage: number, error: number) => {
+			answers["/dreame-iot-com-10001/device/sendCommand"] = () =>
+				json({
+					code: 0,
+					data: {
+						result: [
+							{ siid: 2, piid: 1, value: stage, code: 0 },
+							{ siid: 2, piid: 2, value: error, code: 0 },
+						],
+					},
+				});
+		};
+		const readAndSave = async (stage: number, error: number) => {
+			answerWith(stage, error);
+			const current = DeviceDTO.find(robot.id) as DeviceDTO;
+			const state = await dreameCloud.read(current);
+			if (state) {
+				current.saveState(state);
+			}
+		};
+		const restarts = () =>
+			calls.filter((call) => {
+				const data = JSON.parse(call.body || "{}").data;
+				return (
+					data?.method === "action" &&
+					data.params?.aiid === 1 &&
+					data.params?.siid === 2
+				);
+			}).length;
+		connect();
+		await readAndSave(13, 0);
+		await readAndSave(4, 17);
+		expect(restarts()).toBe(0);
+		setPluginSettings("dreame", {
+			homeId: null,
+			values: {
+				email: "ada@example.com",
+				region: "eu",
+				restartWhenStuck: true,
+			},
+			secrets: { password: secrets.encrypt("hunter2") },
+		});
+		await readAndSave(1, 0);
+		await readAndSave(4, 17);
+		await readAndSave(1, 0);
+		await readAndSave(4, 63);
+		await readAndSave(1, 0);
+		await readAndSave(4, 18);
+		expect(restarts()).toBe(2);
+		await readAndSave(4, 12);
+		await readAndSave(13, 0);
+		await readAndSave(4, 17);
+		expect(restarts()).toBe(3);
+		const bodies = notify.mock.calls.map(([notification]) => notification.body);
+		expect(bodies[0]).toBe("Move it to an open spot and start it again.");
+		expect(bodies[1]).toStartWith("Told it to carry on (1 of 2).");
+		expect(bodies[2]).toStartWith("Told it to carry on (2 of 2).");
+		expect(bodies[3]).toStartWith("Not restarting it again");
+		expect(bodies[4]).toBe(
+			"Untangle the hair and threads from the main brush.",
+		);
+		expect(bodies[5]).toStartWith("Told it to carry on (1 of 2).");
+		notify.mockRestore();
+	});
+
 	test("reads the cleaning settings, last clean and parts, and writes settings in the robot's numbering", async () => {
 		connect();
 		const robot = addRobot();

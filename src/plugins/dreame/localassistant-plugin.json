@@ -3,7 +3,7 @@
 	"name": "Dreame robot vacuums",
 	"description": "Every robot vacuum on your Dreamehome account.",
 	"author": "LocalAssistant",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"icon": "bot",
 	"needs": [],
 	"connection": {
@@ -19,19 +19,45 @@
 				"pattern": "^[^@\\s]+@[^@\\s]+$",
 				"message": "Type your Dreamehome email."
 			},
-			{ "name": "password", "label": "Password", "type": "secret" },
+			{
+				"name": "password",
+				"label": "Password",
+				"type": "secret"
+			},
 			{
 				"name": "region",
 				"label": "Region",
 				"type": "choice",
 				"default": "eu",
 				"choices": [
-					{ "value": "eu", "label": "Europe" },
-					{ "value": "us", "label": "Americas" },
-					{ "value": "sg", "label": "Asia" },
-					{ "value": "cn", "label": "China" },
-					{ "value": "ru", "label": "Russia" }
+					{
+						"value": "eu",
+						"label": "Europe"
+					},
+					{
+						"value": "us",
+						"label": "Americas"
+					},
+					{
+						"value": "sg",
+						"label": "Asia"
+					},
+					{
+						"value": "cn",
+						"label": "China"
+					},
+					{
+						"value": "ru",
+						"label": "Russia"
+					}
 				]
+			},
+			{
+				"name": "restartWhenStuck",
+				"label": "Restart when stuck",
+				"type": "boolean",
+				"default": false,
+				"description": "Dreame robots sometimes say they're stuck when they aren't. Tell them to carry on, up to twice per clean, and say so in the notification."
 			}
 		]
 	},

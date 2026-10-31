@@ -20,12 +20,13 @@ import {
 } from "#lib/plugin-sdk.js";
 import type { PluginValues } from "#lib/plugins.js";
 
-import { vacuumError } from "./errors.js";
+import { isStuck, vacuumError } from "./errors.js";
 
 type DreameRegion = "eu" | "us" | "cn" | "sg" | "ru";
 
 const requestTimeoutMs = 15_000;
 const settleMs = 30_000;
+const restartsPerClean = 2;
 const appAuthorization = "Basic ZHJlYW1lX2FwcHYxOkFQXmR2QHpAU1FZVnhOODg=";
 const passwordSalt = "RAylYC%fmSKp7%Tq";
 const clientKey = "EETjszu*XI5znHsI";
@@ -131,6 +132,7 @@ interface PropertyResult {
 class DreameCloud implements Plugin {
 	#session: Session | undefined;
 	#requestId = 1;
+	#restarts = new Map<string, number>();
 	readonly #visitor = this.#md5(crypto.randomUUID());
 
 	/**
@@ -269,23 +271,29 @@ class DreameCloud implements Plugin {
 			Object.keys(properties) as PropertyName[],
 		);
 		const state = this.#state(values);
-		this.#alert(device, state, context);
+		await this.#alert(device, state, context);
 		return state;
 	}
 
-	/** Tells everyone when a vacuum shows a new error, or its station runs low on detergent. */
-	#alert(
+	/**
+	 * Tells everyone when a vacuum shows a new error, or its station runs low on detergent; with "Restart when stuck" on,
+	 * a robot that says it's stuck is told to carry on, at most twice before it's back on its dock.
+	 */
+	async #alert(
 		device: PluginDevice,
 		next: VacuumState,
 		context: PluginContext,
-	): void {
+	): Promise<void> {
 		const previous = device.state?.type === "vacuum" ? device.state : null;
+		if (next.stage === "docked" || next.stage === "charging") {
+			this.#restarts.delete(device.id);
+		}
 		if (next.errorCode && next.errorCode !== previous?.errorCode) {
 			const { text, hint } = vacuumError(next.errorCode);
 			context.notify({
 				audience: "everyone",
 				title: `${device.name}: ${text}`,
-				body: hint,
+				body: await this.#restartIfStuck(device, next.errorCode, context, hint),
 				url: "/",
 			});
 		}
@@ -301,6 +309,29 @@ class DreameCloud implements Plugin {
 				url: "/",
 			});
 		}
+	}
+
+	async #restartIfStuck(
+		device: PluginDevice,
+		code: number,
+		context: PluginContext,
+		hint: string,
+	): Promise<string> {
+		if (!isStuck(code) || context.settings()?.restartWhenStuck !== true) {
+			return hint;
+		}
+		const done = this.#restarts.get(device.id) ?? 0;
+		if (done >= restartsPerClean) {
+			return `Not restarting it again: it said it was stuck ${restartsPerClean + 1} times this clean. ${hint}`;
+		}
+		this.#restarts.set(device.id, done + 1);
+		try {
+			await this.#act(device, "start", context);
+		} catch (error) {
+			return `Couldn't restart it: ${error instanceof Error ? error.message : "Dreame didn't answer"}. ${hint}`;
+		}
+		context.refreshLater(device, settleMs);
+		return `Told it to carry on (${done + 1} of ${restartsPerClean}). If it really is stuck: ${hint.charAt(0).toLowerCase()}${hint.slice(1)}`;
 	}
 
 	#state(values: Readings): VacuumState {

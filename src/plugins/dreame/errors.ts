@@ -3,6 +3,8 @@ interface VacuumError {
 	hint: string;
 }
 
+const stuckCodes = new Set([17, 18, 47, 63, 64]);
+
 const lift = "Put it back on the floor, on a flat spot.";
 const bin = "Empty the dust bin and put it back.";
 const stuck = "Move it to an open spot and start it again.";
@@ -159,4 +161,9 @@ export function vacuumError(code: number): VacuumError {
 			hint: "Check the robot, or its error in the Dreamehome app.",
 		}
 	);
+}
+
+/** Whether `code` says the robot is stuck or blocked, which it sometimes reports when it isn't. */
+export function isStuck(code: number): boolean {
+	return stuckCodes.has(code);
 }
