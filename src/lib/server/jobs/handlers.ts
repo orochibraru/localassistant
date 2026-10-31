@@ -6,6 +6,7 @@ import { EnergyReadingDTO } from "#lib/dto/energy-reading.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { LogbookEntryDTO } from "#lib/dto/logbook-entry.js";
+import { NotificationDTO } from "#lib/dto/notification.js";
 import { UserDTO } from "#lib/dto/user.js";
 import { automations } from "#lib/server/automations/automations.js";
 import { Logger } from "#lib/server/core/logger.js";
@@ -36,6 +37,7 @@ export type JobHandlers = {
 
 export const jobHandlers: JobHandlers = {
 	"push.send": async ({ userIds, ...notification }) => {
+		NotificationDTO.record(userIds, notification);
 		const delivered = await pushNotifications.deliver(userIds, notification);
 		logger.debug("Push sent", { delivered });
 	},
@@ -159,12 +161,14 @@ export const jobHandlers: JobHandlers = {
 		const runs = AutomationRunDTO.prune(historyStart);
 		const samples = DeviceSampleDTO.pruneBefore(historyStart);
 		const lines = LogbookEntryDTO.pruneBefore(historyStart);
+		const notifications = NotificationDTO.pruneBefore(historyStart);
 		logger.info("Pruned finished jobs", {
 			removed,
 			readings,
 			runs,
 			samples,
 			lines,
+			notifications,
 		});
 		JobDTO.enqueue(
 			"jobs.prune",

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import { base64UrlBytes, deviceName } from "#lib/device-name.js";
+import { NotificationDTO } from "#lib/dto/notification.js";
 import { PushSubscriptionDTO } from "#lib/dto/push-subscription.js";
 import { getSetting } from "#lib/dto/setting.js";
 import { secrets } from "#lib/server/core/secrets.js";
@@ -133,14 +134,18 @@ describe("push", () => {
 		expect(PushSubscriptionDTO.forUser("ada")).toHaveLength(1);
 	});
 
-	test("the worker job sends nothing when nobody subscribed", async () => {
+	test("the worker job sends nothing when nobody subscribed, but still fills the inbox", async () => {
 		const { jobHandlers } = await import("#lib/server/jobs/handlers.js");
+		createUser("ada");
 		await jobHandlers["push.send"]({
-			userIds: ["ada"],
+			userIds: ["ada", "gone"],
 			title: "t",
 			body: "b",
 			url: "/",
 		});
 		expect(getSetting("vapid")).toBeNull();
+		expect(NotificationDTO.forUser("ada").map((entry) => entry.title)).toEqual([
+			"t",
+		]);
 	});
 });

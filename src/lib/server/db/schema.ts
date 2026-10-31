@@ -427,6 +427,23 @@ export const logbookEntry = sqliteTable(
 	],
 );
 
+export const notification = sqliteTable(
+	"notification",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		title: text("title").notNull(),
+		body: text("body").notNull(),
+		url: text("url").notNull(),
+		actions: text("actions", { mode: "json" }),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+		readAt: integer("read_at", { mode: "timestamp_ms" }),
+	},
+	(table) => [index("notification_user_idx").on(table.userId, table.createdAt)],
+);
+
 export const dashboard = sqliteTable(
 	"dashboard",
 	{

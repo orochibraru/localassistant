@@ -8,6 +8,7 @@ import {
 	invite,
 	job,
 	logbookEntry,
+	notification,
 	plugin,
 	room,
 	setting,
@@ -21,6 +22,7 @@ export function resetDatabase(): void {
 	for (const table of [
 		job,
 		logbookEntry,
+		notification,
 		plugin,
 		invite,
 		setting,
