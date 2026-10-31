@@ -166,6 +166,7 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     val scope = rememberCoroutineScope()
     val model = remember(session) { HouseModel(Api(session), scope, onSignedOut) }
     var tab by remember { mutableStateOf(Tab.Home) }
+    var inboxOpen by remember { mutableStateOf(false) }
     val house by model.house.collectAsState()
 
     LaunchedEffect(model) {
@@ -183,6 +184,10 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     LaunchedEffect(Unit) { Auth.callbacks.value = null }
     PlatformBack(tab != Tab.Home) { tab = Tab.Home }
 
+    if (inboxOpen) {
+        NotificationsScreen(model, onBack = { inboxOpen = false })
+        return
+    }
     if (tab == Tab.Assistant) {
         AssistantScreen(model, onBack = { tab = Tab.Home })
         return
@@ -204,7 +209,7 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding)) {
             when (tab) {
-                Tab.Home -> HomeScreen(model)
+                Tab.Home -> HomeScreen(model, onOpenInbox = { inboxOpen = true })
                 Tab.Routines -> RoutinesScreen(model)
                 Tab.Settings -> SettingsScreen(model)
                 Tab.Assistant -> Unit

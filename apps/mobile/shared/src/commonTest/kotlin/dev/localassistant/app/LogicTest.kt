@@ -146,4 +146,15 @@ class LogicTest {
         assertEquals("That scene is gone.", assertFailsWith<Failure> { api.activate("gone") }.message)
         assertFailsWith<SignedOut> { api.routines() }
     }
+
+    @Test
+    fun agesReadInWords() {
+        val now = kotlin.time.Instant.parse("2026-10-31T12:00:00Z")
+        assertEquals("just now", ago("2026-10-31T11:59:40Z", now))
+        assertEquals("5 min ago", ago("2026-10-31T11:55:00Z", now))
+        assertEquals("3 h ago", ago("2026-10-31T09:00:00Z", now))
+        assertEquals("1 day ago", ago("2026-10-30T12:00:00Z", now))
+        assertEquals("2 days ago", ago("2026-10-29T12:00:00Z", now))
+        assertEquals("", ago("nonsense", now))
+    }
 }

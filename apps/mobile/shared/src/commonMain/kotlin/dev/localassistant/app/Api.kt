@@ -92,7 +92,25 @@ data class House(
     val scenes: List<Scene> = emptyList(),
     val people: List<Person> = emptyList(),
     val assistant: Boolean = false,
+    val unreadNotifications: Int = 0,
 )
+
+@Serializable
+data class InboxAction(val action: String, val title: String)
+
+@Serializable
+data class InboxEntry(
+    val id: Long,
+    val title: String,
+    val body: String,
+    val url: String,
+    val actions: List<InboxAction> = emptyList(),
+    val createdAt: String,
+    val readAt: String? = null,
+)
+
+@Serializable
+data class Inbox(val notifications: List<InboxEntry> = emptyList(), val unread: Int = 0)
 
 @Serializable
 data class Routine(val id: String, val name: String, val enabled: Boolean)
@@ -142,6 +160,24 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
     /** Sets a scene. */
     suspend fun activate(sceneId: String) {
         call(HttpMethod.Post, "/scenes/$sceneId/activate") { setBody(JsonObject(emptyMap())) }
+    }
+
+    /** This person's notifications, newest first, and how many are unread. */
+    suspend fun notifications(): Inbox = call(HttpMethod.Get, "/notifications").body()
+
+    /** Marks every notification read. */
+    suspend fun markNotificationsRead() {
+        call(HttpMethod.Post, "/notifications/read") { setBody(JsonObject(emptyMap())) }
+    }
+
+    /** Removes one notification. */
+    suspend fun removeNotification(id: Long) {
+        call(HttpMethod.Delete, "/notifications/$id")
+    }
+
+    /** Removes every notification. */
+    suspend fun clearNotifications() {
+        call(HttpMethod.Delete, "/notifications")
     }
 
     /** The routines of the home. */

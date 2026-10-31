@@ -13,6 +13,8 @@ class HouseModel(val api: Api, private val scope: CoroutineScope, private val on
     val house = MutableStateFlow<House?>(null)
     val routines = MutableStateFlow<List<Routine>>(emptyList())
     val loadError = MutableStateFlow<String?>(null)
+    val inbox = MutableStateFlow<List<InboxEntry>?>(null)
+    val inboxError = MutableStateFlow<String?>(null)
     val progress = MutableStateFlow(Progress())
     val turns = MutableStateFlow<List<Pair<Turn, List<String>>>>(emptyList())
     val thinking = MutableStateFlow(false)
@@ -29,6 +31,26 @@ class HouseModel(val api: Api, private val scope: CoroutineScope, private val on
                 pending.settle()
             }
             .onFailure { loadError.value = it.message }
+    }
+
+    /** Reads the notifications, then marks them read on the server; the list keeps showing which were unread. */
+    suspend fun openInbox() {
+        runCatching { guarded { api.notifications() } }
+            .onSuccess { fresh ->
+                inbox.value = fresh.notifications
+                inboxError.value = null
+                if (fresh.unread > 0) {
+                    runCatching { guarded { api.markNotificationsRead() } }
+                    house.update { it?.copy(unreadNotifications = 0) }
+                }
+            }
+            .onFailure { inboxError.value = it.message }
+    }
+
+    /** Removes one notification, or every one with null, then reads the list again. */
+    fun removeNotification(id: Long?) = act(if (id == null) "inbox" else "inbox:$id") {
+        if (id == null) api.clearNotifications() else api.removeNotification(id)
+        inbox.update { list -> if (id == null) emptyList() else list?.filter { it.id != id } }
     }
 
     /** Runs `work` under `key`, showing a spinner while it runs and its failure after. */

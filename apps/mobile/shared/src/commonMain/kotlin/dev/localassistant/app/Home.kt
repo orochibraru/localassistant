@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Remove
@@ -46,6 +47,9 @@ import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -118,12 +122,12 @@ fun sections(house: House): List<Pair<String, List<Device>>> {
 
 /** Home: who's in, the scenes, and every device by room. */
 @Composable
-fun HomeScreen(model: HouseModel) {
-    Refreshable(model) { HomeGrid(model) }
+fun HomeScreen(model: HouseModel, onOpenInbox: () -> Unit) {
+    Refreshable(model) { HomeGrid(model, onOpenInbox) }
 }
 
 @Composable
-private fun HomeGrid(model: HouseModel) {
+private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit) {
     val house by model.house.collectAsState()
     val error by model.loadError.collectAsState()
     val progress by model.progress.collectAsState()
@@ -138,7 +142,18 @@ private fun HomeGrid(model: HouseModel) {
     ) {
         full {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(current?.home?.name ?: "Home", style = MaterialTheme.typography.headlineMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(current?.home?.name ?: "Home", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
+                    val unread = current?.unreadNotifications ?: 0
+                    IconButton(
+                        onClick = onOpenInbox,
+                        modifier = Modifier.semantics { contentDescription = if (unread > 0) "Notifications, $unread unread" else "Notifications" },
+                    ) {
+                        BadgedBox(badge = { if (unread > 0) Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
+                            Icon(Icons.Rounded.Notifications, null)
+                        }
+                    }
+                }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
                 if (current == null && error == null) CircularProgressIndicator(Modifier.padding(top = 24.dp))
             }
