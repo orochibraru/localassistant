@@ -1,6 +1,6 @@
 {
 	"name": "localassistant",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"private": true,
 	"description": "A small self-hosted home controller: Tuya blinds over the LAN and Mitsubishi heat pumps through MELCloud.",
 	"license": "MIT",
