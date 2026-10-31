@@ -5,6 +5,7 @@ import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
+import { NotificationDTO } from "#lib/dto/notification.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { SceneDTO } from "#lib/dto/scene.js";
 import { getSetting } from "#lib/dto/setting.js";
@@ -68,6 +69,7 @@ class MobileApi {
 			})),
 			people: presences.everyone(),
 			assistant: assistant.configured(),
+			unreadNotifications: NotificationDTO.unreadCount(user.id),
 		};
 	}
 

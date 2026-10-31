@@ -263,6 +263,39 @@ describe("setting up and using it", () => {
 		const pairingCode = /code=([\w-]+)/.exec(paired.data ?? "")?.[1] ?? "";
 		const viaPairing = await token({ code: pairingCode, device: "iPhone" });
 		expect(viaPairing.status).toBe(200);
+		expect(
+			(await client().action("/account/notifications", "test", {})).type,
+		).toBe("success");
+		let inbox = { notifications: [] as { id: number }[], unread: 0 };
+		for (
+			let attempt = 0;
+			attempt < 50 && inbox.notifications.length === 0;
+			attempt += 1
+		) {
+			await Bun.sleep(100);
+			inbox = (await (await api("/notifications")).json()) as typeof inbox;
+		}
+		expect(inbox.unread).toBe(1);
+		expect(
+			((await (await api("/house")).json()) as { unreadNotifications: number })
+				.unreadNotifications,
+		).toBe(1);
+		expect((await api("/notifications/read", { method: "POST" })).status).toBe(
+			204,
+		);
+		expect(
+			((await (await api("/notifications")).json()) as typeof inbox).unread,
+		).toBe(0);
+		const first = inbox.notifications[0]?.id;
+		expect(
+			(await api(`/notifications/${first}`, { method: "DELETE" })).status,
+		).toBe(204);
+		expect(
+			(await api(`/notifications/${first}`, { method: "DELETE" })).status,
+		).toBe(404);
+		expect((await api("/notifications", { method: "DELETE" })).status).toBe(
+			200,
+		);
 		expect((await api("/mobile/token", { method: "DELETE" })).status).toBe(204);
 		expect((await api("/house")).status).toBe(401);
 	});
