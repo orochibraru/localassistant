@@ -1,4 +1,5 @@
 import { resolve } from "$app/paths";
+import BellIcon from "@lucide/svelte/icons/bell";
 import GaugeIcon from "@lucide/svelte/icons/gauge";
 import HouseIcon from "@lucide/svelte/icons/house";
 import LayersIcon from "@lucide/svelte/icons/layers";
@@ -15,13 +16,18 @@ export interface NavigationItem {
 	href: string;
 	label: string;
 	icon: Component<{ class?: string }>;
+	count?: number;
 }
 
 /**
- * The app's top-level destinations, shared by the bottom tab bar and the sidebar; admins also get Devices and Admin.
+ * The app's top-level destinations, shared by the bottom tab bar and the sidebar, Notifications with `unread` as its count;
+ * admins also get Devices and Admin.
  * The account is the avatar in the app bar and the desktop header.
  */
-export function navigationItems(isAdmin: boolean): NavigationItem[] {
+export function navigationItems(
+	isAdmin: boolean,
+	unread = 0,
+): NavigationItem[] {
 	const items = [
 		{ href: resolve("/(protected)"), label: "Home", icon: HouseIcon },
 		{ href: resolve("/(protected)/house"), label: "House", icon: LayersIcon },
@@ -41,6 +47,12 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 			href: resolve("/(protected)/dashboards"),
 			label: "Dashboards",
 			icon: LayoutDashboardIcon,
+		},
+		{
+			href: resolve("/(protected)/notifications"),
+			label: "Notifications",
+			icon: BellIcon,
+			count: unread,
 		},
 		{
 			href: resolve("/(protected)/logbook"),
@@ -63,8 +75,11 @@ export function navigationItems(isAdmin: boolean): NavigationItem[] {
 	return items;
 }
 
-/** The phone's tab bar: the four daily destinations as tabs, the rest behind its More drawer. */
-export function phoneNavigation(isAdmin: boolean): {
+/** The phone's tab bar: the four daily destinations as tabs, the rest behind its More drawer; see `navigationItems`. */
+export function phoneNavigation(
+	isAdmin: boolean,
+	unread = 0,
+): {
 	tabs: NavigationItem[];
 	more: NavigationItem[];
 } {
@@ -74,7 +89,7 @@ export function phoneNavigation(isAdmin: boolean): {
 		resolve("/(protected)/automations"),
 		resolve("/(protected)/energy"),
 	]);
-	const items = navigationItems(isAdmin);
+	const items = navigationItems(isAdmin, unread);
 	return {
 		tabs: items.filter((item) => daily.has(item.href)),
 		more: items.filter((item) => !daily.has(item.href)),

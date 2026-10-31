@@ -270,3 +270,19 @@ test("a drawer closes by dragging its content down, even over a scrolled page, o
 	await page.touchscreen.tap(x, Math.max((box?.y ?? 60) - 40, 5));
 	await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("the bell in the app bar opens the notifications inbox", async ({
+	page,
+}) => {
+	await page.addInitScript(() =>
+		localStorage.setItem("localassistant-install-prompted", "e2e"),
+	);
+	await page.goto("/");
+	await page
+		.getByRole("link", { name: /^Notifications/ })
+		.first()
+		.click();
+	await expect(page).toHaveURL(/\/notifications$/);
+	await expect(page.getByText("No notifications")).toBeVisible();
+	await page.screenshot({ path: "tmp/e2e/notifications-phone.png" });
+});

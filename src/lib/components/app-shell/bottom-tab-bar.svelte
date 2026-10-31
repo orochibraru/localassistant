@@ -12,7 +12,12 @@
 
 	let moreOpen = $state(false);
 
-	const navigation = $derived(phoneNavigation(isAdmin));
+	const navigation = $derived(
+		phoneNavigation(isAdmin, page.data.unreadNotifications ?? 0),
+	);
+	const moreUnread = $derived(
+		navigation.more.some((item) => (item.count ?? 0) > 0),
+	);
 	const moreActive = $derived(
 		navigation.more.some((item) => isActive(page.url.pathname, item.href)),
 	);
@@ -50,7 +55,15 @@
 			aria-expanded={moreOpen}
 			onclick={() => (moreOpen = true)}
 		>
-			<EllipsisIcon class="size-5" />
+			<span class="relative">
+				<EllipsisIcon class="size-5" />
+				{#if moreUnread}
+					<span
+						class="bg-primary border-popover absolute -top-1 -right-1.5 size-2.5 rounded-full border-2"
+						aria-label="Unread notifications"
+					></span>
+				{/if}
+			</span>
 			More
 		</button>
 	{/if}
@@ -73,6 +86,12 @@
 					>
 						<item.icon class="text-muted-foreground size-5" />
 						{item.label}
+						{#if item.count}
+							<span
+								class="bg-primary text-primary-foreground ml-auto min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-semibold tabular-nums"
+								>{item.count > 99 ? "99+" : item.count}</span
+							>
+						{/if}
 					</a>
 				</li>
 			{/each}

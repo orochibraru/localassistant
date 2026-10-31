@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
+	import BellIcon from "@lucide/svelte/icons/bell";
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
 
@@ -12,6 +13,14 @@
 	const title = usePageTitle();
 	const mobileActions = $derived(
 		title.actions.filter((action) => !action.primary),
+	);
+
+	const notificationsHref = resolve("/(protected)/notifications");
+	const unread = $derived(page.data.unreadNotifications ?? 0);
+	const showBell = $derived(
+		!title.backHref &&
+			page.data.user !== undefined &&
+			page.url.pathname !== notificationsHref,
 	);
 
 	let scrolled = $state(false);
@@ -39,7 +48,12 @@
 		: 'border-transparent'}"
 	style="view-transition-name: app-bar"
 >
-	<div class="relative flex h-14 items-center justify-center px-14">
+	<div
+		class="relative flex h-14 items-center justify-center {showBell &&
+		mobileActions.length > 0
+			? 'px-24'
+			: 'px-14'}"
+	>
 		{#if title.backHref}
 			<div class="absolute top-1/2 left-1.5 -translate-y-1/2">
 				<IconButton label="Back" icon={ChevronLeftIcon} href={title.backHref} />
@@ -57,25 +71,40 @@
 			</a>
 		{/if}
 		<h1 class="truncate text-[1.0625rem] font-semibold">{title.current}</h1>
-		{#if mobileActions.length === 1}
-			{@const [action] = mobileActions}
-			<div class="absolute top-1/2 right-1.5 -translate-y-1/2">
+		<div class="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center">
+			{#if showBell}
+				<span class="relative">
+					<IconButton
+						label={unread > 0
+							? `Notifications, ${unread} unread`
+							: "Notifications"}
+						icon={BellIcon}
+						href={notificationsHref}
+					/>
+					{#if unread > 0}
+						<span
+							class="bg-primary border-background pointer-events-none absolute top-2 right-2 size-2.5 rounded-full border-2"
+							aria-hidden="true"
+						></span>
+					{/if}
+				</span>
+			{/if}
+			{#if mobileActions.length === 1}
+				{@const [action] = mobileActions}
 				<IconButton
 					label={action?.label ?? ""}
 					icon={action?.icon ?? EllipsisIcon}
 					href={action?.href}
 					onclick={action?.onSelect}
 				/>
-			</div>
-		{:else if mobileActions.length > 1}
-			<div class="absolute top-1/2 right-1.5 -translate-y-1/2">
+			{:else if mobileActions.length > 1}
 				<IconButton
 					label="More options"
 					icon={EllipsisIcon}
 					onclick={() => (moreOpen = true)}
 				/>
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</div>
 </header>
 
