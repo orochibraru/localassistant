@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.2](https://github.com/orochibraru/localassistant/compare/v1.0.1...v1.0.2) (2026-10-31)
+
+### Features
+
+* **mobile:** add the notifications inbox with an unread badge on Home ([1bded42](https://github.com/orochibraru/localassistant/commit/1bded42eda70db2bab27a600183aac96c7660784))
+* **api:** read, mark read and remove notifications from the native app ([3f00e6f](https://github.com/orochibraru/localassistant/commit/3f00e6f7cf487f58a71a25b9bc667c9152ed23da))
+* **notifications:** add the notifications page ([5228885](https://github.com/orochibraru/localassistant/commit/5228885117aeed124d8ee5198cb5b609e96a6e09))
+* **ui:** show unread notifications in the sidebar, the More drawer and a bell in the app bar ([b569e8f](https://github.com/orochibraru/localassistant/commit/b569e8f8526a5217245725f7ceb652f7e78d12ea))
+* **notifications:** keep every notification in a per-person inbox for 30 days ([59899c2](https://github.com/orochibraru/localassistant/commit/59899c25dcda54a573716cfe0f83550797be4f2f))
+* **dreame:** opt in to restarting a robot that says it's stuck ([d01e440](https://github.com/orochibraru/localassistant/commit/d01e440bf5feae4f2bbc71452847734b89c28ebf))
+
+### Documentation
+
+* **mobile:** document the notifications inbox and its API ([610bb24](https://github.com/orochibraru/localassistant/commit/610bb24cb197c7246f3c9988e5cd74e39ad504ec))
+* **notifications:** document the inbox ([8080769](https://github.com/orochibraru/localassistant/commit/8080769314f97f00f0b2749c200e172dedfbb759))
+* **dreame:** document restarting when stuck ([4d0b36b](https://github.com/orochibraru/localassistant/commit/4d0b36bc1df7e43ef0fefa9b0119fd46bdefb64b))
+
 ## [1.0.1](https://github.com/orochibraru/localassistant/compare/v1.0.0...v1.0.1) (2026-10-30)
 
 ### ⚠ BREAKING CHANGES
