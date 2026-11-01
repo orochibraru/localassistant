@@ -43,6 +43,15 @@
   Docker Hub description, relative links turned into GitHub URLs, and
   `package.json`'s description as the short one. The `markdown-links` hook keeps
   those links alive.
+- Every release (canary or stable) also publishes the mobile apps once releaser
+  has tagged it. Android: a signed APK and Play bundle versioned
+  `X.Y.Z(-canary.N)`, the APK attached to the GitHub release, the bundle
+  uploaded to Google Play's `internal` track for a canary and `production` for a
+  stable. iOS: archived on a macOS runner with automatic signing through the App
+  Store Connect key and uploaded to TestFlight as `X.Y.Z` (Apple refuses
+  prerelease suffixes); submitting a build for App Store review stays a click in
+  App Store Connect. Both build numbers are `run_number * 10 + run_attempt`, so
+  they only grow.
 - Every image, PR, canary and release, lives on Docker Hub only
   (`docker.io/orochibraru/localassistant`). Nothing is pushed to ghcr.io.
 
@@ -52,5 +61,15 @@
   `orochibraru` with read, write and delete scope: deleting PR tags needs it)
   and `RELEASE_DEPLOY_KEY` (private half of a deploy key with write access,
   bypassing the branch and tag rulesets).
+- Android secrets: `ANDROID_KEYSTORE_BASE64` (the upload keystore, base64),
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and
+  `PLAY_SERVICE_ACCOUNT_JSON` (a service account with release rights on the
+  app). Google Play only takes API uploads once the app exists there: create it
+  as `com.orochibraru.localassistant` and upload the first bundle by hand.
+- iOS secrets: `APPLE_TEAM_ID`, and an App Store Connect API key with the Admin
+  role (cloud signing needs it): `APP_STORE_CONNECT_KEY_ID`,
+  `APP_STORE_CONNECT_ISSUER_ID` and `APP_STORE_CONNECT_KEY` (the `.p8`
+  contents). The app record `com.orochibraru.localassistant` must exist in App
+  Store Connect.
 - The Docker Hub repository must be public: self-hosters pull `latest` from it.
 - `CI Gate` as the required check, squash merges only.
