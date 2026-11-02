@@ -9,3 +9,6 @@ fun MainViewController() = ComposeUIViewController { App() }
 fun openLink(url: String) {
     Auth.callbacks.value = url
 }
+
+/** At launch, before it finishes: the background check that shows new notifications. */
+fun registerNoticeChecks() = registerBackgroundChecks()

@@ -48,6 +48,8 @@ kotlin {
             implementation(libs.androidx.browser)
             implementation(libs.androidx.core)
             implementation(libs.mlkit.codes)
+            implementation(libs.androidx.work)
+            implementation(libs.unifiedpush)
         }
         iosMain.dependencies {
             implementation(libs.ktor.darwin)

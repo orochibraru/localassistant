@@ -125,6 +125,18 @@ data class Reply(val text: String, val actions: List<String> = emptyList())
 private data class Turns(val turns: List<Turn>)
 
 @Serializable
+private data class PushKey(val vapidPublicKey: String)
+
+@Serializable
+private data class PushRegistration(val endpoint: String, val p256dh: String, val auth: String, val device: String)
+
+@Serializable
+private data class PushEndpointBody(val endpoint: String)
+
+@Serializable
+data class PushPayload(val title: String, val body: String = "", val url: String = "/")
+
+@Serializable
 private data class Enabled(val enabled: Boolean)
 
 @Serializable
@@ -178,6 +190,19 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
     /** Removes every notification. */
     suspend fun clearNotifications() {
         call(HttpMethod.Delete, "/notifications")
+    }
+
+    /** The server's VAPID public key, for a push endpoint to accept its messages. */
+    suspend fun pushKey(): String = call(HttpMethod.Get, "/mobile/push").body<PushKey>().vapidPublicKey
+
+    /** Has the server push to this phone at `endpoint`, encrypted with its Web Push keys. */
+    suspend fun registerPush(endpoint: String, p256dh: String, auth: String, device: String) {
+        call(HttpMethod.Put, "/mobile/push") { setBody(PushRegistration(endpoint, p256dh, auth, device)) }
+    }
+
+    /** Stops the server pushing to `endpoint`. */
+    suspend fun unregisterPush(endpoint: String) {
+        call(HttpMethod.Delete, "/mobile/push") { setBody(PushEndpointBody(endpoint)) }
     }
 
     /** The routines of the home. */

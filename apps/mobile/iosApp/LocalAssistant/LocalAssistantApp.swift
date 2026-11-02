@@ -3,6 +3,10 @@ import SwiftUI
 
 @main
 struct LocalAssistantApp: App {
+    init() {
+        MainViewControllerKt.registerNoticeChecks()
+    }
+
     var body: some SwiftUI.Scene {
         WindowGroup {
             ComposeView().ignoresSafeArea()

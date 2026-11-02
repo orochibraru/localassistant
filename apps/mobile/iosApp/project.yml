@@ -20,6 +20,8 @@ targets:
         UILaunchScreen: {}
         CADisableMinimumFrameDurationOnPhone: true
         NSCameraUsageDescription: Scan the code that signs you in.
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [dev.localassistant.notices]
         NSLocationWhenInUseUsageDescription: Tells the house whether you're home, when you choose to share it.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true

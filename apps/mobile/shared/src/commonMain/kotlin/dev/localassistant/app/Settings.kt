@@ -51,6 +51,9 @@ fun SettingsScreen(model: HouseModel) {
         if (granted) scope.launch { model.report() }
     }
     LaunchedEffect(progress) { phone = Store.phoneId() }
+    var notices by remember { mutableStateOf(noticeMode()) }
+    var noticesBusy by remember { mutableStateOf(false) }
+    var noticesError by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
@@ -83,6 +86,35 @@ fun SettingsScreen(model: HouseModel) {
                 locationError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 OutlinedButton(onClick = { scope.launch { model.report() } }, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Send now") }
             }
+        }
+        Section("Notifications on this phone") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Show them while the app is closed", style = MaterialTheme.typography.titleSmall)
+                    Text(notices.label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = notices != NoticeMode.Off, enabled = !noticesBusy, onCheckedChange = { next ->
+                    noticesBusy = true
+                    noticesError = null
+                    scope.launch {
+                        runCatching { Notices.enable(next, model.api) }
+                            .onSuccess { mode ->
+                                notices = mode
+                                saveNoticeMode(mode)
+                            }
+                            .onFailure { noticesError = it.message ?: "That didn't work." }
+                        noticesBusy = false
+                    }
+                })
+            }
+            if (notices == NoticeMode.Periodic) {
+                Text(
+                    "For instant ones on Android, install a UnifiedPush app such as ntfy, then turn this off and on.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            noticesError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
         OutlinedButton(onClick = model::signOut, modifier = Modifier.fillMaxWidth().height(48.dp)) {
             Icon(Icons.AutoMirrored.Rounded.Logout, null)

@@ -38,6 +38,7 @@ class HouseModel(val api: Api, private val scope: CoroutineScope, private val on
         runCatching { guarded { api.notifications() } }
             .onSuccess { fresh ->
                 inbox.value = fresh.notifications
+                markNoticesSeen(fresh.notifications)
                 inboxError.value = null
                 if (fresh.unread > 0) {
                     runCatching { guarded { api.markNotificationsRead() } }
@@ -106,9 +107,10 @@ class HouseModel(val api: Api, private val scope: CoroutineScope, private val on
         report()
     }
 
-    /** Signs out on the server and here. */
+    /** Signs out on the server and here, turning this phone's notifications off first. */
     fun signOut() {
         scope.launch {
+            if (noticeMode() != NoticeMode.Off) runCatching { Notices.enable(false, api) }
             api.signOut()
             onSignedOut()
         }
