@@ -25,8 +25,16 @@ assumes HTTPS.
 
 The bell on Home opens the same inbox as the web app's **Notifications**, with a
 badge while some are unread: tap a scene button to set it, remove one, or clear
-them all. Opening it marks them read everywhere. The app shows what's in the
-inbox; push notifications on the phone itself come later.
+them all. Opening it marks them read everywhere.
+
+**Settings**, **Notifications on this phone** shows them as the phone's own
+notifications while the app is closed:
+
+- On Android with a UnifiedPush app such as ntfy installed, they arrive at once:
+  the server pushes them to it like to a browser, end-to-end encrypted, with no
+  Google account or key involved. Pick ntfy when the app asks.
+- Without one, and on iPhone, the phone checks the inbox in the background,
+  every 15 minutes or so on Android and whenever iOS allows on an iPhone.
 
 ## This phone in the house
 

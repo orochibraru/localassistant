@@ -22,6 +22,12 @@
 - `/api/v1/notifications` reads the inbox (`GET`, with the unread count, also in
   the house payload), marks it read (`POST /read`), and removes one
   (`DELETE /[id]`) or all (`DELETE`).
+- Phone notifications: on Android with a UnifiedPush distributor, the connector
+  makes Web Push keys and an endpoint that the app registers with
+  `PUT /api/v1/mobile/push` (VAPID key from `GET`), so the server pushes to it
+  through the same `push_subscription` table as browsers; otherwise a 15-minute
+  WorkManager job, and on iOS a `BGAppRefreshTask`, read the inbox and post
+  what's newer than the last id seen.
 - Device controls follow the web rule: `PendingChanges` shows a change at once,
   merges taps for 400 ms into one command, spins, and on failure falls back to
   the reading with the reason in red. No toasts or snackbars.
