@@ -43,6 +43,11 @@
   Docker Hub description, relative links turned into GitHub URLs, and
   `package.json`'s description as the short one. The `markdown-links` hook keeps
   those links alive.
+- Every release (canary or stable) also attaches the mobile apps to its GitHub
+  release once releaser has tagged it: `localassistant-X.Y.Z(-canary.N).apk`,
+  signed with the upload key, and an unsigned `.ipa` built on a macOS runner,
+  for AltStore or Sideloadly to re-sign. Neither store is published to yet. Both
+  build numbers are `run_number * 10 + run_attempt`, so they only grow.
 - Every image, PR, canary and release, lives on Docker Hub only
   (`docker.io/orochibraru/localassistant`). Nothing is pushed to ghcr.io.
 
@@ -52,5 +57,8 @@
   `orochibraru` with read, write and delete scope: deleting PR tags needs it)
   and `RELEASE_DEPLOY_KEY` (private half of a deploy key with write access,
   bypassing the branch and tag rulesets).
+- Android secrets: `ANDROID_KEYSTORE_BASE64` (the upload keystore, base64),
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. The
+  iOS build needs none.
 - The Docker Hub repository must be public: self-hosters pull `latest` from it.
 - `CI Gate` as the required check, squash merges only.

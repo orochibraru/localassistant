@@ -270,6 +270,99 @@ jobs:
             --jq '[.[] | select(.isPrerelease)] | .[5:] | .[].tagName' \
             | xargs -r -n1 gh release delete --yes
 
+  android:
+    name: Attach the Android App to ${{ needs.version.outputs.version }}
+    needs: [version, release]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-disabled: true
+
+      - name: Build the signed APK
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          base64 --decode <<<"$KEYSTORE" > "$ANDROID_KEYSTORE_FILE"
+          ./gradlew :androidApp:assembleRelease \
+            -Plocalassistant.version="$VERSION" \
+            -Plocalassistant.code="$((GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))"
+          rm "$ANDROID_KEYSTORE_FILE"
+          cp androidApp/build/outputs/apk/release/androidApp-release.apk "$RUNNER_TEMP/localassistant-$VERSION.apk"
+
+      - name: Attach the APK to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: gh release upload "v$VERSION" "$RUNNER_TEMP/localassistant-$VERSION.apk" --clobber --repo "$GITHUB_REPOSITORY"
+
+  ios:
+    name: Attach the iOS App to ${{ needs.version.outputs.version }}
+    needs: [version, release]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: apps/mobile/iosApp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-disabled: true
+
+      - name: Build the unsigned IPA
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen generate -q
+          xcodebuild -quiet -project LocalAssistant.xcodeproj -scheme LocalAssistant -configuration Release \
+            -sdk iphoneos -derivedDataPath build \
+            MARKETING_VERSION="${VERSION%%-*}" \
+            CURRENT_PROJECT_VERSION="$((GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R build/Build/Products/Release-iphoneos/LocalAssistant.app "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qr "$RUNNER_TEMP/localassistant-$VERSION.ipa" Payload)
+
+      - name: Attach the IPA to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: gh release upload "v$VERSION" "$RUNNER_TEMP/localassistant-$VERSION.ipa" --clobber --repo "$GITHUB_REPOSITORY"
+
   dockerhub-description:
     name: Update Docker Hub Description
     needs: [release]
