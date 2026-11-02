@@ -271,7 +271,7 @@ jobs:
             | xargs -r -n1 gh release delete --yes
 
   android:
-    name: Publish the Android App ${{ needs.version.outputs.version }}
+    name: Attach the Android App to ${{ needs.version.outputs.version }}
     needs: [version, release]
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
@@ -294,7 +294,7 @@ jobs:
         with:
           cache-disabled: true
 
-      - name: Build the signed APK and Play bundle
+      - name: Build the signed APK
         env:
           VERSION: ${{ needs.version.outputs.version }}
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -305,42 +305,25 @@ jobs:
           set -euo pipefail
           export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           base64 --decode <<<"$KEYSTORE" > "$ANDROID_KEYSTORE_FILE"
-          ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease \
+          ./gradlew :androidApp:assembleRelease \
             -Plocalassistant.version="$VERSION" \
             -Plocalassistant.code="$((GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))"
-          mkdir -p "$RUNNER_TEMP/out"
-          cp androidApp/build/outputs/apk/release/androidApp-release.apk "$RUNNER_TEMP/out/localassistant-$VERSION.apk"
-          cp androidApp/build/outputs/bundle/release/androidApp-release.aab "$RUNNER_TEMP/out/localassistant-$VERSION.aab"
           rm "$ANDROID_KEYSTORE_FILE"
+          cp androidApp/build/outputs/apk/release/androidApp-release.apk "$RUNNER_TEMP/localassistant-$VERSION.apk"
 
       - name: Attach the APK to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
-        run: gh release upload "v$VERSION" "$RUNNER_TEMP/out/localassistant-$VERSION.apk" --clobber --repo "$GITHUB_REPOSITORY"
-
-      - name: Pick the Play track
-        id: track
-        env:
-          MODE: ${{ needs.version.outputs.mode }}
-        run: |
-          if [ "$MODE" = stable ]; then echo "track=production" >> "$GITHUB_OUTPUT"; else echo "track=internal" >> "$GITHUB_OUTPUT"; fi
-
-      - name: Upload the bundle to Google Play
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.orochibraru.localassistant
-          releaseFiles: ${{ runner.temp }}/out/localassistant-${{ needs.version.outputs.version }}.aab
-          releaseName: ${{ needs.version.outputs.version }}
-          track: ${{ steps.track.outputs.track }}
-          status: completed
+        run: gh release upload "v$VERSION" "$RUNNER_TEMP/localassistant-$VERSION.apk" --clobber --repo "$GITHUB_REPOSITORY"
 
   ios:
-    name: Publish the iOS App ${{ needs.version.outputs.version }}
+    name: Attach the iOS App to ${{ needs.version.outputs.version }}
     needs: [version, release]
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: macos-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: apps/mobile/iosApp
@@ -358,43 +341,27 @@ jobs:
         with:
           cache-disabled: true
 
-      - name: Generate the Xcode project
-        run: |
-          brew install xcodegen
-          xcodegen generate -q
-
-      - name: Archive and upload to TestFlight
+      - name: Build the unsigned IPA
         env:
           VERSION: ${{ needs.version.outputs.version }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          KEY: ${{ secrets.APP_STORE_CONNECT_KEY }}
         run: |
           set -euo pipefail
-          key_path="$RUNNER_TEMP/AuthKey_$KEY_ID.p8"
-          printf '%s' "$KEY" > "$key_path"
-          auth=(-allowProvisioningUpdates -authenticationKeyPath "$key_path" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          brew install xcodegen
+          xcodegen generate -q
           xcodebuild -quiet -project LocalAssistant.xcodeproj -scheme LocalAssistant -configuration Release \
-            -destination generic/platform=iOS -archivePath "$RUNNER_TEMP/LocalAssistant.xcarchive" "${auth[@]}" \
-            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            -sdk iphoneos -derivedDataPath build \
             MARKETING_VERSION="${VERSION%%-*}" \
-            CURRENT_PROJECT_VERSION="$((GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))" archive
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>teamID</key><string>$TEAM_ID</string>
-          </dict>
-          </plist>
-          PLIST
-          xcodebuild -quiet -exportArchive -archivePath "$RUNNER_TEMP/LocalAssistant.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" "${auth[@]}"
-          rm "$key_path"
+            CURRENT_PROJECT_VERSION="$((GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R build/Build/Products/Release-iphoneos/LocalAssistant.app "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qr "$RUNNER_TEMP/localassistant-$VERSION.ipa" Payload)
+
+      - name: Attach the IPA to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: gh release upload "v$VERSION" "$RUNNER_TEMP/localassistant-$VERSION.ipa" --clobber --repo "$GITHUB_REPOSITORY"
 
   dockerhub-description:
     name: Update Docker Hub Description

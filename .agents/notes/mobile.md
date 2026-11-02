@@ -32,6 +32,5 @@
   The `mobile` job in `code_quality.yaml` runs it. `settings.gradle.kts` reads
   Maven Central through Google's mirror first: Maven Central answers shared IPs
   with 429s.
-- Releases publish both apps from `publish.yaml`
-  (`.agents/notes/ci-releases.md`): Google Play and the GitHub release for
-  Android, TestFlight for iOS.
+- Releases attach a signed APK and an unsigned IPA to the GitHub release
+  (`publish.yaml`, `.agents/notes/ci-releases.md`).
