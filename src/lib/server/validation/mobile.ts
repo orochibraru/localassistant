@@ -26,3 +26,14 @@ export const mobileDeviceSchema = z.object({
 });
 
 export const routineEnabledSchema = z.object({ enabled: z.boolean() });
+
+export const mobilePushSchema = z.object({
+	endpoint: z.url({ protocol: /^https?$/ }).max(1000),
+	p256dh: z.string().regex(/^[\w-]{80,120}$/),
+	auth: z.string().regex(/^[\w-]{16,40}$/),
+	device: z.string().trim().min(1).max(80),
+});
+
+export const mobilePushEndpointSchema = z.object({
+	endpoint: z.string().min(1).max(1000),
+});

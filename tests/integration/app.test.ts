@@ -296,6 +296,60 @@ describe("setting up and using it", () => {
 		expect((await api("/notifications", { method: "DELETE" })).status).toBe(
 			200,
 		);
+		const { vapidPublicKey } = (await (await api("/mobile/push")).json()) as {
+			vapidPublicKey: string;
+		};
+		expect(vapidPublicKey).toMatch(/^[\w-]{87}$/);
+		const keys = await crypto.subtle.generateKey(
+			{ name: "ECDH", namedCurve: "P-256" },
+			true,
+			["deriveBits"],
+		);
+		const p256dh = Buffer.from(
+			await crypto.subtle.exportKey("raw", keys.publicKey),
+		).toString("base64url");
+		const auth = Buffer.from(
+			crypto.getRandomValues(new Uint8Array(16)),
+		).toString("base64url");
+		const endpoint = "https://ntfy.example/upAbCdEf?up=1";
+		expect(
+			(
+				await api("/mobile/push", {
+					method: "PUT",
+					body: JSON.stringify({ endpoint, p256dh, auth, device: "Pixel" }),
+				})
+			).status,
+		).toBe(204);
+		expect(
+			row<{ device: string }>(
+				"select device from push_subscription where endpoint = ?",
+				endpoint,
+			)?.device,
+		).toBe("Pixel");
+		expect(
+			(
+				await api("/mobile/push", {
+					method: "PUT",
+					body: JSON.stringify({
+						endpoint: "ftp://x",
+						p256dh,
+						auth,
+						device: "Pixel",
+					}),
+				})
+			).status,
+		).toBe(400);
+		expect(
+			(
+				await api("/mobile/push", {
+					method: "DELETE",
+					body: JSON.stringify({ endpoint }),
+				})
+			).status,
+		).toBe(204);
+		expect(
+			row("select 1 from push_subscription where endpoint = ?", endpoint),
+		).toBeNull();
 		expect((await api("/mobile/token", { method: "DELETE" })).status).toBe(204);
 		expect((await api("/house")).status).toBe(401);
 	});
