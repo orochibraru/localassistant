@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.3](https://github.com/orochibraru/localassistant/compare/v1.0.2...v1.0.3) (2026-11-02)
+
+### Features
+
+* **mobile:** show notifications on the phone, instant through UnifiedPush or checked in the background ([1035c0e](https://github.com/orochibraru/localassistant/commit/1035c0e0144c7b9f96cbd2a082cded3937dbebb4))
+* **api:** let the native app register a push endpoint ([f7bb76b](https://github.com/orochibraru/localassistant/commit/f7bb76b3a538034f02510e35d09c69bb8cd7e145))
+
+### Bug Fixes
+
+* **dreame:** add CleanGenius routine and deep cleaning, stop settings snapping back ([99f89d9](https://github.com/orochibraru/localassistant/commit/99f89d9dd9fcc30ac608cfb68f8f967bc6dc11a1))
+
+### Documentation
+
+* **mobile:** document phone notifications ([7faabcf](https://github.com/orochibraru/localassistant/commit/7faabcfbf8f5a6329a5eec7ce93fc7977cf2e1f5))
+
 ## [1.0.2](https://github.com/orochibraru/localassistant/compare/v1.0.1...v1.0.2) (2026-10-31)
 
 ### Features
