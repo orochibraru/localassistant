@@ -8,9 +8,11 @@
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import GlassWaterIcon from "@lucide/svelte/icons/glass-water";
 	import HouseIcon from "@lucide/svelte/icons/house";
+	import LayersIcon from "@lucide/svelte/icons/layers";
 	import PackageIcon from "@lucide/svelte/icons/package";
 	import PauseIcon from "@lucide/svelte/icons/pause";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import RepeatIcon from "@lucide/svelte/icons/repeat";
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
 	import SquareIcon from "@lucide/svelte/icons/square";
@@ -31,6 +33,7 @@
 		dockStatusLabels,
 		readAgo,
 		type VacuumChange,
+		type VacuumCleanGenius,
 		type VacuumCommand,
 		type VacuumDock,
 		type VacuumMode,
@@ -127,30 +130,53 @@
 		},
 	};
 
-	let expected = $state<{ change: VacuumChange; since: number | null } | null>(
-		null,
-	);
+	const holdMs = 25_000;
+
+	const geniusLevels: Record<
+		Exclude<VacuumCleanGenius, "off">,
+		{ label: string; description: string; icon: Component<{ class?: string }> }
+	> = {
+		routine: {
+			label: "Routine cleaning",
+			description: "The robot picks the mode, suction and water per room",
+			icon: RepeatIcon,
+		},
+		deep: {
+			label: "Deep cleaning",
+			description: "Slower, more thorough passes, picked per room",
+			icon: LayersIcon,
+		},
+	};
+
+	let held = $state<{ change: VacuumChange; sentAt: number }>({
+		change: {},
+		sentAt: 0,
+	});
 
 	const pending = new PendingChanges<VacuumChange>({
 		delayMs: 300,
 		send: async (change) => {
 			await controlVacuum({ deviceId: id, ...change });
-			expected = { change, since: readAt?.getTime() ?? null };
+			held = { change: { ...stillHeld, ...change }, sentAt: Date.now() };
 		},
 		describe: (failure) => toastError(failure, `${name} didn't answer.`),
 	});
 
 	onDestroy(() => void pending.flush());
 
-	const stillExpected = $derived(
-		expected && expected.since === (readAt?.getTime() ?? null)
-			? expected.change
-			: {},
+	const stillHeld = $derived(
+		(readAt?.getTime() ?? 0) < held.sentAt + holdMs ? held.change : {},
 	);
 	const shown = $derived(
-		reading ? apply(apply(reading, stillExpected), pending.values) : null,
+		reading ? apply(apply(reading, stillHeld), pending.values) : null,
 	);
-	const smart = $derived(shown?.cleanGenius === true);
+	const genius = $derived(
+		shown?.cleanGenius === "routine" || shown?.cleanGenius === "deep"
+			? shown.cleanGenius
+			: null,
+	);
+	const smart = $derived(genius !== null);
+	let geniusLevel = $derived<string>(genius ?? "");
 	let mode = $derived<string>(shown?.mode ?? "");
 	let suction = $derived<string>(shown?.suction ?? "");
 	let wetness = $derived(shown?.wetness ?? vacuumWetness.min);
@@ -201,6 +227,16 @@
 		}
 		if (next !== shown?.mode) {
 			pending.set({ mode: next as VacuumMode });
+		}
+	}
+
+	function handleGeniusLevel(next: string) {
+		if (!next) {
+			geniusLevel = genius ?? "";
+			return;
+		}
+		if (next !== genius) {
+			pending.set({ cleanGenius: next as VacuumCleanGenius });
 		}
 	}
 
@@ -260,7 +296,9 @@
 			<Button
 				variant={smart ? "default" : "secondary"}
 				class="h-11 min-w-0 flex-2 rounded-xl"
-				aria-label={smart ? `Start ${name} with CleanGenius` : `Start ${name}`}
+				aria-label={genius
+					? `Start ${name} with CleanGenius, ${geniusLevels[genius].label.toLowerCase()}`
+					: `Start ${name}`}
 				onclick={() => pending.set({ command: "start" })}
 			>
 				{#if smart}<SparklesIcon />CleanGenius{:else}<PlayIcon />Start{/if}
@@ -293,17 +331,39 @@
 						<label for="{id}-clean-genius" class="min-w-0 flex-1 py-2">
 							<span class="block font-medium">CleanGenius</span>
 							<span class="text-muted-foreground block text-sm"
-								>{smart
-									? "The robot picks the mode, suction and water per room"
+								>{genius
+									? geniusLevels[genius].description
 									: "Cleans with the settings below"}</span
 							>
 						</label>
 						<Switch
 							id="{id}-clean-genius"
 							checked={smart}
-							onCheckedChange={(next) => pending.set({ cleanGenius: next })}
+							onCheckedChange={(next) =>
+								pending.set({ cleanGenius: next ? "routine" : "off" })}
 						/>
 					</div>
+				{/if}
+
+				{#if smart}
+					<ToggleGroup.Root
+						type="single"
+						bind:value={geniusLevel}
+						spacing={2}
+						aria-label="{name} CleanGenius cleaning"
+						class="w-full"
+						onValueChange={handleGeniusLevel}
+					>
+						{#each Object.entries(geniusLevels) as [option, level] (option)}
+							<ToggleGroup.Item
+								value={option}
+								class="bg-secondary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-11 min-w-0 flex-1 rounded-xl"
+								><level.icon /><span class="min-w-0 truncate"
+									>{level.label}</span
+								></ToggleGroup.Item
+							>
+						{/each}
+					</ToggleGroup.Root>
 				{/if}
 
 				{#if !smart && shown.mode}

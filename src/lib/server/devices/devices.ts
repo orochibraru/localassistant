@@ -228,6 +228,19 @@ class Devices {
 							: state.playback;
 			return { ...state, ...rest, playback };
 		}
+		if (command.type === "vacuum" && state.type === "vacuum") {
+			const { mode, suction, wetness, cleanGenius, reset } = command.change;
+			return {
+				...state,
+				mode: mode ?? state.mode,
+				suction: suction ?? state.suction,
+				wetness: wetness ?? state.wetness,
+				cleanGenius: cleanGenius ?? state.cleanGenius,
+				partsLeft: reset
+					? { ...state.partsLeft, [reset]: 100 }
+					: state.partsLeft,
+			};
+		}
 		if (command.type === "button" && state.type === "button") {
 			return { ...state, pressedAt: new Date().toISOString() };
 		}

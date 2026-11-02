@@ -122,12 +122,15 @@ export const vacuumSuctionLabels: Record<VacuumSuction, string> = {
 
 export const vacuumWetness = { min: 1, max: 32 } as const;
 
+export const vacuumCleanGenius = ["off", "routine", "deep"] as const;
+export type VacuumCleanGenius = (typeof vacuumCleanGenius)[number];
+
 export interface VacuumChange {
 	command?: VacuumCommand;
 	mode?: VacuumMode;
 	suction?: VacuumSuction;
 	wetness?: number;
-	cleanGenius?: boolean;
+	cleanGenius?: VacuumCleanGenius;
 	reset?: VacuumPart;
 }
 
@@ -218,7 +221,7 @@ export interface VacuumState {
 	mode: VacuumMode | null;
 	suction: VacuumSuction | null;
 	wetness: number | null;
-	cleanGenius: boolean | null;
+	cleanGenius: VacuumCleanGenius | null;
 	lastCleanMinutes: number | null;
 	lastCleanArea: number | null;
 	partsLeft: VacuumParts;

@@ -7,6 +7,7 @@ import {
 	mediaActions,
 	printerCommands,
 	printerSpeeds,
+	vacuumCleanGenius,
 	vacuumCommands,
 	vacuumModes,
 	vacuumParts,
@@ -84,7 +85,7 @@ export const vacuumChangeSchema = z
 		mode: z.enum(vacuumModes).optional(),
 		suction: z.enum(vacuumSuctions).optional(),
 		wetness: z.int().min(vacuumWetness.min).max(vacuumWetness.max).optional(),
-		cleanGenius: z.boolean().optional(),
+		cleanGenius: z.enum(vacuumCleanGenius).optional(),
 		reset: z.enum(vacuumParts).optional(),
 	})
 	.refine(

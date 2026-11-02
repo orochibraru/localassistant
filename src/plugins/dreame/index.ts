@@ -3,6 +3,7 @@ import { createCipheriv } from "node:crypto";
 import {
 	type DockStatus,
 	type VacuumChange,
+	vacuumCleanGenius,
 	type VacuumCommand,
 	type VacuumMode,
 	type VacuumPart,
@@ -354,7 +355,9 @@ class DreameCloud implements Plugin {
 					: (vacuumSuctions[values.suction] ?? null),
 			wetness: values.wetness ?? null,
 			cleanGenius:
-				values.cleanGenius === undefined ? null : values.cleanGenius > 0,
+				values.cleanGenius === undefined
+					? null
+					: (vacuumCleanGenius[values.cleanGenius] ?? "routine"),
 			lastCleanMinutes: values.lastCleanMinutes ?? null,
 			lastCleanArea: values.lastCleanArea ?? null,
 			partsLeft: {
@@ -375,7 +378,7 @@ class DreameCloud implements Plugin {
 	}
 
 	/**
-	 * Sets a vacuum's cleaning mode, suction, mop wetness and CleanGenius, leaving alone what `change` doesn't name.
+	 * Sets a vacuum's cleaning mode, suction, mop wetness and CleanGenius (off, routine or deep), leaving alone what `change` doesn't name.
 	 *
 	 * @throws DreameError when Dreame can't be reached or the robot refuses a setting.
 	 */
@@ -406,7 +409,7 @@ class DreameCloud implements Plugin {
 				...properties.cleanGenius,
 				value: JSON.stringify({
 					k: "SmartHost",
-					v: change.cleanGenius ? 1 : 0,
+					v: vacuumCleanGenius.indexOf(change.cleanGenius),
 				}),
 			});
 		}
@@ -494,7 +497,7 @@ class DreameCloud implements Plugin {
 		return (values.mode & ~0b11) | this.#modes(values).indexOf(mode);
 	}
 
-	/** The CleanGenius level in the robot's smart settings, a JSON list of `{ k, v }` pairs, or undefined without one. */
+	/** The CleanGenius level in the robot's smart settings (0 off, 1 routine, 2 deep), a JSON list of `{ k, v }` pairs, or undefined without one. */
 	#smartHost(settings: string): number | undefined {
 		try {
 			const entries: unknown = JSON.parse(settings);

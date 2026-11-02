@@ -420,7 +420,7 @@ describe("Dreame cloud", () => {
 							piid: 50,
 							value: JSON.stringify([
 								{ k: "LessColl", v: 1 },
-								{ k: "SmartHost", v: 1 },
+								{ k: "SmartHost", v: 2 },
 							]),
 						},
 					],
@@ -435,12 +435,13 @@ describe("Dreame cloud", () => {
 				) as { data: { params: unknown[] } }
 			).data.params;
 
-		expect(await dreameCloud.read(robot)).toMatchObject({
+		const drying = await dreameCloud.read(robot);
+		expect(drying).toMatchObject({
 			stage: "drying",
 			mode: "both",
 			suction: "standard",
 			wetness: 16,
-			cleanGenius: true,
+			cleanGenius: "deep",
 			lastCleanMinutes: 34,
 			lastCleanArea: 21,
 			partsLeft: {
@@ -458,6 +459,9 @@ describe("Dreame cloud", () => {
 				detergent: null,
 			},
 		});
+		if (drying) {
+			robot.saveState(drying);
+		}
 		await devices.command(robot, {
 			type: "vacuum",
 			change: {
@@ -471,6 +475,13 @@ describe("Dreame cloud", () => {
 			{ did: "123456", siid: 4, piid: 4, value: 3 },
 			{ did: "123456", siid: 28, piid: 1, value: 20 },
 		]);
+		expect(DeviceDTO.find(robot.id)?.state).toMatchObject({
+			stage: "drying",
+			mode: "vacuum",
+			suction: "max",
+			wetness: 20,
+			cleanGenius: "deep",
+		});
 
 		dock = [];
 		mode = 2;
@@ -489,13 +500,22 @@ describe("Dreame cloud", () => {
 			params: { did: "123456", siid: 11, aiid: 1, in: [] },
 		});
 
-		await dreameCloud.configure(robot, { cleanGenius: false });
+		await dreameCloud.configure(robot, { cleanGenius: "off" });
 		expect(lastWrite()).toEqual([
 			{
 				did: "123456",
 				siid: 4,
 				piid: 50,
 				value: JSON.stringify({ k: "SmartHost", v: 0 }),
+			},
+		]);
+		await dreameCloud.configure(robot, { cleanGenius: "routine" });
+		expect(lastWrite()).toEqual([
+			{
+				did: "123456",
+				siid: 4,
+				piid: 50,
+				value: JSON.stringify({ k: "SmartHost", v: 1 }),
 			},
 		]);
 

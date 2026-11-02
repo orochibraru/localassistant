@@ -116,12 +116,16 @@ export const vacuumSuctions = ["quiet", "standard", "strong", "max"] as const;
 
 export type VacuumSuction = (typeof vacuumSuctions)[number];
 
+export const vacuumCleanGenius = ["off", "routine", "deep"] as const;
+
+export type VacuumCleanGenius = (typeof vacuumCleanGenius)[number];
+
 export interface VacuumChange {
 	command?: VacuumCommand;
 	mode?: VacuumMode;
 	suction?: VacuumSuction;
 	wetness?: number;
-	cleanGenius?: boolean;
+	cleanGenius?: VacuumCleanGenius;
 	reset?: VacuumPart;
 }
 
@@ -166,7 +170,7 @@ export interface VacuumState {
 	mode: VacuumMode | null;
 	suction: VacuumSuction | null;
 	wetness: number | null;
-	cleanGenius: boolean | null;
+	cleanGenius: VacuumCleanGenius | null;
 	lastCleanMinutes: number | null;
 	lastCleanArea: number | null;
 	partsLeft: VacuumParts;

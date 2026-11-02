@@ -279,7 +279,7 @@ demo.push(
 			mode: "both",
 			suction: "standard",
 			wetness: 16,
-			cleanGenius: true,
+			cleanGenius: "routine",
 			lastCleanMinutes: 34,
 			lastCleanArea: 21,
 			partsLeft: {

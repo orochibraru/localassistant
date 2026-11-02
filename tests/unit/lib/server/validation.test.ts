@@ -210,7 +210,7 @@ describe("parseForm", () => {
 		);
 	});
 
-	test("a vacuum change names a command, a mode, a suction or a wetness within the robot's range", () => {
+	test("a vacuum change names a command, a mode, a suction, a wetness within the robot's range or a CleanGenius level", () => {
 		expect(
 			vacuumChangeSchema.safeParse({
 				deviceId: "v",
@@ -224,6 +224,14 @@ describe("parseForm", () => {
 		).toBe(false);
 		expect(
 			vacuumChangeSchema.safeParse({ deviceId: "v", mode: "spin" }).success,
+		).toBe(false);
+		expect(
+			vacuumChangeSchema.safeParse({ deviceId: "v", cleanGenius: "deep" })
+				.success,
+		).toBe(true);
+		expect(
+			vacuumChangeSchema.safeParse({ deviceId: "v", cleanGenius: true })
+				.success,
 		).toBe(false);
 		expect(vacuumChangeSchema.safeParse({ deviceId: "v" }).success).toBe(false);
 	});
