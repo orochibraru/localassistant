@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.4](https://github.com/orochibraru/localassistant/compare/v1.0.3...v1.0.4) (2026-11-03)
+
+### Features
+
+* **mobile:** cameras and scene editing in the app, pairing code tab (#8) ([b5fb086](https://github.com/orochibraru/localassistant/commit/b5fb086593f0d872420a30359f86294d1699f9d7))
+
 ## [1.0.3](https://github.com/orochibraru/localassistant/compare/v1.0.2...v1.0.3) (2026-11-02)
 
 ### Features
