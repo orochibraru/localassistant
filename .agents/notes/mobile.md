@@ -24,6 +24,16 @@
   through `library.saveScene`. `GET /api/v1/cameras/[id]` gives a camera's live
   path, snapshot and `devices.clips()`; pictures and video come from `/media`
   with the bearer header, played by Media3 on Android and `AVPlayer` on iOS.
+- Admin device setup goes through `deviceAdmin` (`#lib/server/devices/`), shared
+  with the `/devices` form actions: `GET /api/v1/setups`, `POST .../connect`,
+  `.../discover`, `.../devices` and `DELETE /api/v1/setups/[pluginId]`, and
+  `PUT`/`DELETE /api/v1/devices/[id]`. Bodies are the web form's flat fields as
+  JSON strings (`name`, `roomId`, `ownerId`, `value:<field>`), checked by the
+  same schemas; a refusal answers `{ message, errors }` per field.
+- The Android updater reads the latest GitHub release, compares it with
+  `appVersion` and installs the APK through a `PackageInstaller` session
+  (`UpdateReceiver` shows the confirmation). It only runs when the installer
+  isn't a store and the build isn't debuggable.
 - `/api/v1/notifications` reads the inbox (`GET`, with the unread count, also in
   the house payload), marks it read (`POST /read`), and removes one
   (`DELETE /[id]`) or all (`DELETE`).

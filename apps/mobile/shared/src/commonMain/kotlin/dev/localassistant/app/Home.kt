@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SmartToy
@@ -122,12 +123,12 @@ fun sections(house: House): List<Pair<String, List<Device>>> {
 
 /** Home: who's in, the scenes, and every device by room. */
 @Composable
-fun HomeScreen(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (Device) -> Unit) {
-    Refreshable(model) { HomeGrid(model, onOpenInbox, onOpenCamera) }
+fun HomeScreen(model: HouseModel, onOpenInbox: () -> Unit, onOpenDevice: (Device) -> Unit, onAddDevice: () -> Unit) {
+    Refreshable(model) { HomeGrid(model, onOpenInbox, onOpenDevice, onAddDevice) }
 }
 
 @Composable
-private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (Device) -> Unit) {
+private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit, onOpenDevice: (Device) -> Unit, onAddDevice: () -> Unit) {
     val house by model.house.collectAsState()
     val error by model.loadError.collectAsState()
     val progress by model.progress.collectAsState()
@@ -144,6 +145,9 @@ private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(current?.home?.name ?: "Home", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
+                    if (current?.user?.isAdmin == true) {
+                        IconButton(onClick = onAddDevice, modifier = Modifier.semantics { contentDescription = "Add a device" }) { Icon(Icons.Rounded.Add, null) }
+                    }
                     val unread = current?.unreadNotifications ?: 0
                     IconButton(
                         onClick = onOpenInbox,
@@ -193,7 +197,7 @@ private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (
         for ((title, devices) in sections(current)) {
             full { Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
             items(devices, key = { it.id }) { device ->
-                if (device.card == "camera") CameraCard(model, device) { onOpenCamera(device) } else DeviceCard(model, device)
+                if (device.card == "camera") CameraCard(model, device) { onOpenDevice(device) } else DeviceCard(model, device) { onOpenDevice(device) }
             }
         }
     }
@@ -201,9 +205,9 @@ private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (
 
 private fun LazyGridScope.full(content: @Composable () -> Unit) = item(span = { GridItemSpan(maxLineSpan) }) { content() }
 
-/** A device's card: tap to toggle what toggles, with the controls its kind has. */
+/** A device's card: a tap opens it full screen, the power button toggles what toggles, with the quick controls its kind has. */
 @Composable
-fun DeviceCard(model: HouseModel, device: Device) {
+fun DeviceCard(model: HouseModel, device: Device, onOpen: () -> Unit) {
     val entry = model.pending.entries.collectAsState().value[device.id]
     val state = model.pending.stateOf(device)
     val on = active(device.card, state)
@@ -217,7 +221,7 @@ fun DeviceCard(model: HouseModel, device: Device) {
     ) {
         Column(
             Modifier
-                .then(if (toggle != null) Modifier.clickable { model.pending.change(device.id, toggle.first, toggle.second) } else Modifier)
+                .clickable(onClick = onOpen)
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -225,6 +229,12 @@ fun DeviceCard(model: HouseModel, device: Device) {
                 Icon(iconFor(device.icon), null, Modifier.size(22.dp), tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
                 if (entry?.sending == true) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                if (toggle != null) {
+                    IconButton(
+                        onClick = { model.pending.change(device.id, toggle.first, toggle.second) },
+                        modifier = Modifier.size(44.dp).semantics { contentDescription = toggleLabel(device, on) },
+                    ) { Icon(if (device.card == "button") Icons.Rounded.TouchApp else Icons.Rounded.PowerSettingsNew, null) }
+                }
             }
             Text(device.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
@@ -260,6 +270,13 @@ fun CameraCard(model: HouseModel, device: Device, onOpen: () -> Unit) {
             )
         }
     }
+}
+
+/** What the card's quick button does, said for a screen reader. */
+fun toggleLabel(device: Device, on: Boolean): String = when (device.card) {
+    "button" -> "Press ${device.name}"
+    "lock" -> if (on) "Lock ${device.name}" else "Unlock ${device.name}"
+    else -> if (on) "Turn ${device.name} off" else "Turn ${device.name} on"
 }
 
 /** The state patch and command a tap on a `card` device's card sends, or null when tapping does nothing. */

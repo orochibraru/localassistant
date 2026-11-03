@@ -22,6 +22,18 @@ the browser ones, where you can sign it out.
 On plain HTTP the address must start with `http://`; without a scheme the app
 assumes HTTPS.
 
+## Devices
+
+Tap a card on Home for the device full screen: everything it reads and every
+control it has, like a printer's pause, light and speed, a vacuum's mode,
+suction, water and parts, or a speaker's playback, volume and source. The power
+button on a card still toggles it from Home.
+
+Admins get a gear on that screen for the device's settings (name, room, owner,
+its integration's fields, removing it) and a **+** on Home to add devices: pick
+an integration, connect it or look for its devices, or fill in its form. The
+MQTT broker is connected once on the web.
+
 ## Cameras
 
 A camera's card on Home shows its latest picture, read again every ten seconds.
@@ -57,6 +69,13 @@ notifications while the app is closed:
 its battery every five minutes while the app is open and, once you turn on
 **Share the location** and allow it, its position, which marks you home or away
 for routines and the people on Home.
+
+## Updates
+
+On Android, the APK from a GitHub release checks for a newer release when it
+opens. **Settings, Updates** downloads it and hands it to Android's installer,
+which asks you to allow LocalAssistant to install apps the first time. Builds
+from a store or a debug build don't check.
 
 ## For developers
 

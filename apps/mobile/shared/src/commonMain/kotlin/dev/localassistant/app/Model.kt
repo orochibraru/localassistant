@@ -5,8 +5,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** What a screen shows of an action in flight: nothing, a spinner, or why it failed. */
-data class Progress(val busy: Set<String> = emptySet(), val errors: Map<String, String> = emptyMap())
+/** What a screen shows of an action in flight: nothing, a spinner, or why it failed, with the form fields it names. */
+data class Progress(
+    val busy: Set<String> = emptySet(),
+    val errors: Map<String, String> = emptyMap(),
+    val fields: Map<String, Map<String, List<String>>> = emptyMap(),
+)
 
 /** The signed-in app's state: the house, routines, the assistant chat and the phone's reports. */
 class HouseModel(val api: Api, private val scope: CoroutineScope, private val onSignedOut: () -> Unit) {
@@ -56,10 +60,16 @@ class HouseModel(val api: Api, private val scope: CoroutineScope, private val on
 
     /** Runs `work` under `key`, showing a spinner while it runs and its failure after. */
     fun act(key: String, work: suspend () -> Unit) {
-        progress.update { Progress(it.busy + key, it.errors - key) }
+        progress.update { Progress(it.busy + key, it.errors - key, it.fields - key) }
         scope.launch {
             val failure = runCatching { guarded { work() } }.exceptionOrNull()
-            progress.update { Progress(it.busy - key, if (failure == null) it.errors - key else it.errors + (key to (failure.message ?: "That didn't work."))) }
+            progress.update {
+                Progress(
+                    it.busy - key,
+                    if (failure == null) it.errors - key else it.errors + (key to (failure.message ?: "That didn't work.")),
+                    if (failure is Failure && failure.errors.isNotEmpty()) it.fields + (key to failure.errors) else it.fields - key,
+                )
+            }
             if (failure == null) refresh()
         }
     }

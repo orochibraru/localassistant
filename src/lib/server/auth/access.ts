@@ -51,6 +51,19 @@ class AccessGuard {
 	}
 
 	/**
+	 * The signed-in admin for the current request, as `/api/v1` checks it.
+	 *
+	 * @throws A 401 error when nobody is signed in, a 403 one when it isn't an admin.
+	 */
+	requireAdmin(): Session["user"] {
+		const user = this.requireUser();
+		if (!this.isAdmin(user)) {
+			error(403, "Only admins can do that.");
+		}
+		return user;
+	}
+
+	/**
 	 * Sends a visitor with no usable session where they can get one, remembering where they were going: setup on a fresh
 	 * instance, the security page for one missing a factor an admin requires,
 	 * sign-in otherwise.

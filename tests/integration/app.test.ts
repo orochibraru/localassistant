@@ -208,7 +208,7 @@ describe("setting up and using it", () => {
 			});
 		expect((await fetch(`${app.origin}/api/v1/house`)).status).toBe(401);
 		const house = (await (await api("/house")).json()) as {
-			user: { email: string; isAdmin: boolean };
+			user: { id: string; email: string; isAdmin: boolean };
 		};
 		expect(house.user).toMatchObject({ email: admin.email, isAdmin: true });
 		expect((await api("/routines")).status).toBe(200);
@@ -254,6 +254,38 @@ describe("setting up and using it", () => {
 		);
 		expect((await api("/scenes/gone", { method: "DELETE" })).status).toBe(404);
 		expect((await api(`/cameras/${deviceId}`)).status).toBe(404);
+		const setups = (await (await api("/setups")).json()) as {
+			setups: { id: string }[];
+		};
+		expect(setups.setups.length).toBeGreaterThan(0);
+		expect(
+			(
+				await api("/setups/gone/devices", {
+					method: "POST",
+					body: JSON.stringify({ name: "Lamp" }),
+				})
+			).status,
+		).toBe(404);
+		const renamed = await api(`/devices/${deviceId}`, {
+			method: "PUT",
+			body: JSON.stringify({ name: "" }),
+		});
+		expect(renamed.status).toBe(400);
+		expect(
+			((await renamed.json()) as { errors: Record<string, string[]> }).errors,
+		).toHaveProperty("name");
+		expect(
+			(
+				await api(`/devices/${deviceId}`, {
+					method: "PUT",
+					body: JSON.stringify({
+						name: "Ada's phone",
+						ownerId: house.user.id,
+					}),
+				})
+			).status,
+		).toBe(200);
+		expect((await api("/devices/gone", { method: "DELETE" })).status).toBe(404);
 		expect(
 			(
 				await api("/mobile/report", {

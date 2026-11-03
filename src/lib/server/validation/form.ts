@@ -10,7 +10,15 @@ export function parseForm<Schema extends z.ZodType>(
 	schema: Schema,
 	formData: FormData,
 ): ParsedForm<z.infer<Schema>> {
-	const result = schema.safeParse(Object.fromEntries(formData));
+	return parseRecord(schema, Object.fromEntries(formData));
+}
+
+/** Validates a form's fields sent as one flat object, as the app sends them, like `parseForm`. */
+export function parseRecord<Schema extends z.ZodType>(
+	schema: Schema,
+	record: Record<string, unknown>,
+): ParsedForm<z.infer<Schema>> {
+	const result = schema.safeParse(record);
 	if (result.success) {
 		return { success: true, data: result.data };
 	}

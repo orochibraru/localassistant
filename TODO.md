@@ -15,10 +15,8 @@ box while it's being worked on, and delete the entry once it's done.
 
 - [ ] Mobile app parity: rooms and floors, energy charts, the logbook and
       dashboards, each with the `/api/v1` endpoints they need.
-- [ ] Mobile app parity: full controls for printers, vacuums, media players and
-      lights (colour, white), today only a summary or a toggle on the card.
-- [ ] Mobile app parity: routine editing, device setup and the admin area, or a
-      hand-off to the web page for each.
+- [ ] Mobile app parity: routine editing, connecting the MQTT broker and the
+      admin area, or a hand-off to the web page for each.
 - [ ] Mobile app: report presence in the background (WorkManager with background
       location on Android, significant-change monitoring on iOS); today it only
       reports while open.

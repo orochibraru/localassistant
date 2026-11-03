@@ -190,4 +190,30 @@ class LogicTest {
         assertEquals("Frigate", cameraStatus(buildJsonObject { put("source", "Frigate") }, null))
         assertEquals("Timed out", cameraStatus(null, "Timed out"))
     }
+
+    @Test
+    fun updatesOnlyOfferLaterVersions() {
+        assertEquals(listOf(1, 0, 3), versionParts("v1.0.3"))
+        assertTrue(isNewer("1.0.4", "1.0.3"))
+        assertTrue(isNewer("1.1", "1.0.9"))
+        assertTrue(!isNewer("1.0.3", "1.0.3"))
+        assertTrue(!isNewer("1.0.2", "1.0.10"))
+        assertTrue(!isNewer("nonsense", "1.0.0"))
+    }
+
+    @Test
+    fun devicesFindTheirIntegrationAndItsForm() {
+        val setups = listOf(PluginSetup("tuya", "Tuya", "", "blinds"), PluginSetup("esphome", "ESPHome", "", "plug"))
+        assertEquals("tuya", setupFor(setups, "tuya-blind")?.id)
+        assertEquals("esphome", setupFor(setups, "esphome")?.id)
+        assertNull(setupFor(setups, "tuyax"))
+        val fields = listOf(PluginField("host", "Address", "url", default = JsonPrimitive("192.0.2.1")), PluginField("key", "Key", "secret"), PluginField("port", "Port", "number"))
+        val saved = buildJsonObject {
+            put("port", 6668)
+            put("key", "kept")
+        }
+        assertEquals(mapOf("value:host" to "192.0.2.1", "value:key" to "", "value:port" to "6668"), initialValues(fields, saved))
+        assertEquals("Found 1 new device.", foundText(1))
+        assertEquals("2 h 05 min", timeLeft(125))
+    }
 }
