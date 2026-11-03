@@ -20,9 +20,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,7 +73,7 @@ fun cameraStatus(state: kotlinx.serialization.json.JsonObject?, error: String?):
 
 /** A camera full screen: live, or a recording being played, with every recording the plugin lists below. */
 @Composable
-fun CameraScreen(model: HouseModel, device: Device, onBack: () -> Unit) {
+fun CameraScreen(model: HouseModel, device: Device, onBack: () -> Unit, onSettings: (() -> Unit)? = null) {
     var view by remember(device.id) { mutableStateOf<CameraView?>(null) }
     var error by remember(device.id) { mutableStateOf<String?>(null) }
     var playing by remember(device.id) { mutableStateOf<CameraClip?>(null) }
@@ -83,7 +85,11 @@ fun CameraScreen(model: HouseModel, device: Device, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenBar(device.name, onBack)
+        ScreenBar(device.name, onBack) {
+            if (onSettings != null) {
+                IconButton(onClick = onSettings, modifier = Modifier.semantics { contentDescription = "${device.name} settings" }) { Icon(Icons.Rounded.Settings, null) }
+            }
+        }
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),

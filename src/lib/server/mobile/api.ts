@@ -1,5 +1,5 @@
-import { error } from "@sveltejs/kit";
-import type { z } from "zod";
+import { error, json } from "@sveltejs/kit";
+import { z } from "zod";
 
 import { AutomationDTO } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
@@ -13,6 +13,7 @@ import { kindInfo } from "#lib/plugins.js";
 import { assistant } from "#lib/server/assistant/assistant.js";
 import { access } from "#lib/server/auth/access.js";
 import type { Session } from "#lib/server/auth/auth.js";
+import type { AdminOutcome } from "#lib/server/devices/device-admin.js";
 import { homes } from "#lib/server/house/homes.js";
 import { presences } from "#lib/server/house/presence.js";
 import { plugins } from "#lib/server/plugins/registry.js";
@@ -41,6 +42,36 @@ class MobileApi {
 			);
 		}
 		return parsed.data;
+	}
+
+	/**
+	 * A form's fields the app sends as one flat JSON object of strings, keyed like the web form's inputs.
+	 *
+	 * @throws A 400 error when it isn't one.
+	 */
+	async fields(request: Request): Promise<Record<string, string>> {
+		return this.body(request, z.record(z.string(), z.string().max(10_000)));
+	}
+
+	/** The JSON answer for an admin action: `toBody` of its value, or its message and per-field errors with its status. */
+	answer<Value>(
+		outcome: AdminOutcome<Value>,
+		toBody: (value: Value) => unknown,
+		status = 200,
+	): Response {
+		if (!outcome.ok) {
+			return json(
+				{
+					message:
+						outcome.error ??
+						Object.values(outcome.errors ?? {}).flat()[0] ??
+						"Check the form.",
+					errors: outcome.errors ?? {},
+				},
+				{ status: outcome.status },
+			);
+		}
+		return json(toBody(outcome.value), { status });
 	}
 
 	/** Everything the app draws for `user` in `home`: the account, floors, rooms, devices with their state, scenes and people. */

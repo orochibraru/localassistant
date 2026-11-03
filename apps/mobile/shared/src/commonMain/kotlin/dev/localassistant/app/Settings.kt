@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-/** The account, this phone in the house and its location, and signing out. */
+/** The account, this phone in the house and its location, app updates from GitHub, and signing out. */
 @Composable
 fun SettingsScreen(model: HouseModel) {
     val house by model.house.collectAsState()
@@ -116,11 +117,52 @@ fun SettingsScreen(model: HouseModel) {
             }
             noticesError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
+        if (installedFromGitHub()) UpdateSection()
         OutlinedButton(onClick = model::signOut, modifier = Modifier.fillMaxWidth().height(48.dp)) {
             Icon(Icons.AutoMirrored.Rounded.Logout, null)
             Text("Sign out", Modifier.padding(start = 8.dp))
         }
         Text("LocalAssistant $appVersion", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun UpdateSection() {
+    val scope = rememberCoroutineScope()
+    val update by Updater.available.collectAsState()
+    val progress by Updater.progress.collectAsState()
+    var checking by remember { mutableStateOf(false) }
+    Section("Updates") {
+        val found = update
+        if (found == null) {
+            Text("This is the latest version.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                onClick = {
+                    checking = true
+                    scope.launch {
+                        Updater.check()
+                        checking = false
+                    }
+                },
+                enabled = !checking,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text(if (checking) "Checking" else "Check for updates") }
+            return@Section
+        }
+        Text("Version ${found.version} is out.", style = MaterialTheme.typography.titleSmall)
+        found.notes.takeIf { it.isNotBlank() }?.let { Text(it.take(400), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+        when (val current = progress) {
+            is UpdateProgress.Downloading -> {
+                val fraction = current.fraction
+                if (fraction == null) LinearProgressIndicator(Modifier.fillMaxWidth()) else LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                Text("Downloading", style = MaterialTheme.typography.bodySmall)
+            }
+            UpdateProgress.Installing -> Text("Confirm the update in the window Android opens.", style = MaterialTheme.typography.bodySmall)
+            else -> {
+                if (current is UpdateProgress.Failed) Text(current.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Button(onClick = { scope.launch { Updater.install(found) } }, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Download and install") }
+            }
+        }
     }
 }
 

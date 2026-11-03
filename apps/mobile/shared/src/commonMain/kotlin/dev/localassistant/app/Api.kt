@@ -18,6 +18,7 @@ import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -28,8 +29,8 @@ val json = Json {
     explicitNulls = false
 }
 
-/** A failure with a message fit to show as is. */
-open class Failure(message: String) : Exception(message)
+/** A failure with a message fit to show as is, and the form fields it's about when a form was refused. */
+open class Failure(message: String, val errors: Map<String, List<String>> = emptyMap()) : Exception(message)
 
 /** The server no longer knows the session: signed out elsewhere, or expired. */
 class SignedOut : Failure("Sign in again.")
@@ -73,7 +74,57 @@ data class Device(
     val ownerId: String? = null,
     val state: JsonObject? = null,
     val stateError: String? = null,
+    val fields: JsonObject? = null,
 )
+
+@Serializable
+data class FieldChoice(val value: String, val label: String)
+
+@Serializable
+data class PluginField(
+    val name: String,
+    val label: String,
+    val type: String,
+    val description: String? = null,
+    val placeholder: String? = null,
+    val optional: Boolean = false,
+    val default: JsonElement? = null,
+    val choices: List<FieldChoice> = emptyList(),
+    val keyboard: String? = null,
+)
+
+@Serializable
+data class PluginConnection(val description: String, val connected: String, val fields: List<PluginField> = emptyList(), val find: String? = null)
+
+@Serializable
+data class PluginDeviceForm(val title: String, val description: String, val fields: List<PluginField> = emptyList(), val submit: String)
+
+@Serializable
+data class PluginSetup(
+    val id: String,
+    val name: String,
+    val description: String,
+    val icon: String,
+    val needs: List<String> = emptyList(),
+    val connection: PluginConnection? = null,
+    val device: PluginDeviceForm? = null,
+    val automatic: String? = null,
+    val connected: Boolean = false,
+    val values: JsonObject = JsonObject(emptyMap()),
+    val secretsSet: List<String> = emptyList(),
+)
+
+@Serializable
+data class Householder(val id: String, val name: String)
+
+@Serializable
+data class Setups(val setups: List<PluginSetup> = emptyList(), val broker: Boolean = false, val people: List<Householder> = emptyList())
+
+@Serializable
+private data class Found(val found: Int? = null)
+
+@Serializable
+private data class Created(val id: String)
 
 @Serializable
 data class SceneMember(val deviceId: String, val command: JsonObject)
@@ -204,6 +255,33 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
         call(HttpMethod.Post, "/scenes/$sceneId/activate") { setBody(JsonObject(emptyMap())) }
     }
 
+    /** What an admin can connect and add, each integration with its forms, and the accounts a device can belong to. */
+    suspend fun setups(): Setups = call(HttpMethod.Get, "/setups").body()
+
+    /** Connects an integration with its connection form's `fields`; how many devices it found, or null when they come on their own. */
+    suspend fun connect(pluginId: String, fields: Map<String, String>): Int? = call(HttpMethod.Post, "/setups/$pluginId/connect") { setBody(fields) }.body<Found>().found
+
+    /** Has an integration look for new devices; how many it found, or null when they come on their own. */
+    suspend fun discover(pluginId: String): Int? = call(HttpMethod.Post, "/setups/$pluginId/discover") { setBody(JsonObject(emptyMap())) }.body<Found>().found
+
+    /** Disconnects an integration, removing its devices. */
+    suspend fun disconnect(pluginId: String) {
+        call(HttpMethod.Delete, "/setups/$pluginId")
+    }
+
+    /** Adds a device through an integration's form; returns its id. */
+    suspend fun addDevice(pluginId: String, fields: Map<String, String>): String = call(HttpMethod.Post, "/setups/$pluginId/devices") { setBody(fields) }.body<Created>().id
+
+    /** Saves a device's settings: name, room, owner and its integration's fields. */
+    suspend fun editDevice(deviceId: String, fields: Map<String, String>) {
+        call(HttpMethod.Put, "/devices/$deviceId") { setBody(fields) }
+    }
+
+    /** Removes a device from the house. */
+    suspend fun removeDevice(deviceId: String) {
+        call(HttpMethod.Delete, "/devices/$deviceId")
+    }
+
     /** Makes a scene in the home and returns it. */
     suspend fun createScene(definition: SceneDefinition): Scene = call(HttpMethod.Post, "/scenes") { setBody(definition) }.body()
 
@@ -317,7 +395,7 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
             throw Failure("Can't reach ${session.server.substringAfter("://")}. Check the connection.")
         }
         if (response.status.value == 401) throw SignedOut()
-        if (!response.status.isSuccess()) throw Failure(messageOf(response))
+        if (!response.status.isSuccess()) throw failureOf(response)
         return response
     }
 
@@ -342,10 +420,17 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
         }
 
         /** The message in a SvelteKit error body, or a generic one. */
-        suspend fun messageOf(response: HttpResponse): String {
+        suspend fun messageOf(response: HttpResponse): String = failureOf(response).message ?: ""
+
+        /** The failure an error body describes: its message, and the form fields it names when it has `errors`. */
+        suspend fun failureOf(response: HttpResponse): Failure {
             val text = runCatching { response.bodyAsText() }.getOrDefault("")
-            val message = runCatching { json.parseToJsonElement(text) as JsonObject }.getOrNull()?.get("message")?.jsonPrimitive?.content
-            return message?.takeIf { it.isNotBlank() } ?: "The server answered ${response.status.value}. Try again."
+            val body = runCatching { json.parseToJsonElement(text) as JsonObject }.getOrNull()
+            val message = body?.get("message")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: "The server answered ${response.status.value}. Try again."
+            val errors = (body?.get("errors") as? JsonObject)?.mapValues { (_, value) ->
+                (value as? kotlinx.serialization.json.JsonArray)?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: emptyList()
+            } ?: emptyMap()
+            return Failure(message, errors)
         }
 
         /** An empty command body of `type`. */

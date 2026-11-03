@@ -15,7 +15,12 @@ import {
 	mediaActions,
 	printerCommands,
 	printerSpeeds,
+	vacuumCleanGenius,
 	vacuumCommands,
+	vacuumModes,
+	vacuumParts,
+	vacuumSuctions,
+	vacuumWetness,
 } from "#lib/devices.js";
 import { presenceEvents } from "#lib/presence.js";
 
@@ -44,6 +49,7 @@ export const deviceCommandSchema = z.discriminatedUnion("type", [
 			power: z.boolean().optional(),
 			mode: z.enum(climateModes).optional(),
 			targetTemperature: z.number().min(5).max(35).optional(),
+			hotWaterBoost: z.boolean().optional(),
 		}),
 	}),
 	z.object({
@@ -56,7 +62,14 @@ export const deviceCommandSchema = z.discriminatedUnion("type", [
 	}),
 	z.object({
 		type: z.literal("vacuum"),
-		change: z.object({ command: z.enum(vacuumCommands).optional() }),
+		change: z.object({
+			command: z.enum(vacuumCommands).optional(),
+			mode: z.enum(vacuumModes).optional(),
+			suction: z.enum(vacuumSuctions).optional(),
+			wetness: z.int().min(vacuumWetness.min).max(vacuumWetness.max).optional(),
+			cleanGenius: z.enum(vacuumCleanGenius).optional(),
+			reset: z.enum(vacuumParts).optional(),
+		}),
 	}),
 	z.object({ type: z.literal("valve"), target: z.number().min(4).max(35) }),
 	z.object({ type: z.literal("switch"), on: z.boolean() }),

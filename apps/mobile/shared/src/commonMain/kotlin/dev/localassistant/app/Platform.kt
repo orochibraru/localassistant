@@ -61,3 +61,9 @@ expect fun decodeImage(bytes: ByteArray): ImageBitmap?
 /** Plays the HLS stream or video file at `url` with the platform's player, sending `headers` with every request. */
 @Composable
 expect fun VideoPlayer(url: String, headers: Map<String, String>, modifier: Modifier)
+
+/** Whether this build came from a GitHub release APK, so it updates itself from there: not a store, not a debug build. */
+expect fun installedFromGitHub(): Boolean
+
+/** Hands an APK to the system's installer, which asks the person to confirm; the outcome lands in [Updater.progress]. */
+expect suspend fun installPackage(apk: ByteArray)

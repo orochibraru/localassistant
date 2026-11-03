@@ -18,6 +18,8 @@ import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -162,14 +164,17 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     Settings("Settings", Icons.Rounded.Settings),
 }
 
-/** The signed-in app: Home with its cameras, scenes and routines, the assistant full screen, and settings. */
+/** The signed-in app: Home with each device full screen, adding devices for admins, scenes and routines, the assistant and settings. */
 @Composable
 fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     val scope = rememberCoroutineScope()
     val model = remember(session) { HouseModel(Api(session), scope, onSignedOut) }
     var tab by remember { mutableStateOf(Tab.Home) }
     var inboxOpen by remember { mutableStateOf(false) }
-    var cameraId by remember { mutableStateOf<String?>(null) }
+    var deviceId by remember { mutableStateOf<String?>(null) }
+    var settingsId by remember { mutableStateOf<String?>(null) }
+    var addingDevice by remember { mutableStateOf(false) }
+    var setupId by remember { mutableStateOf<String?>(null) }
     var sceneEditor by remember { mutableStateOf<SceneEditing?>(null) }
     val house by model.house.collectAsState()
 
@@ -188,9 +193,35 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     LaunchedEffect(Unit) { Auth.callbacks.value = null }
     PlatformBack(tab != Tab.Home) { tab = Tab.Home }
 
-    val camera = cameraId?.let { id -> house?.devices?.firstOrNull { it.id == id } }
-    if (camera != null) {
-        CameraScreen(model, camera, onBack = { cameraId = null })
+    val admin = house?.user?.isAdmin == true
+    LaunchedEffect(Unit) { Updater.check() }
+    setupId?.let { id ->
+        SetupScreen(model, id, onBack = { setupId = null }, onAdded = {
+            setupId = null
+            addingDevice = false
+        })
+        return
+    }
+    if (addingDevice) {
+        AddDeviceScreen(model, onBack = { addingDevice = false }, onPick = { setupId = it })
+        return
+    }
+    val settings = settingsId?.let { id -> house?.devices?.firstOrNull { it.id == id } }
+    if (settings != null && admin) {
+        DeviceSettingsScreen(model, settings, onBack = { settingsId = null }, onManage = { setupId = it }, onRemoved = {
+            settingsId = null
+            deviceId = null
+        })
+        return
+    }
+    val device = deviceId?.let { id -> house?.devices?.firstOrNull { it.id == id } }
+    if (device != null) {
+        val openSettings = if (admin) ({ settingsId = device.id }) else null
+        if (device.card == "camera") {
+            CameraScreen(model, device, onBack = { deviceId = null }, onSettings = openSettings)
+        } else {
+            DeviceScreen(model, device, onBack = { deviceId = null }, onSettings = openSettings)
+        }
         return
     }
     sceneEditor?.let { editing ->
@@ -208,12 +239,15 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     Scaffold(
         bottomBar = {
             NavigationBar {
+                val update by Updater.available.collectAsState()
                 for (entry in Tab.entries) {
                     if (entry == Tab.Assistant && house?.assistant != true) continue
                     NavigationBarItem(
                         selected = tab == entry,
                         onClick = { tab = entry },
-                        icon = { Icon(entry.icon, null) },
+                        icon = {
+                            if (entry == Tab.Settings && update != null) BadgedBox(badge = { Badge() }) { Icon(entry.icon, null) } else Icon(entry.icon, null)
+                        },
                         label = { Text(entry.label) },
                     )
                 }
@@ -222,7 +256,7 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding)) {
             when (tab) {
-                Tab.Home -> HomeScreen(model, onOpenInbox = { inboxOpen = true }, onOpenCamera = { cameraId = it.id })
+                Tab.Home -> HomeScreen(model, onOpenInbox = { inboxOpen = true }, onOpenDevice = { deviceId = it.id }, onAddDevice = { addingDevice = true })
                 Tab.Routines -> RoutinesScreen(model, onEditScene = { sceneEditor = SceneEditing(it) })
                 Tab.Settings -> SettingsScreen(model)
                 Tab.Assistant -> Unit
