@@ -3,6 +3,7 @@ import BellIcon from "@lucide/svelte/icons/bell";
 import BotIcon from "@lucide/svelte/icons/bot";
 import FingerprintIcon from "@lucide/svelte/icons/fingerprint";
 import PaletteIcon from "@lucide/svelte/icons/palette";
+import QrCodeIcon from "@lucide/svelte/icons/qr-code";
 import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 import UserRoundIcon from "@lucide/svelte/icons/user-round";
 
@@ -42,6 +43,12 @@ export function accountTabs(): SectionTab[] {
 			description:
 				"Put this phone or tablet in the house, or make it a wall panel.",
 			icon: SmartphoneIcon,
+		},
+		{
+			href: resolve("/(protected)/account/mobile-app"),
+			label: "Mobile app",
+			description: "Show a pairing code that signs the phone app in.",
+			icon: QrCodeIcon,
 		},
 		{
 			href: resolve("/(protected)/account/ai-apps"),

@@ -14,7 +14,7 @@ the browser ones, where you can sign it out.
   browser sheet opens the server, where you sign in as usual (passkeys and
   authenticator apps included) and tap **Sign in** on the question the server
   asks. The sheet closes and the app is signed in.
-- **With a pairing code**: in a signed-in browser, open **Account, This device**
+- **With a pairing code**: in a signed-in browser, open **Account, Mobile app**
   and tap **Show a pairing code**. Scan it with the app, or with the phone's
   camera. The code works once, for two minutes, and needs a recent sign-in.
 

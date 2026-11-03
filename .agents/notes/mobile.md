@@ -8,7 +8,7 @@
 - Sign-in: PKCE through the system browser sheet to `/mobile/authorize` (under
   `(protected)/`, so a signed-out phone signs in first), which redirects to
   `localassistant://auth?code&state`; or a pairing link
-  `localassistant://pair?server&code` from **Account, This device**, which needs
+  `localassistant://pair?server&code` from **Account, Mobile app**, which needs
   `signedInRecently`. Both codes are single-use rows in `verification`
   (`MobileCodeDTO`, hashed), and `POST /api/v1/mobile/token` trades them for a
   better-auth session, rate limited per address. `DELETE` on it signs out.

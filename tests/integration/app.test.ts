@@ -258,7 +258,7 @@ describe("setting up and using it", () => {
 				deviceId,
 			)?.owner_id,
 		).toBeTruthy();
-		const paired = await client().action("/account/device", "pair", {});
+		const paired = await client().action("/account/mobile-app", "pair", {});
 		expect(paired.type).toBe("success");
 		const pairingCode = /code=([\w-]+)/.exec(paired.data ?? "")?.[1] ?? "";
 		const viaPairing = await token({ code: pairingCode, device: "iPhone" });

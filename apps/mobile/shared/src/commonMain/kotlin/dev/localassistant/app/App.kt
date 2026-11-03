@@ -101,7 +101,7 @@ fun SignInScreen(onSignedIn: (Session) -> Unit) {
             Icon(Icons.Rounded.Home, null, Modifier.size(56.dp).align(Alignment.CenterHorizontally), tint = MaterialTheme.colorScheme.primary)
             Text("LocalAssistant", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             Text(
-                "Type your server's address, or scan the pairing code from Account, This device in a signed-in browser.",
+                "Type your server's address, or scan the pairing code from Account, Mobile app in a signed-in browser.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
