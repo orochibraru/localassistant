@@ -8,7 +8,7 @@
 - Sign-in: PKCE through the system browser sheet to `/mobile/authorize` (under
   `(protected)/`, so a signed-out phone signs in first), which redirects to
   `localassistant://auth?code&state`; or a pairing link
-  `localassistant://pair?server&code` from **Account, This device**, which needs
+  `localassistant://pair?server&code` from **Account, Mobile app**, which needs
   `signedInRecently`. Both codes are single-use rows in `verification`
   (`MobileCodeDTO`, hashed), and `POST /api/v1/mobile/token` trades them for a
   better-auth session, rate limited per address. `DELETE` on it signs out.
@@ -19,6 +19,11 @@
   with `mobileApi.body(request, schema)`. `?home=` picks a home when several are
   on. Every mutating call must send `content-type: application/json`, or
   `csrfHandler` takes it for a cross-site form.
+- Scenes come with the house payload, members included; `POST /api/v1/scenes`
+  makes one, `PUT` and `DELETE /api/v1/scenes/[id]` change and remove it, all
+  through `library.saveScene`. `GET /api/v1/cameras/[id]` gives a camera's live
+  path, snapshot and `devices.clips()`; pictures and video come from `/media`
+  with the bearer header, played by Media3 on Android and `AVPlayer` on iOS.
 - `/api/v1/notifications` reads the inbox (`GET`, with the unread count, also in
   the house payload), marks it read (`POST /read`), and removes one
   (`DELETE /[id]`) or all (`DELETE`).

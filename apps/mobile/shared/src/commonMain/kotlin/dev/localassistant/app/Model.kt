@@ -64,6 +64,18 @@ class HouseModel(val api: Api, private val scope: CoroutineScope, private val on
         }
     }
 
+    /** Makes a scene from `definition`, or changes `sceneId`'s, then runs `onSaved`; a refusal shows under the editor. */
+    fun saveScene(sceneId: String?, definition: SceneDefinition, onSaved: () -> Unit) = act("scene-edit") {
+        if (sceneId == null) api.createScene(definition) else api.updateScene(sceneId, definition)
+        onSaved()
+    }
+
+    /** Deletes a scene, then runs `onDeleted`. */
+    fun deleteScene(sceneId: String, onDeleted: () -> Unit) = act("scene-edit") {
+        api.deleteScene(sceneId)
+        onDeleted()
+    }
+
     /** Sends `question` to the assistant with the conversation so far. */
     fun ask(question: String? = null) {
         if (question != null) {

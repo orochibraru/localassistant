@@ -1,6 +1,8 @@
 package dev.localassistant.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 
 /** SHA-256 of `bytes`, for the PKCE challenge. */
 expect fun sha256(bytes: ByteArray): ByteArray
@@ -52,3 +54,10 @@ expect suspend fun currentPosition(): Position?
 
 /** The app's own version. */
 expect val appVersion: String
+
+/** A JPEG or PNG decoded for Compose, or null when it isn't one. */
+expect fun decodeImage(bytes: ByteArray): ImageBitmap?
+
+/** Plays the HLS stream or video file at `url` with the platform's player, sending `headers` with every request. */
+@Composable
+expect fun VideoPlayer(url: String, headers: Map<String, String>, modifier: Modifier)

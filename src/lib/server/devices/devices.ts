@@ -2,7 +2,7 @@ import type { AppReport, CoverAction } from "#lib/devices.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { UserDTO } from "#lib/dto/user.js";
-import type { DeviceCommand } from "#lib/plugin-sdk.js";
+import type { CameraClips, DeviceCommand } from "#lib/plugin-sdk.js";
 import { kindInfo } from "#lib/plugins.js";
 import { Logger } from "#lib/server/core/logger.js";
 import { deviceEvents } from "#lib/server/devices/device-events.js";
@@ -173,6 +173,32 @@ class Devices {
 				{ userId: device.ownerId },
 				{ maxAttempts: 1 },
 			);
+		}
+	}
+
+	/** The recordings a camera's plugin lists, or none with why when it can't list them; never throws. */
+	async clips(
+		device: DeviceDTO,
+	): Promise<{ clips: CameraClips; clipsError: string | null }> {
+		const hosted = plugins.forKind(device.kind);
+		const empty: CameraClips = {
+			title: "Recordings",
+			empty: "Nothing yet.",
+			clips: [],
+		};
+		if (!hosted?.plugin.clips) {
+			return { clips: empty, clipsError: null };
+		}
+		try {
+			return {
+				clips: await hosted.plugin.clips(
+					pluginContexts.device(device),
+					hosted.context,
+				),
+				clipsError: null,
+			};
+		} catch (failure) {
+			return { clips: empty, clipsError: this.message(failure) };
 		}
 	}
 

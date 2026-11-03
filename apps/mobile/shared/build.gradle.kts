@@ -50,6 +50,9 @@ kotlin {
             implementation(libs.mlkit.codes)
             implementation(libs.androidx.work)
             implementation(libs.unifiedpush)
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.hls)
+            implementation(libs.media3.ui)
         }
         iosMain.dependencies {
             implementation(libs.ktor.darwin)

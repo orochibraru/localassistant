@@ -1,17 +1,20 @@
 package dev.localassistant.app
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,14 +34,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
-/** Scenes to set and routines to run or turn off. */
+/** Scenes to set, make and change, and routines to run or turn off. */
 @Composable
-fun RoutinesScreen(model: HouseModel) {
-    Refreshable(model) { RoutineList(model) }
+fun RoutinesScreen(model: HouseModel, onEditScene: (Scene?) -> Unit) {
+    Refreshable(model) { RoutineList(model, onEditScene) }
 }
 
 @Composable
-private fun RoutineList(model: HouseModel) {
+private fun RoutineList(model: HouseModel, onEditScene: (Scene?) -> Unit) {
     val house by model.house.collectAsState()
     val routines by model.routines.collectAsState()
     val progress by model.progress.collectAsState()
@@ -47,12 +50,23 @@ private fun RoutineList(model: HouseModel) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item { Text("Scenes", style = MaterialTheme.typography.headlineSmall) }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Scenes", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                FilledTonalButton(onClick = { onEditScene(null) }, modifier = Modifier.heightIn(min = 44.dp)) {
+                    Icon(Icons.Rounded.Add, null)
+                    Text("New scene", Modifier.padding(start = 8.dp))
+                }
+            }
+        }
         val scenes = house?.scenes.orEmpty()
-        if (scenes.isEmpty()) item { Text("No scenes yet: an admin makes them on the web.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        val names = house?.devices.orEmpty().associate { it.id to it.name }
+        if (scenes.isEmpty()) item { Text("No scene yet: set the lights, blinds and heating once, then bring them back with one tap.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         items(scenes, key = { "scene:${it.id}" }) { scene ->
             val key = "scene:${scene.id}"
-            Line(scene.name, progress.errors[key]) {
+            val detail = scene.members.take(3).joinToString("\n") { describeCommand(it.command, names[it.deviceId] ?: "a removed device") } +
+                if (scene.members.size > 3) "\nand ${scene.members.size - 3} more" else ""
+            Line(scene.name, progress.errors[key], detail, onClick = { onEditScene(scene) }) {
                 FilledTonalButton(onClick = { model.act(key) { model.api.activate(scene.id) } }, enabled = key !in progress.busy) {
                     if (key in progress.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Set")
                 }
@@ -81,11 +95,14 @@ private fun RoutineList(model: HouseModel) {
 }
 
 @Composable
-private fun Line(title: String, error: String?, actions: @Composable () -> Unit) {
+private fun Line(title: String, error: String?, detail: String? = null, onClick: (() -> Unit)? = null, actions: @Composable () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(Modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    detail?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
                 actions()
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }

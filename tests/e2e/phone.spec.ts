@@ -136,6 +136,7 @@ test("no page is wider than the phone, so drawers stay on screen", async ({
 		"/account/ai-apps",
 		"/account/appearance",
 		"/account/device",
+		"/account/mobile-app",
 		"/account/notifications",
 		"/account/profile",
 		"/account/security",
