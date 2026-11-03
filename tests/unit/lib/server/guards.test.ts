@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { access } from "#lib/server/auth/access.js";
 
 import { createUser, resetDatabase } from "../../database.js";
+
+let event: { locals: { user: { role: string } | null } } | undefined;
+
+mock.module("$app/server", () => ({ getRequestEvent: () => event }));
 
 function redirectOf(url: string): unknown {
 	try {
@@ -61,5 +65,25 @@ describe("guards", () => {
 		expect(
 			access.safeRedirectTarget(new URL("https://example.com/auth/sign-in")),
 		).toBe("/");
+	});
+});
+
+describe("api guards", () => {
+	afterEach(() => {
+		event = undefined;
+	});
+
+	test("an api call needs someone signed in, and an admin for admin work", () => {
+		event = { locals: { user: null } };
+		expect(() => access.requireAdmin()).toThrow(
+			expect.objectContaining({ status: 401 }),
+		);
+		event = { locals: { user: { role: "member" } } };
+		expect(access.requireUser()).toMatchObject({ role: "member" });
+		expect(() => access.requireAdmin()).toThrow(
+			expect.objectContaining({ status: 403 }),
+		);
+		event = { locals: { user: { role: "admin" } } };
+		expect(access.requireAdmin()).toMatchObject({ role: "admin" });
 	});
 });

@@ -187,4 +187,42 @@ describe("mobile api", () => {
 			),
 		).toEqual({ code: "c".repeat(43), device: "Pixel" });
 	});
+
+	test("form fields come as flat strings, and an admin action answers its value or what's wrong", async () => {
+		const request = (body: unknown) =>
+			new Request("https://home.example/", {
+				method: "POST",
+				body: JSON.stringify(body),
+			});
+		expect(
+			await mobileApi.fields(request({ name: "Lamp", "value:host": "lamp" })),
+		).toEqual({ name: "Lamp", "value:host": "lamp" });
+		await expect(
+			mobileApi.fields(request({ name: { nested: true } })),
+		).rejects.toMatchObject({ status: 400 });
+		const done = mobileApi.answer(
+			{ ok: true, value: 3 },
+			(found) => ({ found }),
+			201,
+		);
+		expect(done.status).toBe(201);
+		expect(await done.json()).toEqual({ found: 3 });
+		const refused = mobileApi.answer(
+			{ ok: false, status: 400, errors: { name: ["Name the device."] } },
+			() => null,
+		);
+		expect(refused.status).toBe(400);
+		expect(await refused.json()).toEqual({
+			message: "Name the device.",
+			errors: { name: ["Name the device."] },
+		});
+		const gone = mobileApi.answer(
+			{ ok: false, status: 404, error: "That device is gone." },
+			() => null,
+		);
+		expect(await gone.json()).toEqual({
+			message: "That device is gone.",
+			errors: {},
+		});
+	});
 });
