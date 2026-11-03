@@ -1,9 +1,10 @@
 # Mobile app
 
 LocalAssistant has a native app for Android and iPhone, built with Kotlin
-Multiplatform. It shows the house, drives devices, sets scenes, runs routines,
-talks to the assistant and reports the phone's battery and, if you share it,
-whether you're home. The web app still installs on phones too.
+Multiplatform. It shows the house, drives devices, watches cameras, makes and
+sets scenes, runs routines, talks to the assistant and reports the phone's
+battery and, if you share it, whether you're home. The web app still installs on
+phones too.
 
 ## Sign in
 
@@ -20,6 +21,20 @@ the browser ones, where you can sign it out.
 
 On plain HTTP the address must start with `http://`; without a scheme the app
 assumes HTTPS.
+
+## Cameras
+
+A camera's card on Home shows its latest picture, read again every ten seconds.
+Tap it for the live view and the recordings its plugin keeps: tap one to play
+it, **Back to live** to return.
+
+## Scenes and routines
+
+**Automations** lists the scenes and routines. **Set** brings a scene back, and
+tapping it opens it to change: rename it, add a device (it starts the way it is
+now), change what each one does, **How they are now** to take every device's
+current state, or delete it. **New scene** makes one. Routines run with the play
+button and turn off with their switch; they're made on the web.
 
 ## Notifications
 

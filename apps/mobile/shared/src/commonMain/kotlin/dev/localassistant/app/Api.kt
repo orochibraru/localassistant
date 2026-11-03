@@ -76,7 +76,37 @@ data class Device(
 )
 
 @Serializable
-data class Scene(val id: String, val name: String)
+data class SceneMember(val deviceId: String, val command: JsonObject)
+
+@Serializable
+data class Scene(val id: String, val name: String, val members: List<SceneMember> = emptyList())
+
+@Serializable
+data class SceneDefinition(val name: String, val members: List<SceneMember>)
+
+@Serializable
+data class CameraLive(val format: String, val path: String)
+
+@Serializable
+data class CameraClip(
+    val id: String,
+    val label: String,
+    val startedAt: String,
+    val video: String? = null,
+    val image: String? = null,
+    val detail: String? = null,
+)
+
+@Serializable
+data class CameraClips(val title: String = "Recordings", val empty: String = "Nothing yet.", val clips: List<CameraClip> = emptyList())
+
+@Serializable
+data class CameraView(
+    val live: CameraLive? = null,
+    val snapshot: String? = null,
+    val clips: CameraClips = CameraClips(),
+    val clipsError: String? = null,
+)
 
 @Serializable
 data class Person(val id: String, val name: String, val home: Boolean? = null, val tracked: Boolean = false)
@@ -172,6 +202,45 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
     /** Sets a scene. */
     suspend fun activate(sceneId: String) {
         call(HttpMethod.Post, "/scenes/$sceneId/activate") { setBody(JsonObject(emptyMap())) }
+    }
+
+    /** Makes a scene in the home and returns it. */
+    suspend fun createScene(definition: SceneDefinition): Scene = call(HttpMethod.Post, "/scenes") { setBody(definition) }.body()
+
+    /** Changes a scene's name and what it sets, and returns it. */
+    suspend fun updateScene(sceneId: String, definition: SceneDefinition): Scene = call(HttpMethod.Put, "/scenes/$sceneId") { setBody(definition) }.body()
+
+    /** Deletes a scene. */
+    suspend fun deleteScene(sceneId: String) {
+        call(HttpMethod.Delete, "/scenes/$sceneId")
+    }
+
+    /** A camera's live view, latest picture and recordings. */
+    suspend fun camera(deviceId: String): CameraView = call(HttpMethod.Get, "/cameras/$deviceId").body()
+
+    /** Where a camera's `path` is served, for a player that sends [authorization] itself. */
+    fun mediaUrl(deviceId: String, path: String): String = "${session.server}/media/$deviceId/$path"
+
+    /** The header a request to [mediaUrl] needs. */
+    val authorization: Map<String, String> get() = mapOf("Authorization" to "Bearer ${session.token}")
+
+    /**
+     * The bytes a camera serves at `path`, like its latest picture.
+     *
+     * @throws Failure when the server can't be reached or refuses.
+     */
+    suspend fun media(deviceId: String, path: String): ByteArray {
+        val response = try {
+            client.request(mediaUrl(deviceId, path)) {
+                method = HttpMethod.Get
+                bearerAuth(session.token)
+            }
+        } catch (failure: Exception) {
+            throw Failure("Can't reach ${session.server.substringAfter("://")}. Check the connection.")
+        }
+        if (response.status.value == 401) throw SignedOut()
+        if (!response.status.isSuccess()) throw Failure(messageOf(response))
+        return response.body()
     }
 
     /** This person's notifications, newest first, and how many are unread. */

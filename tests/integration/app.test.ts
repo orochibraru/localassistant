@@ -239,6 +239,21 @@ describe("setting up and using it", () => {
 			}),
 		});
 		const { deviceId } = (await registered.json()) as { deviceId: string };
+		const scene = (members: unknown[]) =>
+			api("/scenes", {
+				method: "POST",
+				body: JSON.stringify({ name: "Night", members }),
+			});
+		expect((await scene([])).status).toBe(400);
+		const refused = await scene([
+			{ deviceId, command: { type: "switch", on: true } },
+		]);
+		expect(refused.status).toBe(400);
+		expect(((await refused.json()) as { message: string }).message).toBe(
+			"A device in the scene is gone, or can't take that.",
+		);
+		expect((await api("/scenes/gone", { method: "DELETE" })).status).toBe(404);
+		expect((await api(`/cameras/${deviceId}`)).status).toBe(404);
 		expect(
 			(
 				await api("/mobile/report", {

@@ -7,7 +7,7 @@ import { FloorDTO } from "#lib/dto/floor.js";
 import { HomeDTO } from "#lib/dto/home.js";
 import { NotificationDTO } from "#lib/dto/notification.js";
 import { RoomDTO } from "#lib/dto/room.js";
-import { SceneDTO } from "#lib/dto/scene.js";
+import { SceneDTO, type SceneRow } from "#lib/dto/scene.js";
 import { getSetting } from "#lib/dto/setting.js";
 import { kindInfo } from "#lib/plugins.js";
 import { assistant } from "#lib/server/assistant/assistant.js";
@@ -63,14 +63,16 @@ class MobileApi {
 				const info = kindInfo(catalog, device.kind);
 				return { ...device.toJSON(), card: info.card, icon: info.icon };
 			}),
-			scenes: SceneDTO.inHome(home.id).map((scene) => ({
-				id: scene.id,
-				name: scene.name,
-			})),
+			scenes: SceneDTO.inHome(home.id).map((scene) => this.scene(scene)),
 			people: presences.everyone(),
 			assistant: assistant.configured(),
 			unreadNotifications: NotificationDTO.unreadCount(user.id),
 		};
+	}
+
+	/** A scene as the app reads it: its name and what it sets on each device. */
+	scene(scene: SceneDTO): Pick<SceneRow, "id" | "name" | "members"> {
+		return { id: scene.id, name: scene.name, members: scene.members };
 	}
 
 	/** The routines of `home`, by name, with whether each is on. */

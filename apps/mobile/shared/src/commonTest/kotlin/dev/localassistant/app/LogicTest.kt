@@ -157,4 +157,37 @@ class LogicTest {
         assertEquals("2 days ago", ago("2026-10-29T12:00:00Z", now))
         assertEquals("", ago("nonsense", now))
     }
+
+    @Test
+    fun scenesCaptureHowDevicesAreNow() {
+        val lamp = buildJsonObject {
+            put("type", "light")
+            put("on", true)
+            put("brightness", 40)
+            put("temperature", 2700)
+        }
+        val captured = captureCommand(lamp)
+        assertEquals("Turn Lamp on at 40% 2700 K", describeCommand(captured!!, "Lamp"))
+        assertEquals("Move Blind to 30% open", describeCommand(captureCommand(buildJsonObject { put("type", "cover"); put("position", 30) })!!, "Blind"))
+        assertNull(captureCommand(buildJsonObject { put("type", "switch"); put("on", null as Boolean?) }))
+        assertNull(captureCommand(buildJsonObject { put("type", "camera") }))
+        assertEquals(startingCommand("cover"), memberCommand(device("cover", null)))
+        assertNull(startingCommand("camera"))
+    }
+
+    @Test
+    fun sceneCommandsChangeOneFieldAtATime() {
+        val heating = startingCommand("climate")!!.withChange("mode", JsonPrimitive("heat")).withChange("targetTemperature", jsonNumber(21.5))
+        assertEquals("Turn Heat pump on in heat mode at 21.5°C", describeCommand(heating, "Heat pump"))
+        assertEquals("Turn Heat pump on at 21.5°C", describeCommand(heating.withChange("mode", null), "Heat pump"))
+        assertEquals("Pause Speaker", describeCommand(startingCommand("media")!!, "Speaker"))
+    }
+
+    @Test
+    fun camerasSayWhatTheyAreDoing() {
+        assertEquals("Offline", cameraStatus(buildJsonObject { put("streaming", false) }, null))
+        assertEquals("Live, recording", cameraStatus(buildJsonObject { put("streaming", true); put("recording", true) }, null))
+        assertEquals("Frigate", cameraStatus(buildJsonObject { put("source", "Frigate") }, null))
+        assertEquals("Timed out", cameraStatus(null, "Timed out"))
+    }
 }

@@ -122,12 +122,12 @@ fun sections(house: House): List<Pair<String, List<Device>>> {
 
 /** Home: who's in, the scenes, and every device by room. */
 @Composable
-fun HomeScreen(model: HouseModel, onOpenInbox: () -> Unit) {
-    Refreshable(model) { HomeGrid(model, onOpenInbox) }
+fun HomeScreen(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (Device) -> Unit) {
+    Refreshable(model) { HomeGrid(model, onOpenInbox, onOpenCamera) }
 }
 
 @Composable
-private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit) {
+private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit, onOpenCamera: (Device) -> Unit) {
     val house by model.house.collectAsState()
     val error by model.loadError.collectAsState()
     val progress by model.progress.collectAsState()
@@ -192,7 +192,9 @@ private fun HomeGrid(model: HouseModel, onOpenInbox: () -> Unit) {
         }
         for ((title, devices) in sections(current)) {
             full { Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
-            items(devices, key = { it.id }) { device -> DeviceCard(model, device) }
+            items(devices, key = { it.id }) { device ->
+                if (device.card == "camera") CameraCard(model, device) { onOpenCamera(device) } else DeviceCard(model, device)
+            }
         }
     }
 }
@@ -233,6 +235,29 @@ fun DeviceCard(model: HouseModel, device: Device) {
             )
             Controls(model, device, state)
             entry?.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+
+/** A camera's card: its latest picture, read again every ten seconds, and its status; a tap opens it full screen. */
+@Composable
+fun CameraCard(model: HouseModel, device: Device, onOpen: () -> Unit) {
+    val snapshot = device.state?.text("snapshot")
+    val status = cameraStatus(device.state, device.stateError)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "${device.name}, $status" },
+    ) {
+        Column(Modifier.clickable(onClick = onOpen).padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (snapshot != null) CameraPicture(model, device.id, snapshot, "${device.name}, latest picture", Modifier.fillMaxWidth())
+            Text(device.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                status,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (device.stateError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

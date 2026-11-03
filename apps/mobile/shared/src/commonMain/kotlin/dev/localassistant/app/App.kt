@@ -153,20 +153,24 @@ fun SignInScreen(onSignedIn: (Session) -> Unit) {
     }
 }
 
+private data class SceneEditing(val scene: Scene?)
+
 private enum class Tab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Rounded.Home),
-    Routines("Routines", Icons.Rounded.Schedule),
+    Routines("Automations", Icons.Rounded.Schedule),
     Assistant("Assistant", Icons.Rounded.AutoAwesome),
     Settings("Settings", Icons.Rounded.Settings),
 }
 
-/** The signed-in app: Home, routines and scenes, the assistant full screen, and settings. */
+/** The signed-in app: Home with its cameras, scenes and routines, the assistant full screen, and settings. */
 @Composable
 fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     val scope = rememberCoroutineScope()
     val model = remember(session) { HouseModel(Api(session), scope, onSignedOut) }
     var tab by remember { mutableStateOf(Tab.Home) }
     var inboxOpen by remember { mutableStateOf(false) }
+    var cameraId by remember { mutableStateOf<String?>(null) }
+    var sceneEditor by remember { mutableStateOf<SceneEditing?>(null) }
     val house by model.house.collectAsState()
 
     LaunchedEffect(model) {
@@ -184,6 +188,15 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     LaunchedEffect(Unit) { Auth.callbacks.value = null }
     PlatformBack(tab != Tab.Home) { tab = Tab.Home }
 
+    val camera = cameraId?.let { id -> house?.devices?.firstOrNull { it.id == id } }
+    if (camera != null) {
+        CameraScreen(model, camera, onBack = { cameraId = null })
+        return
+    }
+    sceneEditor?.let { editing ->
+        SceneEditor(model, editing.scene, onDone = { sceneEditor = null })
+        return
+    }
     if (inboxOpen) {
         NotificationsScreen(model, onBack = { inboxOpen = false })
         return
@@ -209,8 +222,8 @@ fun MainScreen(session: Session, onSignedOut: () -> Unit) {
     ) { padding ->
         Box(Modifier.padding(padding)) {
             when (tab) {
-                Tab.Home -> HomeScreen(model, onOpenInbox = { inboxOpen = true })
-                Tab.Routines -> RoutinesScreen(model)
+                Tab.Home -> HomeScreen(model, onOpenInbox = { inboxOpen = true }, onOpenCamera = { cameraId = it.id })
+                Tab.Routines -> RoutinesScreen(model, onEditScene = { sceneEditor = SceneEditing(it) })
                 Tab.Settings -> SettingsScreen(model)
                 Tab.Assistant -> Unit
             }
