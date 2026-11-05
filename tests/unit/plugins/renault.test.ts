@@ -181,13 +181,13 @@ describe("Renault (MyRenault)", () => {
 		);
 	});
 
-	test("finds every car on the account's Kamereon accounts, named by model and plate", async () => {
+	test("finds every car on the account, read through its MyRenault account, named by model and plate", async () => {
 		connect("discover@example.com");
 		answers["/commerce/v1/persons/person-1"] = () =>
 			json({
 				accounts: [
-					{ accountId: "account-1", accountType: "MYRENAULT" },
 					{ accountId: "account-2", accountType: "SFDC" },
+					{ accountId: "account-1", accountType: "MYRENAULT" },
 					{ accountType: "MYDACIA" },
 				],
 			});
@@ -208,7 +208,7 @@ describe("Renault (MyRenault)", () => {
 				],
 			});
 		answers["/commerce/v1/accounts/account-2/vehicles"] = () =>
-			kamereonError("err.func.wired.forbidden", 403);
+			json({ accountId: "account-2", vehicleLinks: [{ vin }] });
 		expect(await renault.discover()).toEqual([
 			{
 				kind: "renault-car",
@@ -389,7 +389,7 @@ describe("Renault (MyRenault)", () => {
 			answers[path] = () => kamereonError("err.func.wired.notFound", 404);
 		}
 		await expect(renault.read(addCar())).rejects.toThrow(
-			"Renault shares no data for this car.",
+			"Renault shares no data for this car (battery-status err.func.wired.notFound, cockpit err.func.wired.notFound",
 		);
 		const lost = addDevice({
 			kind: "renault-car",

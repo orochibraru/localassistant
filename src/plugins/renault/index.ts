@@ -79,7 +79,14 @@ const regions: Record<string, Region> = {
 
 class RenaultError extends Error {}
 
-class MissingDataError extends RenaultError {}
+class MissingDataError extends RenaultError {
+	/**
+	 * A refusal for data the car doesn't share, keeping Kamereon's error code or HTTP status.
+	 */
+	constructor(readonly code: string) {
+		super(`Renault doesn't share this for the car (${code}).`);
+	}
+}
 
 interface Session {
 	email: string;
@@ -104,7 +111,7 @@ interface KamereonAnswer {
 }
 
 interface PersonAnswer extends KamereonAnswer {
-	accounts?: { accountId?: string }[];
+	accounts?: { accountId?: string; accountType?: string }[];
 }
 
 interface VehicleDetails {
@@ -196,9 +203,13 @@ class Renault implements Plugin {
 			context,
 			`/persons/${encodeURIComponent(session.personId)}`,
 		);
-		const accountIds = (person.accounts ?? []).flatMap((account) =>
-			account.accountId ? [account.accountId] : [],
-		);
+		const accountIds = (person.accounts ?? [])
+			.toSorted(
+				(first, second) =>
+					Number(second.accountType === "MYRENAULT") -
+					Number(first.accountType === "MYRENAULT"),
+			)
+			.flatMap((account) => (account.accountId ? [account.accountId] : []));
 		const found = new Map<string, FoundDevice>();
 		let failure: unknown;
 		for (const accountId of accountIds) {
@@ -257,6 +268,7 @@ class Renault implements Plugin {
 		await this.#current(context);
 		const car = `/accounts/${encodeURIComponent(accountId)}/kamereon/kca/car-adapter`;
 		const answers: Partial<Record<CarEndpoint, Attributes>> = {};
+		const refusals: string[] = [];
 		for (const [endpoint, version] of carEndpoints) {
 			try {
 				const answer = await this.#kamereon<DataAnswer>(
@@ -268,6 +280,7 @@ class Renault implements Plugin {
 				if (!(error instanceof MissingDataError)) {
 					throw error;
 				}
+				refusals.push(`${endpoint} ${error.code}`);
 				context.logger.debug(
 					"Renault car doesn't share this",
 					{ device: device.id, endpoint },
@@ -276,7 +289,9 @@ class Renault implements Plugin {
 			}
 		}
 		if (Object.keys(answers).length === 0) {
-			throw new RenaultError("Renault shares no data for this car.");
+			throw new RenaultError(
+				`Renault shares no data for this car (${refusals.join(", ")}): find it again from the MyRenault integration, and check the car's connected services are active in the MyRenault app.`,
+			);
 		}
 		const state = this.#sensorState(answers, String(device.fields.model ?? ""));
 		this.#readings.set(device.id, { state, at: Date.now() });
@@ -560,9 +575,7 @@ class Renault implements Plugin {
 			(code && missingDataCodes.has(code)) ||
 			[403, 404, 501].includes(response.status)
 		) {
-			throw new MissingDataError(
-				`Renault doesn't share this for the car (${code ?? response.status}).`,
-			);
+			throw new MissingDataError(code ?? String(response.status));
 		}
 		if (code || !response.ok) {
 			throw new RenaultError(
