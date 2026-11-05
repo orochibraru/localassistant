@@ -3,6 +3,8 @@ import bambu from "#plugins/bambu/index.js";
 import bambuManifest from "#plugins/bambu/localassistant-plugin.json";
 import camera from "#plugins/camera/index.js";
 import cameraManifest from "#plugins/camera/localassistant-plugin.json";
+import cast from "#plugins/cast/index.js";
+import castManifest from "#plugins/cast/localassistant-plugin.json";
 import dreame from "#plugins/dreame/index.js";
 import dreameManifest from "#plugins/dreame/localassistant-plugin.json";
 import esphome from "#plugins/esphome/index.js";
@@ -17,6 +19,8 @@ import melcloud from "#plugins/melcloud/index.js";
 import melcloudManifest from "#plugins/melcloud/localassistant-plugin.json";
 import mqttDiscovery from "#plugins/mqtt-discovery/index.js";
 import mqttDiscoveryManifest from "#plugins/mqtt-discovery/localassistant-plugin.json";
+import renault from "#plugins/renault/index.js";
+import renaultManifest from "#plugins/renault/localassistant-plugin.json";
 import shelly from "#plugins/shelly/index.js";
 import shellyManifest from "#plugins/shelly/localassistant-plugin.json";
 import tuya from "#plugins/tuya/index.js";
@@ -31,10 +35,12 @@ export const officialPlugins: { manifest: unknown; plugin: Plugin }[] = [
 	{ manifest: zigbeeManifest, plugin: zigbee },
 	{ manifest: shellyManifest, plugin: shelly },
 	{ manifest: cameraManifest, plugin: camera },
+	{ manifest: castManifest, plugin: cast },
 	{ manifest: frigateManifest, plugin: frigate },
 	{ manifest: bambuManifest, plugin: bambu },
 	{ manifest: dreameManifest, plugin: dreame },
 	{ manifest: linkyManifest, plugin: linky },
+	{ manifest: renaultManifest, plugin: renault },
 	{ manifest: mqttDiscoveryManifest, plugin: mqttDiscovery },
 	{ manifest: homeAssistantManifest, plugin: homeAssistant },
 ];

@@ -1,27 +1,62 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import KeyRoundIcon from "@lucide/svelte/icons/key-round";
-	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import PlusIcon from "@lucide/svelte/icons/plus";
+	import PowerIcon from "@lucide/svelte/icons/power";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import StarIcon from "@lucide/svelte/icons/star";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 
+	import { pluginIconComponents } from "#lib/components/devices/device-kinds.js";
 	import HealthBadge from "#lib/components/plugins/health-badge.svelte";
 	import PluginPreview from "#lib/components/plugins/plugin-preview.svelte";
-	import PluginRow from "#lib/components/plugins/plugin-row.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { setPageTitle } from "#lib/page-title.svelte.js";
 	import type {
 		PluginListing,
 		PluginPreview as Preview,
 	} from "#lib/plugins.js";
 	import { browsePlugins, lookUpPlugin } from "#lib/remote/plugins.remote.js";
+	import { useSheets } from "#lib/sheets.svelte.js";
 	import { enhanceToast, toastError } from "#lib/toast.js";
 
 	const { data } = $props();
+
+	const sheets = useSheets();
+	const listPath = resolve("/(protected)/integrations");
+
+	setPageTitle("Add an integration", listPath);
+
+	const connected = $derived(
+		new Set(
+			data.pluginSetups
+				.filter((setup) => setup.connected)
+				.map((setup) => setup.id),
+		),
+	);
+	const ready = $derived(
+		data.plugins.filter(
+			(plugin) =>
+				plugin.official &&
+				plugin.devices === 0 &&
+				!connected.has(plugin.id) &&
+				plugin.loadError === null,
+		),
+	);
+	let installedId: string | null = null;
+
+	async function setUp(pluginId: string) {
+		await goto(listPath);
+		if (data.pluginSetups.some((setup) => setup.id === pluginId)) {
+			sheets.addDevice = pluginId;
+		}
+	}
 
 	let link = $state("");
 	let looking = $state<string | null>(null);
@@ -60,11 +95,82 @@
 		preview = null;
 		link = "";
 	}
+
+	async function installed() {
+		const pluginId = installedId;
+		installedId = null;
+		if (pluginId) {
+			closePreview();
+			await setUp(pluginId);
+		}
+	}
 </script>
 
 <div
-	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start"
+	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] lg:items-start"
 >
+	<section
+		class="glass flex flex-col gap-2 rounded-2xl p-2"
+		aria-labelledby="ready-heading"
+	>
+		<div class="px-2 pt-2">
+			<h2 id="ready-heading" class="font-semibold">Ready to set up</h2>
+			<p class="text-muted-foreground mt-1 text-sm">
+				Ships with LocalAssistant. Pick one: it asks for what it needs, then
+				shows up in Integrations with its devices.
+			</p>
+		</div>
+		{#if ready.length === 0}
+			<p class="text-muted-foreground px-2 pb-2 text-sm">
+				Every built-in integration is set up.
+			</p>
+		{/if}
+		<ul class="grid grid-cols-1 gap-1 2xl:grid-cols-2">
+			{#each ready as plugin (plugin.id)}
+				{@const Icon = pluginIconComponents[plugin.icon]}
+				<li class="flex min-h-16 items-center gap-3 rounded-xl px-2 py-2">
+					<span
+						class="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-xl"
+						aria-hidden="true"
+					>
+						<Icon class="size-5" />
+					</span>
+					<span class="min-w-0 flex-1">
+						<span class="block truncate font-medium">{plugin.name}</span>
+						<span class="text-muted-foreground line-clamp-2 text-sm"
+							>{plugin.description}</span
+						>
+					</span>
+					{#if plugin.enabled}
+						<Button
+							variant="secondary"
+							class="h-11 shrink-0 rounded-xl px-4"
+							onclick={() => setUp(plugin.id)}><PlusIcon />Set up</Button
+						>
+					{:else}
+						<form
+							method="POST"
+							action="{listPath}?/enable"
+							use:enhance={enhanceToast({
+								loading: "Turning it on",
+								success: `${plugin.name} is on.`,
+							})}
+						>
+							<input type="hidden" name="plugin" value={plugin.id} />
+							<input type="hidden" name="enabled" value="true" />
+							<Button
+								type="submit"
+								variant="outline"
+								class="h-11 shrink-0 rounded-xl px-4"
+								><PowerIcon />Turn on</Button
+							>
+						</form>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</section>
+
 	<div class="flex flex-col gap-6">
 		<form
 			class="glass flex flex-col gap-4 rounded-2xl p-4 md:p-6"
@@ -74,7 +180,7 @@
 			}}
 		>
 			<div>
-				<h2 class="font-semibold">Add an integration</h2>
+				<h2 class="font-semibold">From a link</h2>
 				<p class="text-muted-foreground mt-1 text-sm">
 					Paste the link its author gave you, from GitHub, GitLab, Gitea,
 					Forgejo or Codeberg, or a folder on this server. No account needed:
@@ -260,29 +366,11 @@
 			</ul>
 		{/if}
 	</div>
-
-	<section class="flex flex-col gap-4" aria-labelledby="installed-heading">
-		<div class="flex items-center justify-between gap-3">
-			<h2 id="installed-heading" class="font-semibold">Installed</h2>
-			<form
-				method="POST"
-				action="?/check"
-				use:enhance={enhanceToast({
-					loading: "Checking every source",
-					success: "Checked for updates.",
-				})}
-			>
-				<Button type="submit" variant="ghost" class="h-11 rounded-xl px-4"
-					><RefreshCwIcon />Check for updates</Button
-				>
-			</form>
-		</div>
-		<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-			{#each data.plugins as plugin (plugin.id)}
-				<PluginRow {plugin} />
-			{/each}
-		</div>
-	</section>
 </div>
 
-<PluginPreview {preview} onClose={closePreview} />
+<PluginPreview
+	{preview}
+	onClose={closePreview}
+	onInstalled={(pluginId) => (installedId = pluginId)}
+	onComplete={installed}
+/>

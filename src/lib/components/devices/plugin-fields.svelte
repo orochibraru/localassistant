@@ -1,4 +1,8 @@
 <script lang="ts">
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+
+	import IconButton from "#lib/components/icon-button.svelte";
 	import Picker from "#lib/components/picker.svelte";
 	import ToggleChoice from "#lib/components/toggle-choice.svelte";
 	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
@@ -29,14 +33,21 @@
 		String(values[field.name] ?? field.default ?? "");
 
 	const choices = $state<Record<string, string>>({});
+	const shown = $state<Record<string, boolean>>({});
+	const inSentence = (label: string) =>
+		/^[A-Z]{2}/.test(label)
+			? label
+			: `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 
 	const typed = (field: PluginField) =>
-		field.type === "url" || field.keyboard === "url"
-			? "url"
-			: field.keyboard === "email"
-				? "email"
-				: field.type === "secret"
-					? "password"
+		field.type === "secret"
+			? shown[field.name]
+				? "text"
+				: "password"
+			: field.type === "url" || field.keyboard === "url"
+				? "url"
+				: field.keyboard === "email"
+					? "email"
 					: "text";
 	const plain = (field: PluginField) =>
 		field.type === "url" ||
@@ -136,24 +147,38 @@
 	{:else}
 		<Field.Field>
 			<Field.Label for={id}>{field.label}</Field.Label>
-			<Input
-				{id}
-				name={inputName(field)}
-				value={field.type === "secret" ? "" : initial(field)}
-				placeholder={kept ? "Unchanged" : field.placeholder}
-				type={typed(field)}
-				inputmode={field.type === "number"
-					? "decimal"
-					: field.type === "url"
-						? "url"
-						: field.keyboard}
-				autocapitalize={plain(field) ? "none" : undefined}
-				autocorrect={plain(field) ? "off" : undefined}
-				spellcheck={plain(field) ? false : undefined}
-				autocomplete="off"
-				required={!field.optional && !kept && field.default === undefined}
-				class="h-11"
-			/>
+			<div class="relative">
+				<Input
+					{id}
+					name={inputName(field)}
+					value={field.type === "secret" ? "" : initial(field)}
+					placeholder={kept ? "Unchanged" : field.placeholder}
+					type={typed(field)}
+					inputmode={field.type === "number"
+						? "decimal"
+						: field.type === "url"
+							? "url"
+							: field.keyboard}
+					autocapitalize={plain(field) ? "none" : undefined}
+					autocorrect={plain(field) ? "off" : undefined}
+					spellcheck={plain(field) ? false : undefined}
+					autocomplete="off"
+					required={!field.optional && !kept && field.default === undefined}
+					class={field.type === "secret" ? "h-11 pr-12" : "h-11"}
+				/>
+				{#if field.type === "secret"}
+					<div class="absolute inset-y-0 right-0 flex items-center">
+						<IconButton
+							label="{shown[field.name] ? 'Hide' : 'Show'} {inSentence(
+								field.label,
+							)}"
+							icon={shown[field.name] ? EyeOffIcon : EyeIcon}
+							onclick={() => (shown[field.name] = !shown[field.name])}
+							class="size-11"
+						/>
+					</div>
+				{/if}
+			</div>
 			{#if field.description || kept}
 				<Field.Description
 					>{[field.description, kept ? "Leave empty to keep." : null]

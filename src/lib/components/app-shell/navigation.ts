@@ -1,11 +1,11 @@
 import { resolve } from "$app/paths";
-import BellIcon from "@lucide/svelte/icons/bell";
 import GaugeIcon from "@lucide/svelte/icons/gauge";
 import HouseIcon from "@lucide/svelte/icons/house";
 import LayersIcon from "@lucide/svelte/icons/layers";
 import LayoutDashboardIcon from "@lucide/svelte/icons/layout-dashboard";
 import MapIcon from "@lucide/svelte/icons/map";
 import PlugIcon from "@lucide/svelte/icons/plug";
+import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 import ScrollTextIcon from "@lucide/svelte/icons/scroll-text";
 import ShieldIcon from "@lucide/svelte/icons/shield";
 import SparklesIcon from "@lucide/svelte/icons/sparkles";
@@ -16,18 +16,13 @@ export interface NavigationItem {
 	href: string;
 	label: string;
 	icon: Component<{ class?: string }>;
-	count?: number;
 }
 
 /**
- * The app's top-level destinations, shared by the bottom tab bar and the sidebar, Notifications with `unread` as its count;
- * admins also get Devices and Admin.
- * The account is the avatar in the app bar and the desktop header.
+ * The app's top-level destinations, shared by the bottom tab bar and the sidebar; admins also get Devices, Integrations
+ * and Admin. The account and notifications are in the app bar and the desktop header.
  */
-export function navigationItems(
-	isAdmin: boolean,
-	unread = 0,
-): NavigationItem[] {
+export function navigationItems(isAdmin: boolean): NavigationItem[] {
 	const items = [
 		{ href: resolve("/(protected)"), label: "Home", icon: HouseIcon },
 		{ href: resolve("/(protected)/house"), label: "House", icon: LayersIcon },
@@ -49,12 +44,6 @@ export function navigationItems(
 			icon: LayoutDashboardIcon,
 		},
 		{
-			href: resolve("/(protected)/notifications"),
-			label: "Notifications",
-			icon: BellIcon,
-			count: unread,
-		},
-		{
 			href: resolve("/(protected)/logbook"),
 			label: "Logbook",
 			icon: ScrollTextIcon,
@@ -67,6 +56,11 @@ export function navigationItems(
 			icon: PlugIcon,
 		});
 		items.push({
+			href: resolve("/(protected)/integrations"),
+			label: "Integrations",
+			icon: PuzzleIcon,
+		});
+		items.push({
 			href: resolve("/(protected)/admin"),
 			label: "Admin",
 			icon: ShieldIcon,
@@ -76,10 +70,7 @@ export function navigationItems(
 }
 
 /** The phone's tab bar: the four daily destinations as tabs, the rest behind its More drawer; see `navigationItems`. */
-export function phoneNavigation(
-	isAdmin: boolean,
-	unread = 0,
-): {
+export function phoneNavigation(isAdmin: boolean): {
 	tabs: NavigationItem[];
 	more: NavigationItem[];
 } {
@@ -89,7 +80,7 @@ export function phoneNavigation(
 		resolve("/(protected)/automations"),
 		resolve("/(protected)/energy"),
 	]);
-	const items = navigationItems(isAdmin, unread);
+	const items = navigationItems(isAdmin);
 	return {
 		tabs: items.filter((item) => daily.has(item.href)),
 		more: items.filter((item) => !daily.has(item.href)),

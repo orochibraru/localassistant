@@ -1,7 +1,9 @@
-import { query } from "$app/server";
+import { command, query } from "$app/server";
 import { error } from "@sveltejs/kit";
+import { z } from "zod";
 
 import { access } from "#lib/server/auth/access.js";
+import { deviceAdmin } from "#lib/server/devices/device-admin.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { pluginManager } from "#lib/server/plugins/manager.js";
 import { pluginLinkSchema } from "#lib/server/validation/plugins.js";
@@ -29,3 +31,18 @@ export const browsePlugins = query(async () => {
 		error(502, devices.message(failure));
 	}
 });
+
+export const testDevice = command(
+	z.record(z.string(), z.string().max(4000)),
+	async (form) => {
+		requireAdmin();
+		const outcome = await deviceAdmin.test(form);
+		return outcome.ok
+			? { ok: true as const, message: outcome.value }
+			: {
+					ok: false as const,
+					error: outcome.error ?? null,
+					errors: outcome.errors ?? {},
+				};
+	},
+);

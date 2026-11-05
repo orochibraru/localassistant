@@ -6,7 +6,6 @@ import HousePlusIcon from "@lucide/svelte/icons/house-plus";
 import KeyRoundIcon from "@lucide/svelte/icons/key-round";
 import MailIcon from "@lucide/svelte/icons/mail";
 import MailPlusIcon from "@lucide/svelte/icons/mail-plus";
-import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 import SparklesIcon from "@lucide/svelte/icons/sparkles";
 import UsersIcon from "@lucide/svelte/icons/users";
 
@@ -20,13 +19,6 @@ export function adminTabs(): SectionTab[] {
 			label: "Overview",
 			description: "Setup checklist, server health and background jobs.",
 			icon: ActivityIcon,
-		},
-		{
-			href: resolve("/(protected)/admin/plugins"),
-			label: "Integrations",
-			description:
-				"Add integrations from GitHub, see if they're maintained, update or remove them.",
-			icon: PuzzleIcon,
 		},
 		{
 			href: resolve("/(protected)/admin/homes"),

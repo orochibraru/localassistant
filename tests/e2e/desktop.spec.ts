@@ -35,14 +35,14 @@ test("an admin adds a blind and finds it on Home", async ({ page }) => {
 	await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
 });
 
-test("the Integrations tab lists the official plugins and explains a bad link", async ({
+test("adding an integration lists the built-in ones and explains a bad link", async ({
 	page,
 }) => {
-	await page.goto("/admin/plugins");
+	await page.goto("/integrations/add");
 	await expect(
-		page.getByRole("heading", { name: "Tuya blinds" }),
+		page.getByRole("heading", { name: "Ready to set up" }),
 	).toBeVisible();
-	await expect(page.getByText("Official").first()).toBeVisible();
+	await expect(page.getByText("Tuya blinds", { exact: true })).toBeVisible();
 	await page.getByLabel("Link").fill("not a link");
 	await page.getByRole("button", { name: "Look it up" }).click();
 	await expect(

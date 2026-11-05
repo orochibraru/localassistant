@@ -17,6 +17,8 @@ const livePattern = /^(index\.m3u8|segment-\d+\.ts)$/;
 const segmentSeconds = 300;
 const longestBackoffMs = 60_000;
 const syncEveryMs = 30_000;
+const reachTimeoutMs = 5000;
+const probeTimeoutMs = 20_000;
 
 interface Watch {
 	key: string;
@@ -38,7 +40,11 @@ export interface Recording {
 class Cameras implements Plugin {
 	#watches = new Map<string, Watch>();
 
-	/** The camera the form describes, known by a digest of its address so a re-add finds it again. */
+	/**
+	 * The camera the form describes, known by a digest of its address so a re-add finds it again.
+	 *
+	 * @throws When the address isn't one ffmpeg can read.
+	 */
 	add(values: PluginValues): FoundDevice {
 		const url = String(values.url);
 		return {
@@ -47,7 +53,70 @@ class Cameras implements Plugin {
 				.update(url)
 				.digest("hex")
 				.slice(0, 24),
-			host: new URL(url.replace(/^rtsps?:/, "http:")).hostname,
+			host: this.address(url).host,
+		};
+	}
+
+	/**
+	 * Tries an RTSP address before the camera is added: that it reads as one, that something answers on its port, and
+	 * which stream ffprobe finds there.
+	 *
+	 * @throws With what's wrong and how to fix it, never repeating the password.
+	 */
+	async test(values: PluginValues): Promise<string> {
+		const url = String(values.url ?? "");
+		const { host, port } = this.address(url);
+		await this.#reach(host, port);
+		return await this.#probe(url);
+	}
+
+	/**
+	 * The host and port an RTSP address points at, 554 when it names none (322 for rtsps).
+	 *
+	 * @throws When the address isn't one ffmpeg can read, saying which part is wrong.
+	 */
+	address(url: string): { host: string; port: number } {
+		const match = /^(rtsps?):\/\/([^/?#]*)/i.exec(url.trim());
+		if (!match) {
+			throw new Error(
+				"It has to start with rtsp:// or rtsps://, like rtsp://user:password@192.168.1.60:554/stream1.",
+			);
+		}
+		const [, scheme = "", authority = ""] = match;
+		const at = authority.lastIndexOf("@");
+		const credentials = at === -1 ? "" : authority.slice(0, at);
+		const location = authority.slice(at + 1);
+		if (at === -1 && /@/.test(url)) {
+			throw new Error(
+				"The password has a /, ? or # in it: write / as %2F, ? as %3F and # as %23.",
+			);
+		}
+		if (credentials.includes("@")) {
+			throw new Error("The user or password has an @ in it: write it as %40.");
+		}
+		if (credentials && !credentials.includes(":")) {
+			throw new Error(
+				"There's a user but no password: write user:password@ before the address.",
+			);
+		}
+		if (!location) {
+			throw new Error("There's no camera address after rtsp://.");
+		}
+		let parsed: URL;
+		try {
+			parsed = new URL(`http://${location}`);
+		} catch {
+			throw new Error(
+				`${location} isn't an address and port, like 192.168.1.60:554.`,
+			);
+		}
+		if (!parsed.hostname) {
+			throw new Error("There's no camera address after rtsp://.");
+		}
+		const fallback = scheme.toLowerCase() === "rtsps" ? 322 : 554;
+		return {
+			host: parsed.hostname.replace(/^\[|\]$/g, ""),
+			port: parsed.port ? Number(parsed.port) : fallback,
 		};
 	}
 
@@ -214,6 +283,141 @@ class Cameras implements Plugin {
 					]
 				: []),
 		];
+	}
+
+	/** Opens and closes a TCP connection to the camera; throws, saying what happened, when nothing answers. */
+	async #reach(host: string, port: number): Promise<void> {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const timedOut = new Promise<never>((_, reject) => {
+			timer = setTimeout(
+				() =>
+					reject(
+						new Error(
+							`Nothing answers on ${host}:${port} within five seconds. Check the address, the port, and that the camera is on the server's network.`,
+						),
+					),
+				reachTimeoutMs,
+			);
+		});
+		const opened = Bun.connect({
+			hostname: host,
+			port,
+			socket: {
+				open: (socket) => {
+					socket.end();
+				},
+				data: () => undefined,
+			},
+		}).then(
+			() => undefined,
+			(failure: unknown) => {
+				const reason = failure instanceof Error ? failure.message : "";
+				const code =
+					failure instanceof Error && "code" in failure ? failure.code : null;
+				throw new Error(
+					code === "ECONNREFUSED" || /refused/i.test(reason)
+						? `${host}:${port} refused the connection: wrong port, or RTSP is off on the camera.`
+						: `The server can't reach ${host}:${port}: ${reason || "no route"}.`,
+					{ cause: failure },
+				);
+			},
+		);
+		try {
+			await Promise.race([opened, timedOut]);
+		} finally {
+			clearTimeout(timer);
+		}
+	}
+
+	/** Asks ffprobe what `url` streams; throws with the camera's answer, credentials hidden, when it can't play. */
+	async #probe(url: string): Promise<string> {
+		const ffprobe = Bun.which("ffprobe");
+		if (!ffprobe) {
+			throw new Error("ffprobe isn't installed on the server.");
+		}
+		const probe = Bun.spawn(
+			[
+				ffprobe,
+				"-hide_banner",
+				"-v",
+				"error",
+				"-rtsp_transport",
+				"tcp",
+				"-show_entries",
+				"stream=codec_type,codec_name,width,height,avg_frame_rate",
+				"-of",
+				"json",
+				url,
+			],
+			{ stdout: "pipe", stderr: "pipe", timeout: probeTimeoutMs },
+		);
+		const [output, errors] = await Promise.all([
+			new Response(probe.stdout).text(),
+			new Response(probe.stderr).text(),
+			probe.exited,
+		]);
+		if (probe.signalCode) {
+			throw new Error(
+				"The camera accepted the connection but sent no video within twenty seconds. Check the stream path.",
+			);
+		}
+		if (probe.exitCode !== 0) {
+			throw new Error(this.probeFailure(errors, url));
+		}
+		return this.probeSummary(output);
+	}
+
+	/** What ffprobe's JSON says the stream is, for a person: codec, size, frame rate and audio. */
+	probeSummary(output: string): string {
+		const { streams = [] } = JSON.parse(output || "{}") as {
+			streams?: {
+				codec_type?: string;
+				codec_name?: string;
+				width?: number;
+				height?: number;
+				avg_frame_rate?: string;
+			}[];
+		};
+		const video = streams.find((stream) => stream.codec_type === "video");
+		if (!video) {
+			throw new Error("The camera answered, but with no video stream.");
+		}
+		const [frames = 0, seconds = 1] = (video.avg_frame_rate ?? "0/1")
+			.split("/")
+			.map(Number);
+		const rate = seconds > 0 ? Math.round(frames / seconds) : 0;
+		const audio = streams.find((stream) => stream.codec_type === "audio");
+		return [
+			`It works: ${(video.codec_name ?? "video").toUpperCase()}`,
+			video.width && video.height ? ` ${video.width}x${video.height}` : "",
+			rate > 0 ? ` at ${rate} fps` : "",
+			audio
+				? `, with ${(audio.codec_name ?? "").toUpperCase()} audio.`
+				: ", no audio.",
+		].join("");
+	}
+
+	/** ffprobe's error for a person: the usual camera answers explained, anything else as ffprobe said it, credentials hidden. */
+	probeFailure(errors: string, url: string): string {
+		if (/401|unauthorized/i.test(errors)) {
+			return "The camera refused the user or password (401). On a Tapo it's the camera account set in the app's advanced settings, not the TP-Link one.";
+		}
+		if (/404|not found/i.test(errors)) {
+			return "The camera has no stream at that path (404). Tapo: /stream1 or /stream2. Reolink: /h264Preview_01_main.";
+		}
+		if (/connection refused/i.test(errors)) {
+			return "The camera refused the RTSP connection: check the port and that RTSP is on.";
+		}
+		const secret = /^rtsps?:\/\/([^/?#]*)@/i.exec(url)?.[1];
+		const line =
+			errors
+				.trim()
+				.split(/\r?\n/)
+				.at(-1)
+				?.replaceAll(`${url}: `, "")
+				.replaceAll(url, "the address") ?? "";
+		const hidden = secret ? line.replaceAll(secret, "user:***") : line;
+		return `ffprobe couldn't play it: ${hidden || "no reason given"}.`;
 	}
 
 	#keepRunning(context: PluginContext, camera: PluginDevice, now: Date): void {

@@ -6,11 +6,11 @@ this device**. On an iPhone or iPad, add the app to the Home Screen first.
 
 ## The inbox
 
-Every notification also lands in **Notifications** (the bell in the phone's app
-bar, or the sidebar on a computer), push or not, and stays there for 30 days.
-The bell shows a dot and the sidebar a count while some are unread; opening the
-inbox marks them read. Tap one to go where it points, tap a scene button to set
-it, or remove them one by one or all at once.
+Every notification also lands in **Notifications** (the bell at the top of the
+screen), push or not, and stays there for 30 days. The bell shows a dot on a
+phone and a count on a computer while some are unread; opening the inbox marks
+them read. Tap one to go where it points, tap a scene button to set it, or
+remove them one by one or all at once.
 
 ## Tell me when
 

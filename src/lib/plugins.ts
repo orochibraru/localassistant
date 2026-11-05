@@ -25,6 +25,7 @@ export type PluginCard = (typeof pluginCards)[number];
 export const pluginIcons = [
 	"blinds",
 	"bot",
+	"car",
 	"cctv",
 	"door-open",
 	"fan",
@@ -240,6 +241,7 @@ export interface PluginSetup {
 	connected: boolean;
 	values: PluginValues;
 	secretsSet: string[];
+	testable: boolean;
 }
 
 export interface IntegrationProblem {

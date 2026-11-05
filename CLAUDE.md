@@ -3,9 +3,9 @@
 ## What this is
 
 LocalAssistant is a small, self-hosted alternative to Home Assistant for one
-household: Tuya blinds, Bambu printers, ESPHome and Zigbee2MQTT devices, Shelly
-meters and RTSP cameras locally; MELCloud, Dreame, Enedis and Frigate when they
-must, each a plugin hosted on GitHub, GitLab, Gitea or a folder. Automations,
+household: Tuya blinds, Bambu printers, ESPHome, Zigbee2MQTT, Shelly, Cast
+devices and RTSP cameras locally; MELCloud, Dreame, Enedis, Renault and Frigate
+when they must, each a plugin on GitHub, GitLab, Gitea or a folder. Automations,
 energy charts and a wall panel on top. Admins add devices; everyone signed in
 drives them. A native app and a PWA on phones, a full app on desktop.
 
@@ -69,7 +69,7 @@ Each is a hard rule.
 - Devices belong to the household: every signed-in account reads and drives
   every device. A device sits in a room or, with no room, in the whole house
   (`/rooms/house`); rooms sit on a floor or outside. Device and integration
-  setup are admin actions on `/devices`, plugins on `/admin/plugins`, rooms and
+  setup are admin actions on `/devices`, plugins on `/integrations`, rooms and
   floors on `/house`; their sheets live in the shell (`#lib/sheets.svelte.ts`)
   so any page can open them.
 - Secrets never reach a page: device secrets in `device.secrets` only through

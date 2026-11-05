@@ -1,0 +1,65 @@
+{
+	"id": "renault",
+	"name": "Renault (MyRenault)",
+	"description": "Every electric Renault or Dacia on your MyRenault account: battery, range, charging and mileage.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "car",
+	"needs": [],
+	"connection": {
+		"description": "Sign in with the account the MyRenault app uses, and the country it was made in. The password is stored encrypted.",
+		"connected": "Cars are read every ten minutes: Renault limits how often an account is read.",
+		"find": "Find new cars",
+		"fields": [
+			{
+				"name": "email",
+				"label": "Email",
+				"type": "text",
+				"keyboard": "email",
+				"pattern": "^[^@\\s]+@[^@\\s]+$",
+				"message": "Type your MyRenault email."
+			},
+			{ "name": "password", "label": "Password", "type": "secret" },
+			{
+				"name": "locale",
+				"label": "Country",
+				"type": "choice",
+				"default": "fr_FR",
+				"choices": [
+					{ "value": "fr_FR", "label": "France" },
+					{ "value": "fr_BE", "label": "Belgium (French)" },
+					{ "value": "nl_BE", "label": "Belgium (Dutch)" },
+					{ "value": "fr_CH", "label": "Switzerland (French)" },
+					{ "value": "de_CH", "label": "Switzerland (German)" },
+					{ "value": "it_CH", "label": "Switzerland (Italian)" },
+					{ "value": "fr_LU", "label": "Luxembourg" },
+					{ "value": "de_DE", "label": "Germany" },
+					{ "value": "de_AT", "label": "Austria" },
+					{ "value": "nl_NL", "label": "Netherlands" },
+					{ "value": "en_GB", "label": "United Kingdom" },
+					{ "value": "en_IE", "label": "Ireland" },
+					{ "value": "es_ES", "label": "Spain" },
+					{ "value": "pt_PT", "label": "Portugal" },
+					{ "value": "it_IT", "label": "Italy" },
+					{ "value": "pl_PL", "label": "Poland" },
+					{ "value": "da_DK", "label": "Denmark" },
+					{ "value": "sv_SE", "label": "Sweden" },
+					{ "value": "no_NO", "label": "Norway" },
+					{ "value": "fi_FI", "label": "Finland" },
+					{ "value": "en_AU", "label": "Australia" }
+				]
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "renault-car",
+			"label": "Car (MyRenault)",
+			"card": "sensor",
+			"icon": "car",
+			"size": "medium",
+			"order": 5,
+			"polled": true
+		}
+	]
+}

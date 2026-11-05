@@ -26,7 +26,7 @@ class PluginSetupService {
 		return plugins
 			.all()
 			.filter((hosted) => plugins.enabled(hosted.manifest.id))
-			.map(({ manifest }) => {
+			.map(({ manifest, plugin }) => {
 				const stored = getPluginSettings(manifest.id);
 				return {
 					id: manifest.id,
@@ -40,6 +40,7 @@ class PluginSetupService {
 					connected: stored !== null,
 					values: stored?.values ?? {},
 					secretsSet: Object.keys(stored?.secrets ?? {}),
+					testable: plugin.test !== undefined,
 				};
 			});
 	}
@@ -191,6 +192,19 @@ class PluginSetupService {
 		);
 		this.#refreshSoon(hosted, device);
 		return device;
+	}
+
+	/**
+	 * Tries the add-a-device form's `values` with the plugin without saving anything; returns what it found.
+	 *
+	 * @throws When an address doesn't resolve, the plugin can't test, or the test fails, saying why.
+	 */
+	async test(hosted: HostedPlugin, values: PluginValues): Promise<string> {
+		if (!hosted.plugin.test) {
+			throw new Error(`${hosted.manifest.name} can't test a device first.`);
+		}
+		await addresses.check(hosted.manifest.device?.fields ?? [], values);
+		return await hosted.plugin.test(values, hosted.context);
 	}
 
 	/**

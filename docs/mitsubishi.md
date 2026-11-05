@@ -6,7 +6,7 @@ stored encrypted with `AUTH_SECRET` and never shown again.
 
 ## Connect
 
-**Devices**, **Mitsubishi (MELCloud)** under **Integrations**, sign in with the
+**Devices**, **Add a device**, **Mitsubishi (MELCloud)**, sign in with the
 MELCloud email and password. Every unit on the account is added:
 
 - **Air-to-air** (split units): power, mode (heat, dry, cool, fan, and auto when

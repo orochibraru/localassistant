@@ -2,6 +2,7 @@
 	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import FlaskConicalIcon from "@lucide/svelte/icons/flask-conical";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
@@ -9,6 +10,7 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import UnplugIcon from "@lucide/svelte/icons/unplug";
+	import { toast } from "svelte-sonner";
 
 	import { pluginIconComponents } from "#lib/components/devices/device-kinds.js";
 	import PluginFields from "#lib/components/devices/plugin-fields.svelte";
@@ -18,6 +20,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import type { DeviceRow } from "#lib/dto/device.js";
 	import { type HouseFloor, type HouseRoom, roomLabels } from "#lib/house.js";
 	import {
@@ -27,8 +30,9 @@
 		kindInfo,
 		type PluginSetup,
 	} from "#lib/plugins.js";
+	import { testDevice } from "#lib/remote/plugins.remote.js";
 	import { useSheets } from "#lib/sheets.svelte.js";
-	import { enhanceToast } from "#lib/toast.js";
+	import { enhanceToast, toastError } from "#lib/toast.js";
 
 	type Device = Omit<DeviceRow, "state">;
 
@@ -60,6 +64,9 @@
 	let errors = $state<Record<string, string[]>>({});
 	let confirmingRemove = $state(false);
 	let changingConnection = $state(false);
+	let addForm = $state<HTMLFormElement | null>(null);
+	let testing = $state(false);
+	let tested = $state<{ ok: boolean; message: string } | null>(null);
 
 	const editing = $derived(
 		devices.find((device) => device.id === sheets.editDeviceId),
@@ -105,12 +112,55 @@
 			: "Asked. New devices show up within a few seconds.";
 	}
 
+	async function testCallback(): Promise<string> {
+		if (!addForm) {
+			throw new Error("The form is gone.");
+		}
+		testing = true;
+		tested = null;
+		try {
+			const outcome = await testDevice(
+				Object.fromEntries(
+					[...new FormData(addForm)].map(([name, value]) => [
+						name,
+						String(value),
+					]),
+				),
+			);
+			if (!outcome.ok) {
+				errors = outcome.errors;
+				throw new Error(
+					outcome.error ??
+						Object.values(outcome.errors)[0]?.[0] ??
+						"Check the form.",
+				);
+			}
+			errors = {};
+			tested = { ok: true, message: outcome.message };
+			return outcome.message;
+		} catch (failure) {
+			tested = { ok: false, message: toastError(failure) };
+			throw failure;
+		} finally {
+			testing = false;
+		}
+	}
+
+	function handleTest() {
+		toast.promise(testCallback(), {
+			loading: "Testing",
+			success: (message) => message,
+			error: (failure) => toastError(failure),
+		});
+	}
+
 	const pluginSheet = {
 		get open() {
 			return sheets.addDevice !== null;
 		},
 		set open(value: boolean) {
 			errors = {};
+			tested = null;
 			changingConnection = false;
 			if (!value) {
 				sheets.addDevice = null;
@@ -198,7 +248,7 @@
 	</ul>
 	<div class="pb-6">
 		<Button
-			href={resolve("/(protected)/admin/plugins")}
+			href={resolve("/(protected)/integrations/add")}
 			variant="outline"
 			class="h-11 w-full rounded-xl px-5"
 			onclick={() => (sheets.pickDevice = false)}
@@ -350,6 +400,7 @@
 						<h3 class="font-semibold">{current.device.title}</h3>
 					{/if}
 					<form
+						bind:this={addForm}
 						method="POST"
 						action="{devicesPath}?/add"
 						class="flex flex-col gap-4"
@@ -373,9 +424,31 @@
 							secretsSet={[]}
 							{errors}
 						/>
-						<Button type="submit" class="h-11 rounded-xl px-5"
-							><PlusIcon />{current.device.submit}</Button
-						>
+						{#if tested}
+							<p
+								class="text-sm wrap-break-word {tested.ok
+									? 'text-positive'
+									: 'text-destructive'}"
+								role="status"
+							>
+								{tested.message}
+							</p>
+						{/if}
+						<div class="flex flex-col gap-3 sm:flex-row">
+							{#if current.testable}
+								<Button
+									variant="outline"
+									class="h-11 rounded-xl px-5"
+									disabled={testing}
+									onclick={handleTest}
+									>{#if testing}<Spinner />{:else}<FlaskConicalIcon />{/if}Test
+									it first</Button
+								>
+							{/if}
+							<Button type="submit" class="h-11 flex-1 rounded-xl px-5"
+								><PlusIcon />{current.device.submit}</Button
+							>
+						</div>
 					</form>
 				{/if}
 				{#if current.automatic && !current.connection && !current.device}

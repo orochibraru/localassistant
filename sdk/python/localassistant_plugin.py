@@ -1,7 +1,7 @@
 """LocalAssistant plugins in Python: one file to copy next to your plugin, standard library only.
 
 LocalAssistant starts the plugin as a process and talks JSON-RPC to it over standard input and output. Write a class
-with the hooks you need (connect, discover, add, start, stop, read, command, serve, clips) and call run() with it.
+with the hooks you need (connect, discover, add, test, start, stop, read, command, serve, clips) and call run() with it.
 """
 
 import base64
@@ -11,7 +11,7 @@ import threading
 from datetime import UTC, datetime
 
 PROTOCOL_VERSION = 1
-HOOKS = ("connect", "discover", "add", "start", "stop", "read", "command", "serve", "clips")
+HOOKS = ("connect", "discover", "add", "test", "start", "stop", "read", "command", "serve", "clips")
 
 
 class PluginError(Exception):
@@ -181,7 +181,7 @@ def _dispatch(plugin, context, method, params):
     if not callable(hook):
         raise PluginError(f"The plugin has no {method}.")
     device = Device(params["device"]) if params.get("device") else None
-    if method in ("connect", "add"):
+    if method in ("connect", "add", "test"):
         return hook(context, params.get("values") or {})
     if method in ("discover", "start", "stop"):
         return hook(context)

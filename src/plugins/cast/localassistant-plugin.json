@@ -1,0 +1,40 @@
+{
+	"id": "cast",
+	"name": "Google Cast",
+	"description": "Android TV and Google TV, Chromecasts, Nest speakers and displays on your network: what plays, volume and playback.",
+	"author": "LocalAssistant",
+	"version": "1.0.0",
+	"icon": "tv",
+	"needs": [],
+	"connection": {
+		"description": "LocalAssistant looks for Cast devices on your network over mDNS and keeps up with what they play. Nothing to sign in to: turn it on and it searches.",
+		"connected": "Cast devices on your network show up when you look for them. Their volume and what they play follow live.",
+		"find": "Find Cast devices",
+		"fields": []
+	},
+	"device": {
+		"title": "Add a Cast device by its address",
+		"description": "When looking for them finds nothing: mDNS doesn't cross a Docker bridge network, so a container needs host networking to find them. Give the device a fixed IP in your router and type it here.",
+		"submit": "Add the device",
+		"fields": [
+			{
+				"name": "host",
+				"label": "IP address",
+				"type": "text",
+				"placeholder": "192.168.1.40",
+				"keyboard": "decimal",
+				"pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$|^[A-Za-z0-9.-]+$",
+				"message": "Type the device's IP address on your network."
+			}
+		]
+	},
+	"kinds": [
+		{
+			"id": "cast",
+			"label": "Google Cast device",
+			"card": "media",
+			"icon": "tv",
+			"order": 2
+		}
+	]
+}

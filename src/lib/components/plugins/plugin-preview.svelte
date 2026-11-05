@@ -17,9 +17,11 @@
 	interface Props {
 		preview: PluginPreview | null;
 		onClose: () => void;
+		onInstalled: (pluginId: string) => void;
+		onComplete: () => Promise<void>;
 	}
 
-	const { preview, onClose }: Props = $props();
+	const { preview, onClose, onInstalled, onComplete }: Props = $props();
 
 	const sheet = {
 		get open() {
@@ -115,8 +117,11 @@
 					action="?/install"
 					use:enhance={enhanceToast({
 						loading: `Installing ${preview.manifest.name}`,
-						success: `${preview.manifest.name} is ready. Set it up from Devices.`,
-						onSuccess: onClose,
+						success: `${preview.manifest.name} is installed.`,
+						onSuccess: (result) => {
+							onInstalled(String(result?.plugin ?? ""));
+						},
+						onComplete,
 					})}
 				>
 					<input type="hidden" name="link" value={preview.link} />

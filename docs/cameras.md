@@ -3,8 +3,13 @@
 ## Cameras with RTSP
 
 Any camera with a local RTSP stream: a Tapo with a camera account set in its
-app, a Reolink, most ONVIF cameras. **Devices**, **Cameras (RTSP)** under
-**Integrations**, **Add the camera** with its RTSP address (stored encrypted).
+app, a Reolink, most ONVIF cameras. **Devices**, **Add a device**, **Cameras
+(RTSP)**, **Add the camera** with its RTSP address (stored encrypted). The eye
+shows what you typed. **Test it first** checks the address before anything is
+saved: that it reads as one (an `@`, `/` or `#` in the password has to be
+written `%40`, `%2F`, `%23`), that something answers on its port, and what
+stream ffprobe finds there, or the camera's answer when it refuses (wrong
+password, wrong path).
 
 The worker runs one ffmpeg per camera. It copies the video as it comes, without
 re-encoding, into a short live stream for the camera's page and, with **Record
@@ -21,11 +26,11 @@ image ships ffmpeg; running the binaries yourself needs it on the `PATH`.
 ## Frigate
 
 With a [Frigate](https://frigate.video/) NVR, connect it instead: **Devices**,
-**Frigate** under **Integrations**, with its internal address (port 5000) and
-the labels to be told about (`person` by default). Its cameras come in as
-devices; their pages show Frigate's live view and its events, each playing its
-clip. Frigate records; LocalAssistant only proxies its pictures and clips to
-signed-in people.
+**Add a device**, **Frigate**, with its internal address (port 5000) and the
+labels to be told about (`person` by default). Its cameras come in as devices;
+their pages show Frigate's live view and its events, each playing its clip.
+Frigate records; LocalAssistant only proxies its pictures and clips to signed-in
+people.
 
 Behind a proxy like Pangolin, use its public address and put the header it
 checks in **Extra headers**, one `Name: value` per line (stored encrypted):

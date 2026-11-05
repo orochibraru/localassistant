@@ -43,15 +43,21 @@ your phone like an app.
   notifications. The Bambu printer's camera on its card.
 - **Bambu Lab printers over your network** and **Dreame robot vacuums** through
   the Dreamehome cloud.
+- **Google Cast devices over your network**: Android TV and Google TV,
+  Chromecasts, Nest speakers and displays, found on their own (mDNS, so a
+  container needs host networking) or added by address. What plays, volume, mute
+  and playback, live.
+- **Renault electric cars** through MyRenault: battery, range, charging,
+  mileage, outside temperature and climate control on the card.
 - **The Home Assistant ecosystem**: devices that announce themselves for Home
   Assistant over MQTT (Tasmota, ESPHome, Shelly...) come in on their own,
   without it, and a running Home Assistant can be connected for everything only
   it integrates.
 - **Plugins**: every integration above is a plugin. Install community ones from
   GitHub, GitLab, Gitea, Forgejo, Codeberg (private ones with a token) or a
-  folder on the server in **Admin, Integrations**, each with a maintenance
-  badge, and update, turn off or remove them there. Plugins can be written in
-  TypeScript, Go or Python.
+  folder on the server in **Integrations**, each with a maintenance badge, and
+  update, turn off or remove them there. Plugins can be written in TypeScript,
+  Go or Python.
 - **Weather and a wall panel**: the time and forecast on Home, and a screen for
   a wall tablet or a Shelly Wall Display that stays on.
 - **Phones as devices**: each phone in the house with its owner, battery and, if

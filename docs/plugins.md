@@ -51,21 +51,21 @@ use the same manifest and hooks; read them for real-world examples.
 }
 ```
 
-| Key              | What it is                                                                                                                 |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `id`             | Lowercase letters, digits and dashes. Unique across installed integrations.                                                |
-| `version`        | Shown to admins. Releases are what updates follow.                                                                         |
-| `localassistant` | The oldest LocalAssistant it runs on, `x.y.z`. Older instances refuse to install it.                                       |
-| `runtime`        | `bun` (TypeScript or JavaScript, in the server) or `process` (anything else, its own process). Default `bun`.              |
-| `entry`          | The file to start: one `.js` bundle for `bun`; a script or binary for `process`, or one binary per platform.               |
-| `interpreter`    | `python3` for a Python script. Leave it out for a binary.                                                                  |
-| `files`          | Other files to download next to the entry, like the Python SDK.                                                            |
-| `icon`           | One of `blinds bot cctv door-open fan gauge heater lightbulb lock plug printer puzzle smartphone speaker thermometer zap`. |
-| `needs`          | `["mqtt"]` when it uses the household's MQTT broker: its sheet asks for the broker first.                                  |
-| `connection`     | An account or server to connect once: `description`, `connected` (shown once connected), `fields`, `find` (button).        |
-| `device`         | A form per device: `title`, `description`, `fields`, `submit`.                                                             |
-| `automatic`      | Text for integrations whose devices show up on their own.                                                                  |
-| `kinds`          | The device kinds it provides. Each `id` is the plugin id or starts with it and a dash.                                     |
+| Key              | What it is                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`             | Lowercase letters, digits and dashes. Unique across installed integrations.                                                    |
+| `version`        | Shown to admins. Releases are what updates follow.                                                                             |
+| `localassistant` | The oldest LocalAssistant it runs on, `x.y.z`. Older instances refuse to install it.                                           |
+| `runtime`        | `bun` (TypeScript or JavaScript, in the server) or `process` (anything else, its own process). Default `bun`.                  |
+| `entry`          | The file to start: one `.js` bundle for `bun`; a script or binary for `process`, or one binary per platform.                   |
+| `interpreter`    | `python3` for a Python script. Leave it out for a binary.                                                                      |
+| `files`          | Other files to download next to the entry, like the Python SDK.                                                                |
+| `icon`           | One of `blinds bot car cctv door-open fan gauge heater lightbulb lock plug printer puzzle smartphone speaker thermometer zap`. |
+| `needs`          | `["mqtt"]` when it uses the household's MQTT broker: its sheet asks for the broker first.                                      |
+| `connection`     | An account or server to connect once: `description`, `connected` (shown once connected), `fields`, `find` (button).            |
+| `device`         | A form per device: `title`, `description`, `fields`, `submit`.                                                                 |
+| `automatic`      | Text for integrations whose devices show up on their own.                                                                      |
+| `kinds`          | The device kinds it provides. Each `id` is the plugin id or starts with it and a dash.                                         |
 
 Per-platform binaries, for Go:
 
@@ -145,6 +145,7 @@ Implement only what you need. Every hook gets the context (below).
 | `connect`  | An admin saves the connection form. Throw to refuse it with a message.                                                                                                                                | nothing                                   |
 | `discover` | Right after `connect`, and on the sheet's find button.                                                                                                                                                | found devices                             |
 | `add`      | An admin adds or edits a device from the device form.                                                                                                                                                 | the device (`kind`, `externalId`, `host`) |
+| `test`     | An admin taps Test on the device form before adding: try the values without saving anything. Throw with what's wrong.                                                                                 | what it found, one sentence               |
 | `start`    | The worker starts (and after settings change): open connections, subscribe, start timers.                                                                                                             | nothing                                   |
 | `stop`     | The worker stops or restarts the plugin.                                                                                                                                                              | nothing                                   |
 | `read`     | Every two minutes for polled kinds, and soon after a device is added.                                                                                                                                 | its state                                 |
@@ -242,12 +243,13 @@ languages.
 
 LocalAssistant starts the process from its folder and calls `initialize`
 (`{ protocolVersion: 1, folder }`), expecting `{ hooks: [...] }` back: the hooks
-it implements. It then calls the hooks by name with these params: `connect` and
-`add` get `{ values }`; `read`, `clips` and `serve` get `{ device }` (`serve`
-also `path`, `method`, `headers`, and answers `{ status, headers, body }` with
-the body in base64); `command` gets `{ device, command }`. A device has `id`,
-`kind`, `name`, `externalId`, `host`, `homeId`, `roomId`, `fields`, `state`,
-`stateAt` and `secrets`, its secrets decrypted.
+it implements. It then calls the hooks by name with these params: `connect`,
+`add` and `test` get `{ values }`; `read`, `clips` and `serve` get `{ device }`
+(`serve` also `path`, `method`, `headers`, and answers
+`{ status, headers, body }` with the body in base64); `command` gets
+`{ device, command }`. A device has `id`, `kind`, `name`, `externalId`, `host`,
+`homeId`, `roomId`, `fields`, `state`, `stateAt` and `secrets`, its secrets
+decrypted.
 
 The plugin calls the host the same way, while a hook runs or any time after
 `start`: `settings`, `devices`, `device` (`{ id }`), `found` (`{ devices }`),

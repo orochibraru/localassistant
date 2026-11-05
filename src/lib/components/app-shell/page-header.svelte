@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
+	import BellIcon from "@lucide/svelte/icons/bell";
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import UserRoundIcon from "@lucide/svelte/icons/user-round";
@@ -13,6 +15,7 @@
 	const { user }: { user: { name: string; email: string } } = $props();
 
 	const title = usePageTitle();
+	const unread = $derived(page.data.unreadNotifications ?? 0);
 
 	let signOutForm: HTMLFormElement | undefined = $state();
 </script>
@@ -42,6 +45,20 @@
 			{action.label}
 		</Button>
 	{/each}
+	<span class="relative">
+		<IconButton
+			label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+			icon={BellIcon}
+			href={resolve("/(protected)/notifications")}
+			variant="outline"
+		/>
+		{#if unread > 0}
+			<span
+				class="bg-primary text-primary-foreground pointer-events-none absolute -top-1 -right-1 min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-semibold tabular-nums"
+				aria-hidden="true">{unread > 99 ? "99+" : unread}</span
+			>
+		{/if}
+	</span>
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger
 			class="from-primary flex size-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br to-[oklch(0.6_0.15_calc(var(--hue)+60))] text-sm font-semibold text-white"

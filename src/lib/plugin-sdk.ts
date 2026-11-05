@@ -138,6 +138,7 @@ export interface Plugin {
 		values: PluginValues,
 		context: PluginContext,
 	): FoundDevice | Promise<FoundDevice>;
+	test?(values: PluginValues, context: PluginContext): Promise<string>;
 	start?(context: PluginContext): void | Promise<void>;
 	stop?(): void | Promise<void>;
 	read?(device: PluginDevice, context: PluginContext): Promise<DeviceState>;

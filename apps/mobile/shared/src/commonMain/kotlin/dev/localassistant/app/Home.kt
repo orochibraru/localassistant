@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Blinds
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DeviceThermostat
+import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.DoorFront
 import androidx.compose.material.icons.rounded.ElectricalServices
 import androidx.compose.material.icons.rounded.Extension
@@ -79,6 +80,7 @@ import kotlin.math.roundToInt
 fun iconFor(name: String): ImageVector = when (name) {
     "blinds" -> Icons.Rounded.Blinds
     "bot" -> Icons.Rounded.SmartToy
+    "car" -> Icons.Rounded.DirectionsCar
     "cctv" -> Icons.Rounded.Videocam
     "door-open" -> Icons.Rounded.DoorFront
     "fan" -> Icons.Rounded.Air

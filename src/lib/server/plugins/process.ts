@@ -439,6 +439,10 @@ class ProcessPlugins {
 			plugin.add = async (values) =>
 				(await child.call("add", { values })) as FoundDevice;
 		}
+		if (has("test")) {
+			plugin.test = async (values) =>
+				String(await child.call("test", { values }));
+		}
 		if (has("start")) {
 			plugin.start = async () => {
 				await child.call("start");

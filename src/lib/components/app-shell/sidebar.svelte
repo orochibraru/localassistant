@@ -44,9 +44,7 @@
 		resolve("/(protected)/devices"),
 	]);
 	const items = $derived(
-		navigationItems(isAdmin, page.data.unreadNotifications ?? 0).filter(
-			(item) => !sectionHrefs.has(item.href),
-		),
+		navigationItems(isAdmin).filter((item) => !sectionHrefs.has(item.href)),
 	);
 	const groups = $derived(houseGroups(floors, rooms));
 	const showGroupNames = $derived(
@@ -101,12 +99,6 @@
 					>
 						<item.icon class="size-4" />
 						{item.label}
-						{#if item.count}
-							<span
-								class="bg-primary text-primary-foreground ml-auto min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-semibold tabular-nums"
-								>{item.count > 99 ? "99+" : item.count}</span
-							>
-						{/if}
 					</a>
 				</li>
 			{/each}

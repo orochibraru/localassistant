@@ -30,6 +30,11 @@ type Adder interface {
 	Add(context *Context, values Values) (FoundDevice, error)
 }
 
+// Tester tries an add-a-device form's values without adding anything and says what it found.
+type Tester interface {
+	Test(context *Context, values Values) (string, error)
+}
+
 // Starter opens a plugin's long-running connections in the worker.
 type Starter interface {
 	Start(context *Context) error
@@ -242,6 +247,9 @@ func hooksOf(plugin any) []string {
 	if _, ok := plugin.(Adder); ok {
 		hooks = append(hooks, "add")
 	}
+	if _, ok := plugin.(Tester); ok {
+		hooks = append(hooks, "test")
+	}
 	if _, ok := plugin.(Starter); ok {
 		hooks = append(hooks, "start")
 	}
@@ -293,6 +301,10 @@ func (context *Context) dispatch(plugin any, method string, raw json.RawMessage)
 	case "add":
 		if hook, ok := plugin.(Adder); ok {
 			return hook.Add(context, params.Values)
+		}
+	case "test":
+		if hook, ok := plugin.(Tester); ok {
+			return hook.Test(context, params.Values)
 		}
 	case "start":
 		if hook, ok := plugin.(Starter); ok {

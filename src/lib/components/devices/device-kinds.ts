@@ -1,5 +1,6 @@
 import BlindsIcon from "@lucide/svelte/icons/blinds";
 import BotIcon from "@lucide/svelte/icons/bot";
+import CarIcon from "@lucide/svelte/icons/car";
 import CctvIcon from "@lucide/svelte/icons/cctv";
 import DoorOpenIcon from "@lucide/svelte/icons/door-open";
 import DropletsIcon from "@lucide/svelte/icons/droplets";
@@ -28,6 +29,7 @@ export const pluginIconComponents: Record<
 > = {
 	blinds: BlindsIcon,
 	bot: BotIcon,
+	car: CarIcon,
 	cctv: CctvIcon,
 	"door-open": DoorOpenIcon,
 	droplets: DropletsIcon,

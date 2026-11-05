@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "MyRenault's public app keys, shipped in its app and in renault-api"
+condition = "AND"
+paths = ['''^src/plugins/renault/index\.ts$''']
+regexTarget = "match"
+regexes = ['''(gigyaKey|kamereonApiKey)''']

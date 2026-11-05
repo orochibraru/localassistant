@@ -31,6 +31,15 @@
 	]);
 
 	const roomNames = $derived(roomLabels(data.rooms, data.floors));
+	const inUse = $derived(
+		data.pluginSetups.filter(
+			(setup) =>
+				setup.connected ||
+				data.devices.some(
+					(device) => kindInfo(data.kinds, device.kind).plugin === setup.id,
+				),
+		),
+	);
 
 	function summary(setup: PluginSetup): string {
 		if (setup.needs.includes("mqtt") && !data.brokerUrl) {
@@ -57,7 +66,7 @@
 			Integrations
 		</h2>
 		<ul class="flex flex-col">
-			{#each data.pluginSetups as setup (setup.id)}
+			{#each inUse as setup (setup.id)}
 				{@const Icon = pluginIconComponents[setup.icon]}
 				<li>
 					<button
@@ -86,11 +95,15 @@
 				</li>
 			{/each}
 		</ul>
+		{#if inUse.length === 0}
+			<p class="text-muted-foreground px-2 text-sm">
+				None set up yet. Add one and its devices show up here.
+			</p>
+		{/if}
 		<Button
-			href={resolve("/(protected)/admin/plugins")}
+			href={resolve("/(protected)/integrations/add")}
 			variant="outline"
-			class="m-2 h-11 rounded-xl px-5"
-			><PuzzleIcon />Get more integrations</Button
+			class="m-2 h-11 rounded-xl px-5"><PuzzleIcon />Add an integration</Button
 		>
 	</section>
 

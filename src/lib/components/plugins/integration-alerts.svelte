@@ -36,7 +36,7 @@
 						<Button
 							variant="outline"
 							class="h-11 rounded-xl px-5"
-							href={resolve("/(protected)/admin/plugins")}
+							href={resolve("/(protected)/integrations")}
 							><WrenchIcon />Fix {problem.name}</Button
 						>
 					{/if}

@@ -3,9 +3,10 @@
 Every kind of device LocalAssistant talks to comes from an integration: a small
 plugin hosted on GitHub, GitLab, Gitea or Forgejo, or kept in a folder. The
 official ones (Tuya blinds, Mitsubishi through MELCloud or ESPHome, Zigbee2MQTT,
-Shelly, cameras, Frigate, Bambu Lab printers, Dreame robot vacuums, Linky, MQTT
-discovery and Home Assistant) ship with LocalAssistant. Anyone can publish more,
-and an admin adds them from a link, without an account anywhere.
+Shelly, cameras, Frigate, Bambu Lab printers, Dreame robot vacuums, Renault
+cars, Linky, MQTT discovery and Home Assistant) ship with LocalAssistant. Anyone
+can publish more, and an admin adds them from a link, without an account
+anywhere.
 
 ## Set one up
 
@@ -50,8 +51,11 @@ LocalAssistant already talks to directly.
 
 ## Add one
 
-**Admin, Integrations** (or **Get more integrations** at the bottom of
-**Devices**):
+**Integrations**, in the sidebar (under **More** on a phone), lists the
+integrations the house uses, each with its devices: tap one to rename or move
+it, **Manage** to change the connection. **Add an integration** (or **Get more
+integrations** under **Devices**, **Add a device**) opens the rest: the built-in
+ones not set up yet, each with **Set up**, and the ones from the community:
 
 1. Paste the link its author gave you. Any form works:
    - a repository page on GitHub, GitLab (gitlab.com or your own), Gitea,
@@ -61,7 +65,7 @@ LocalAssistant already talks to directly.
    - a folder on this server, `/plugins/my-integration`.
 2. **Look it up** shows its name, author, version, the devices it adds and how
    maintained it is, before anything is downloaded.
-3. **Install**. It's ready at once: set it up from **Devices**.
+3. **Install**. Its setup sheet opens at once, over **Integrations**.
 
 A self-hosted site (`git.example.com`, or `http://192.168.1.5:3000` on your
 network) is recognised on its own: LocalAssistant asks it whether it runs

@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
+	import { page } from "$app/state";
+	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import ArrowUpCircleIcon from "@lucide/svelte/icons/circle-arrow-up";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import PowerIcon from "@lucide/svelte/icons/power";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 
-	import { pluginIconComponents } from "#lib/components/devices/device-kinds.js";
+	import {
+		kindIcon,
+		pluginIconComponents,
+	} from "#lib/components/devices/device-kinds.js";
 	import HealthBadge from "#lib/components/plugins/health-badge.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -14,11 +19,20 @@
 	import { useSheets } from "#lib/sheets.svelte.js";
 	import { enhanceToast } from "#lib/toast.js";
 
-	interface Props {
-		plugin: PluginSummary;
+	interface Device {
+		id: string;
+		kind: string;
+		name: string;
+		stateError: string | null;
+		stateAt: Date | string | null;
 	}
 
-	const { plugin }: Props = $props();
+	interface Props {
+		plugin: PluginSummary;
+		devices: Device[];
+	}
+
+	const { plugin, devices }: Props = $props();
 
 	const sheets = useSheets();
 	let confirmingRemove = $state(false);
@@ -53,9 +67,37 @@
 			>{/if}
 		{#if plugin.loadError}<Badge variant="destructive">Didn't load</Badge>{/if}
 	</div>
-	<p class="text-muted-foreground text-sm">{plugin.description}</p>
+	{#if devices.length === 0}
+		<p class="text-muted-foreground text-sm">{plugin.description}</p>
+	{/if}
 	{#if plugin.loadError}
 		<p class="text-destructive text-sm">{plugin.loadError}</p>
+	{/if}
+	{#if devices.length > 0}
+		<ul
+			class="divide-border border-border divide-y rounded-xl border"
+			aria-label="{plugin.name} devices"
+		>
+			{#each devices as device (device.id)}
+				{@const DeviceIcon = kindIcon(page.data.kinds, device.kind)}
+				<li>
+					<button
+						type="button"
+						class="hover:bg-muted/50 flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition-colors first:rounded-t-xl last:rounded-b-xl"
+						onclick={() => (sheets.editDeviceId = device.id)}
+					>
+						<DeviceIcon class="text-muted-foreground size-4 shrink-0" />
+						<span class="min-w-0 flex-1 truncate text-sm">{device.name}</span>
+						{#if device.stateError}
+							<Badge variant="destructive">Unreachable</Badge>
+						{:else if !device.stateAt}
+							<Badge variant="outline">Not read yet</Badge>
+						{/if}
+						<ChevronRightIcon class="text-muted-foreground size-4 shrink-0" />
+					</button>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 	<div class="flex flex-wrap gap-2">
 		{#if plugin.enabled && !plugin.loadError}
@@ -63,7 +105,7 @@
 				variant="outline"
 				class="h-11 rounded-xl px-4"
 				onclick={() => (sheets.addDevice = plugin.id)}
-				><SettingsIcon />Set up</Button
+				><SettingsIcon />{devices.length > 0 ? "Manage" : "Set up"}</Button
 			>
 		{/if}
 		{#if plugin.updateAvailable}

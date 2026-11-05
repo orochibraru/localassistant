@@ -26,6 +26,10 @@ const cameras = pluginOf<{
 		record: boolean,
 	): string[];
 	sync(context: unknown, now?: Date): Promise<void>;
+	address(url: string): { host: string; port: number };
+	probeSummary(output: string): string;
+	probeFailure(errors: string, url: string): string;
+	test(values: Record<string, string>): Promise<string>;
 }>("camera");
 
 afterAll(async () => {
@@ -48,6 +52,134 @@ const request = new Request("http://localhost/");
 
 describe("cameras", () => {
 	beforeEach(resetDatabase);
+
+	test("an RTSP address reads as its host and port, and a broken one says what to fix", () => {
+		expect(cameras.address("rtsp://user:pass@192.0.2.60:8554/stream1")).toEqual(
+			{ host: "192.0.2.60", port: 8554 },
+		);
+		expect(cameras.address("rtsp://192.0.2.60/stream1")).toEqual({
+			host: "192.0.2.60",
+			port: 554,
+		});
+		expect(cameras.address("rtsps://camera.lan/live").port).toBe(322);
+		expect(() => cameras.address("http://192.0.2.60/")).toThrow("rtsp://");
+		expect(() => cameras.address("rtsp://user:p@ss@192.0.2.60/")).toThrow(
+			"%40",
+		);
+		expect(() => cameras.address("rtsp://user:pa/ss@192.0.2.60/")).toThrow(
+			"%2F",
+		);
+		expect(() => cameras.address("rtsp://user@192.0.2.60/")).toThrow(
+			"no password",
+		);
+		expect(() => cameras.address("rtsp:///stream1")).toThrow("no camera");
+		expect(() => cameras.address("rtsp://192.0.2.60:99999/")).toThrow(
+			"address and port",
+		);
+	});
+
+	test("testing an address says when nothing listens on the camera's port", async () => {
+		const closed = Bun.listen({
+			hostname: "127.0.0.1",
+			port: 0,
+			socket: { data: () => undefined },
+		});
+		const port = closed.port;
+		closed.stop(true);
+		await expect(
+			cameras.test({ url: `rtsp://user:pass@127.0.0.1:${port}/stream1` }),
+		).rejects.toThrow("refused the connection");
+	});
+
+	test("testing an address asks ffprobe what streams there", async () => {
+		const camera = Bun.listen({
+			hostname: "127.0.0.1",
+			port: 0,
+			socket: { data: () => undefined },
+		});
+		const url = `rtsp://admin:hunter2@127.0.0.1:${camera.port}/stream1`;
+		const which = spyOn(Bun, "which").mockReturnValue(null);
+		const answer = (
+			exitCode: number | null,
+			stdout: string,
+			stderr: string,
+			signalCode: string | null = null,
+		) =>
+			({
+				stdout: new Response(stdout).body,
+				stderr: new Response(stderr).body,
+				exited: Promise.resolve(exitCode ?? 1),
+				exitCode,
+				signalCode,
+			}) as unknown as ReturnType<typeof Bun.spawn>;
+		const spawn = spyOn(Bun, "spawn");
+		try {
+			await expect(cameras.test({ url })).rejects.toThrow(
+				"ffprobe isn't installed",
+			);
+			which.mockReturnValue("/usr/bin/ffprobe");
+			spawn.mockReturnValueOnce(
+				answer(
+					0,
+					JSON.stringify({
+						streams: [
+							{
+								codec_type: "video",
+								codec_name: "hevc",
+								width: 640,
+								height: 360,
+								avg_frame_rate: "15/1",
+							},
+						],
+					}),
+					"",
+				),
+			);
+			expect(await cameras.test({ url })).toBe(
+				"It works: HEVC 640x360 at 15 fps, no audio.",
+			);
+			expect(spawn.mock.calls.at(-1)?.[0]).toContain(url);
+			spawn.mockReturnValueOnce(answer(1, "", "401 Unauthorized\n"));
+			await expect(cameras.test({ url })).rejects.toThrow("refused the user");
+			spawn.mockReturnValueOnce(answer(null, "", "", "SIGTERM"));
+			await expect(cameras.test({ url })).rejects.toThrow("no video within");
+		} finally {
+			which.mockRestore();
+			spawn.mockRestore();
+			camera.stop(true);
+		}
+	});
+
+	test("ffprobe's answer reads as the stream it found, and its errors never show the password", () => {
+		expect(
+			cameras.probeSummary(
+				JSON.stringify({
+					streams: [
+						{
+							codec_type: "video",
+							codec_name: "h264",
+							width: 1920,
+							height: 1080,
+							avg_frame_rate: "25/1",
+						},
+						{ codec_type: "audio", codec_name: "aac" },
+					],
+				}),
+			),
+		).toBe("It works: H264 1920x1080 at 25 fps, with AAC audio.");
+		expect(() => cameras.probeSummary("{}")).toThrow("no video");
+		const url = "rtsp://admin:hunter2@192.0.2.60/stream1";
+		expect(
+			cameras.probeFailure("method DESCRIBE failed: 401 Unauthorized", url),
+		).toContain("refused the user or password");
+		expect(cameras.probeFailure("404 Not Found", url)).toContain("path");
+		expect(cameras.probeFailure(`${url}: Invalid data found`, url)).toBe(
+			"ffprobe couldn't play it: Invalid data found.",
+		);
+		const other = cameras.probeFailure(`Opening ${url} failed`, url);
+		expect(other).not.toContain("hunter2");
+		expect(other).toContain("the address");
+	});
 
 	test("ffmpeg writes HLS and, when recording, five-minute MP4 files", () => {
 		const folders = { live: "/data/live", recordings: "/data/recordings" };

@@ -129,7 +129,7 @@
 					.join(", ") || undefined}
 				tone={data.health.brokenPlugins.length === 0 ? "positive" : "warning"}
 				icon={PuzzleIcon}
-				href={resolve("/(protected)/admin/plugins")}
+				href={resolve("/(protected)/integrations")}
 			/>
 		</div>
 	</section>

@@ -21,6 +21,7 @@ import {
 	connectionSchema,
 	editDeviceSchema,
 	pluginIdSchema,
+	valuesSchema,
 } from "#lib/server/validation/plugins.js";
 
 export type AdminOutcome<Value> =
@@ -51,6 +52,22 @@ class DeviceAdmin {
 		return await this.#attempt(() =>
 			pluginSetup.addDevice(hosted, { homeId, name, roomId }, values),
 		);
+	}
+
+	/** Tries the add-a-device form of the `plugin` `input` names without adding anything; what the plugin found. */
+	async test(input: Input): Promise<AdminOutcome<string>> {
+		const hosted = this.#plugin(input);
+		if (!hosted?.manifest.device) {
+			return this.#gone("That integration is off or gone.");
+		}
+		const parsed = parseRecord(
+			valuesSchema(hosted.manifest.device.fields, false),
+			input,
+		);
+		if (!parsed.success) {
+			return { ok: false, status: 400, errors: parsed.errors };
+		}
+		return await this.#attempt(() => pluginSetup.test(hosted, parsed.data));
 	}
 
 	/** Saves a device's name, room, owner when it has one, and its plugin's fields; `input` names its `id`. */
