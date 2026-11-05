@@ -7,18 +7,21 @@
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import UnplugIcon from "@lucide/svelte/icons/unplug";
 
 	import { pluginIconComponents } from "#lib/components/devices/device-kinds.js";
 	import PluginFields from "#lib/components/devices/plugin-fields.svelte";
 	import Picker from "#lib/components/picker.svelte";
 	import ResponsiveSheet from "#lib/components/responsive-sheet.svelte";
+	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import type { DeviceRow } from "#lib/dto/device.js";
 	import { type HouseFloor, type HouseRoom, roomLabels } from "#lib/house.js";
 	import {
+		type IntegrationProblem,
 		isSecretField,
 		type KindCatalog,
 		kindInfo,
@@ -34,13 +37,22 @@
 		rooms: HouseRoom[];
 		floors: HouseFloor[];
 		setups: PluginSetup[];
+		problems: IntegrationProblem[];
 		kinds: KindCatalog;
 		brokerUrl: string | null;
 		people: { id: string; name: string }[];
 	}
 
-	const { devices, rooms, floors, setups, kinds, brokerUrl, people }: Props =
-		$props();
+	const {
+		devices,
+		rooms,
+		floors,
+		setups,
+		problems,
+		kinds,
+		brokerUrl,
+		people,
+	}: Props = $props();
 
 	const sheets = useSheets();
 	const devicesPath = resolve("/(protected)/devices");
@@ -61,6 +73,9 @@
 	);
 	const current = $derived(
 		setups.find((setup) => setup.id === sheets.addDevice),
+	);
+	const problem = $derived(
+		problems.find((entry) => entry.pluginId === sheets.addDevice),
 	);
 	const needsBroker = $derived(
 		current?.needs.includes("mqtt") === true && brokerUrl === null,
@@ -206,6 +221,15 @@
 >
 	{#if current}
 		<div class="flex flex-col gap-6 pb-6">
+			{#if problem}
+				<Alert.Root variant="destructive">
+					<TriangleAlertIcon />
+					<Alert.Title>{current.name} is broken</Alert.Title>
+					<Alert.Description>
+						<p class="wrap-break-word">{problem.message}</p>
+					</Alert.Description>
+				</Alert.Root>
+			{/if}
 			{#if needsBroker}
 				<form
 					method="POST"

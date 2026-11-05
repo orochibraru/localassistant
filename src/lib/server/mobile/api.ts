@@ -50,7 +50,10 @@ class MobileApi {
 	 * @throws A 400 error when it isn't one.
 	 */
 	async fields(request: Request): Promise<Record<string, string>> {
-		return this.body(request, z.record(z.string(), z.string().max(10_000)));
+		return await this.body(
+			request,
+			z.record(z.string(), z.string().max(10_000)),
+		);
 	}
 
 	/** The JSON answer for an admin action: `toBody` of its value, or its message and per-field errors with its status. */

@@ -1,7 +1,9 @@
 import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
+import { PluginDTO } from "#lib/dto/plugin.js";
 import { getPluginSettings, setPluginSettings } from "#lib/dto/setting.js";
 import {
+	type IntegrationProblem,
 	isSecretField,
 	type PluginField,
 	type PluginSetup,
@@ -42,6 +44,50 @@ class PluginSetupService {
 			});
 	}
 
+	/**
+	 * The turned-on integrations that are broken, for the admins' alert: installed ones that didn't load, ones the worker
+	 * couldn't start, and ones none of whose devices answer.
+	 */
+	problems(): IntegrationProblem[] {
+		const unloaded = PluginDTO.all()
+			.filter((row) => !plugins.get(row.id) && plugins.enabled(row.id))
+			.map((row) => ({
+				pluginId: row.id,
+				name: row.manifest.name,
+				icon: row.manifest.icon,
+				message: `It didn't load: ${plugins.failure(row.id) ?? "its code is missing."}`,
+				fix: "plugins" as const,
+			}));
+		const devices = DeviceDTO.all();
+		const failing = plugins
+			.all()
+			.filter((hosted) => plugins.enabled(hosted.manifest.id))
+			.flatMap(({ manifest }) => {
+				const kinds = new Set(manifest.kinds.map((kind) => kind.id));
+				const own = devices
+					.filter((device) => kinds.has(device.kind))
+					.map((device) => device.toJSON().stateError);
+				const startFailure = plugins.startFailure(manifest.id);
+				const message = startFailure
+					? `It couldn't start: ${startFailure}`
+					: own.length > 0 && own.every((error) => error !== null)
+						? `None of its devices answer: ${own[0]}`
+						: null;
+				return message
+					? [
+							{
+								pluginId: manifest.id,
+								name: manifest.name,
+								icon: manifest.icon,
+								message,
+								fix: "setup" as const,
+							},
+						]
+					: [];
+			});
+		return [...unloaded, ...failing];
+	}
+
 	/** The plugin `id`, when it's loaded and turned on. */
 	plugin(id: string): HostedPlugin | undefined {
 		const hosted = plugins.get(id);
@@ -49,8 +95,9 @@ class PluginSetupService {
 	}
 
 	/**
-	 * Checks `values` with the plugin, stores them as its connection for `homeId`, restarts it in the worker and, when it
-	 * can, looks for its devices; returns how many it found, or `null` when they show up on their own.
+	 * Checks `values` with the plugin, stores them as its connection for `homeId`, restarts it in the worker, has it read
+	 * its devices again and, when it can, looks for new ones; returns how many it found, or `null` when they show up on
+	 * their own.
 	 *
 	 * @throws When the plugin refuses the values or can't reach what they point at.
 	 */
@@ -63,7 +110,7 @@ class PluginSetupService {
 		const fields = manifest.connection?.fields ?? [];
 		const stored = getPluginSettings(manifest.id);
 		const merged = {
-			...(pluginContexts.settings(manifest.id) ?? {}),
+			...pluginContexts.settings(manifest.id),
 			...values,
 		};
 		await addresses.check(fields, values);
@@ -79,6 +126,12 @@ class PluginSetupService {
 			{ pluginId: manifest.id },
 			{ maxAttempts: 1 },
 		);
+		const kinds = new Set(manifest.kinds.map((kind) => kind.id));
+		for (const device of DeviceDTO.all()) {
+			if (kinds.has(device.kind)) {
+				this.#refreshSoon(hosted, device);
+			}
+		}
 		return this.discover(hosted);
 	}
 

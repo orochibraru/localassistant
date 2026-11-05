@@ -117,8 +117,7 @@ class Automations {
 			if (next.open) {
 				if (inPeriod(automation.period, monthDay)) {
 					await this.trigger(automation, home, new Date(), {
-						roomId,
-						by: name,
+						opened: { roomId, by: name },
 					});
 				}
 				continue;
@@ -211,7 +210,7 @@ class Automations {
 					trigger.who === change.userId ||
 					((trigger.who === "first" || trigger.who === "last") && !othersHome);
 				if (matches) {
-					await this.trigger(automation, home, now, undefined, cause);
+					await this.trigger(automation, home, now, { cause });
 				}
 			}
 		}
@@ -225,9 +224,9 @@ class Automations {
 		automation: AutomationDTO,
 		home: HomeDTO,
 		now: Date,
-		opened?: Opened,
-		cause = this.#cause(automation, opened),
+		{ opened, cause: given }: { opened?: Opened; cause?: string } = {},
 	): Promise<boolean> {
+		const cause = given ?? this.#cause(automation, opened);
 		const unmet = automation.conditions.find(
 			(condition) => !this.holds(condition, home, now),
 		);
@@ -288,9 +287,11 @@ class Automations {
 		automation: AutomationDTO,
 		cause: string,
 		opened?: Opened,
-		fromStep = 0,
-		record = AutomationRunDTO.start(automation.id, cause),
+		resumed?: { step: number; record: AutomationRunDTO },
 	): Promise<void> {
+		const fromStep = resumed?.step ?? 0;
+		const record =
+			resumed?.record ?? AutomationRunDTO.start(automation.id, cause);
 		const failures: string[] = [];
 		for (const [index, action] of automation.actions.entries()) {
 			if (index < fromStep) {
@@ -347,8 +348,7 @@ class Automations {
 			payload.by === null
 				? undefined
 				: { roomId: payload.roomId, by: payload.by },
-			payload.step,
-			record,
+			{ step: payload.step, record },
 		);
 	}
 
@@ -363,10 +363,10 @@ class Automations {
 					"deviceIds" in action && action.deviceIds.includes(device.id),
 			);
 		if (action.type === "valves") {
-			return this.#hold(scope(), opened?.by ?? automation.name);
+			return await this.#hold(scope(), opened?.by ?? automation.name);
 		}
 		if (action.type === "heating") {
-			return this.#lower(automation, scope(), action.degrees);
+			return await this.#lower(automation, scope(), action.degrees);
 		}
 		if (action.type === "scene") {
 			const scene = SceneDTO.find(action.sceneId, automation.homeId);
@@ -375,7 +375,7 @@ class Automations {
 		if (action.type === "notify") {
 			return this.#notify(automation, action);
 		}
-		return this.#act(automation.homeId, action);
+		return await this.#act(automation.homeId, action);
 	}
 
 	#notify(

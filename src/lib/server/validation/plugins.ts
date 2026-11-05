@@ -54,7 +54,7 @@ const fieldSchema = z
 		pattern: text(300)
 			.refine((pattern) => {
 				try {
-					new RegExp(pattern);
+					RegExp(pattern);
 					return true;
 				} catch {
 					return false;
@@ -181,6 +181,42 @@ export function parseManifest(raw: unknown): PluginManifest {
 	return result.data;
 }
 
+function numberProblem(field: PluginField, number: number): string | null {
+	if (
+		Number.isFinite(number) &&
+		(field.min === undefined || number >= field.min) &&
+		(field.max === undefined || number <= field.max)
+	) {
+		return null;
+	}
+	return (
+		field.message ??
+		(field.min !== undefined && field.max !== undefined
+			? `Type a number from ${field.min} to ${field.max}.`
+			: "Type a number.")
+	);
+}
+
+function textProblems(field: PluginField, value: string): string[] {
+	const problems: string[] = [];
+	if (field.type === "headers" && parseHeaders(value) === null) {
+		problems.push("Write one header per line, like X-Api-Key: secret.");
+	}
+	if (
+		field.type === "choice" &&
+		!field.choices?.some((choice) => choice.value === value)
+	) {
+		problems.push(`Pick ${field.label.toLowerCase()}.`);
+	}
+	if (value.length > 2000) {
+		problems.push("That's too long.");
+	}
+	if (field.pattern && !new RegExp(field.pattern).test(value)) {
+		problems.push(field.message ?? `Check ${field.label.toLowerCase()}.`);
+	}
+	return problems;
+}
+
 function valueSchema(field: PluginField, keepSecrets: boolean) {
 	const blank = (value: string | undefined) => !value || value.trim() === "";
 	const missing = `Fill in ${field.label.toLowerCase()}.`;
@@ -206,19 +242,9 @@ function valueSchema(field: PluginField, keepSecrets: boolean) {
 			const value = (raw ?? "").trim();
 			if (field.type === "number") {
 				const number = Number(value);
-				if (
-					!Number.isFinite(number) ||
-					(field.min !== undefined && number < field.min) ||
-					(field.max !== undefined && number > field.max)
-				) {
-					context.addIssue({
-						code: "custom",
-						message:
-							field.message ??
-							(field.min !== undefined && field.max !== undefined
-								? `Type a number from ${field.min} to ${field.max}.`
-								: "Type a number."),
-					});
+				const problem = numberProblem(field, number);
+				if (problem) {
+					context.addIssue({ code: "custom", message: problem });
 				}
 				return number;
 			}
@@ -235,29 +261,8 @@ function valueSchema(field: PluginField, keepSecrets: boolean) {
 				}
 				return parsed.success ? parsed.data : value;
 			}
-			if (field.type === "headers" && parseHeaders(value) === null) {
-				context.addIssue({
-					code: "custom",
-					message: "Write one header per line, like X-Api-Key: secret.",
-				});
-			}
-			if (
-				field.type === "choice" &&
-				!field.choices?.some((choice) => choice.value === value)
-			) {
-				context.addIssue({
-					code: "custom",
-					message: `Pick ${field.label.toLowerCase()}.`,
-				});
-			}
-			if (value.length > 2000) {
-				context.addIssue({ code: "custom", message: "That's too long." });
-			}
-			if (field.pattern && !new RegExp(field.pattern).test(value)) {
-				context.addIssue({
-					code: "custom",
-					message: field.message ?? `Check ${field.label.toLowerCase()}.`,
-				});
+			for (const message of textProblems(field, value)) {
+				context.addIssue({ code: "custom", message });
 			}
 			return value;
 		});

@@ -1,4 +1,12 @@
-import type { DeviceState } from "#lib/devices.js";
+import type {
+	ButtonState,
+	DeviceState,
+	LockState,
+	MediaState,
+	PresenceState,
+	PrinterState,
+	VacuumState,
+} from "#lib/devices.js";
 
 export interface HistoryPoint {
 	at: Date;
@@ -33,6 +41,71 @@ function switched(
 		: words(next);
 }
 
+function lockChange(
+	previous: DeviceState | null,
+	next: LockState,
+): string | null {
+	const before = previous?.type === "lock" ? previous : null;
+	if (next.jammed && before && !before.jammed) {
+		return "is jammed";
+	}
+	return switched(before?.locked, next.locked, (locked) =>
+		locked ? "locked" : "unlocked",
+	);
+}
+
+function mediaChange(
+	previous: DeviceState | null,
+	next: MediaState,
+): string | null {
+	const before = previous?.type === "media" ? previous : null;
+	if (!before || before.playback === next.playback) {
+		return switched(before?.power, next.power, onWords);
+	}
+	return next.playback === "playing"
+		? "started playing"
+		: next.playback === "paused"
+			? "paused"
+			: "stopped";
+}
+
+function buttonChange(
+	previous: DeviceState | null,
+	next: ButtonState,
+): string | null {
+	return next.pressedAt &&
+		previous?.type === "button" &&
+		previous.pressedAt !== next.pressedAt
+		? "was pressed"
+		: null;
+}
+
+function presenceChange(
+	previous: DeviceState | null,
+	next: PresenceState,
+): string | null {
+	if (previous?.type !== "presence") {
+		return null;
+	}
+	if (next.zone && next.zone !== previous.zone) {
+		return `is in ${next.zone}`;
+	}
+	return switched(previous.home, next.home, (home) =>
+		home ? "got home" : "left",
+	);
+}
+
+function stageChange(
+	previous: DeviceState | null,
+	next: VacuumState | PrinterState,
+): string | null {
+	return previous?.type === next.type &&
+		"stage" in previous &&
+		previous.stage !== next.stage
+		? `is ${next.stage}`
+		: null;
+}
+
 /**
  * What changed between two states of a device, in words to follow its name: "turned on", "opened", "locked", "got
  * home", "is in Work", "started playing", "was pressed"; `null` when nothing worth a logbook line changed.
@@ -64,51 +137,16 @@ export function describeChange(
 				(open) => (open ? "opened" : "shut"),
 			);
 		case "lock":
-			if (next.jammed && before?.type === "lock" && !before.jammed) {
-				return "is jammed";
-			}
-			return switched(
-				before?.type === "lock" ? before.locked : undefined,
-				next.locked,
-				(locked) => (locked ? "locked" : "unlocked"),
-			);
+			return lockChange(previous, next);
 		case "media":
-			if (before?.type !== "media" || before.playback === next.playback) {
-				return switched(
-					before?.type === "media" ? before.power : undefined,
-					next.power,
-					onWords,
-				);
-			}
-			return next.playback === "playing"
-				? "started playing"
-				: next.playback === "paused"
-					? "paused"
-					: "stopped";
+			return mediaChange(previous, next);
 		case "button":
-			return next.pressedAt &&
-				before?.type === "button" &&
-				before.pressedAt !== next.pressedAt
-				? "was pressed"
-				: null;
+			return buttonChange(previous, next);
 		case "presence":
-			if (before?.type !== "presence") {
-				return null;
-			}
-			if (next.zone && next.zone !== before.zone) {
-				return `is in ${next.zone}`;
-			}
-			return switched(before.home, next.home, (home) =>
-				home ? "got home" : "left",
-			);
+			return presenceChange(previous, next);
 		case "vacuum":
-			return before?.type === "vacuum" && before.stage !== next.stage
-				? `is ${next.stage}`
-				: null;
 		case "printer":
-			return before?.type === "printer" && before.stage !== next.stage
-				? `is ${next.stage}`
-				: null;
+			return stageChange(previous, next);
 		default:
 			return null;
 	}

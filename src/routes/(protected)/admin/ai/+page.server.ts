@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { AuthenticationError } from "@anthropic-ai/sdk";
 import { fail } from "@sveltejs/kit";
 
 import { DeviceDTO } from "#lib/dto/device.js";
@@ -40,7 +40,7 @@ export const actions = {
 			return fail(400, {
 				errors: {
 					apiKey: [
-						failure instanceof Anthropic.AuthenticationError
+						failure instanceof AuthenticationError
 							? "The Claude API refused that key."
 							: "The Claude API can't be reached to check it. Try again.",
 					],

@@ -1,4 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, {
+	AuthenticationError,
+	RateLimitError,
+} from "@anthropic-ai/sdk";
 import { error } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -163,13 +166,13 @@ class Assistant {
 		try {
 			return await this.reply(home, history);
 		} catch (failure) {
-			if (failure instanceof Anthropic.AuthenticationError) {
+			if (failure instanceof AuthenticationError) {
 				error(
 					502,
 					"The Claude API refused the key: an admin has to replace it.",
 				);
 			}
-			if (failure instanceof Anthropic.RateLimitError) {
+			if (failure instanceof RateLimitError) {
 				error(503, "The Claude API is busy right now. Try again in a minute.");
 			}
 			logger.warn("The assistant failed", undefined, failure);

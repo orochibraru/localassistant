@@ -1,13 +1,22 @@
 import type {
 	ClimateMode,
 	DeviceState,
+	FanState,
 	LightFeature,
+	LightState,
 	MediaAction,
 	MediaPlayback,
+	MediaState,
+	SensorState,
 } from "#lib/devices.js";
 import type { DeviceCommand, FoundDevice } from "#lib/plugin-sdk.js";
 
 import type { HaState } from "./client.js";
+
+function numberOf(value: unknown): number | null {
+	const parsed = Number.parseFloat(String(value));
+	return Number.isFinite(parsed) ? parsed : null;
+}
 
 export interface ServiceCall {
 	domain: string;
@@ -297,44 +306,9 @@ class HaMapping {
 		entity: HaState,
 		missing: boolean,
 	): DeviceState | null {
-		const attributes = entity.attributes;
-		const number = (value: unknown) => {
-			const parsed = Number.parseFloat(String(value));
-			return Number.isFinite(parsed) ? parsed : null;
-		};
 		const on = missing ? null : entity.state === "on";
 		if (kind === "home-assistant-light") {
-			const modes = Array.isArray(attributes.supported_color_modes)
-				? attributes.supported_color_modes.map(String)
-				: [];
-			const features: LightFeature[] = [];
-			if (modes.some((mode) => mode !== "onoff")) {
-				features.push("brightness");
-			}
-			if (modes.includes("color_temp")) {
-				features.push("temperature");
-			}
-			if (modes.some((mode) => colorModes.has(mode))) {
-				features.push("color");
-			}
-			const brightness = number(attributes.brightness);
-			const hs = Array.isArray(attributes.hs_color)
-				? attributes.hs_color.map(number)
-				: [];
-			return {
-				type: "light",
-				on,
-				brightness:
-					brightness === null ? null : Math.round((brightness / 255) * 100),
-				temperature: number(attributes.color_temp_kelvin),
-				minTemperature: number(attributes.min_color_temp_kelvin) ?? 2000,
-				maxTemperature: number(attributes.max_color_temp_kelvin) ?? 6500,
-				color:
-					hs[0] != null && hs[1] != null
-						? { hue: hs[0], saturation: hs[1] }
-						: null,
-				features,
-			};
+			return this.#lightState(entity, on);
 		}
 		if (kind === "home-assistant-lock") {
 			return {
@@ -345,41 +319,10 @@ class HaMapping {
 			};
 		}
 		if (kind === "home-assistant-fan") {
-			const step = number(attributes.percentage_step);
-			return {
-				type: "fan",
-				on,
-				speed: number(attributes.percentage),
-				speedSteps:
-					attributes.percentage === undefined
-						? 0
-						: Math.round(100 / (step && step > 0 ? step : 1)),
-				oscillating:
-					typeof attributes.oscillating === "boolean"
-						? attributes.oscillating
-						: null,
-			};
+			return this.#fanState(entity, on);
 		}
 		if (kind === "home-assistant-media") {
-			const volume = number(attributes.volume_level);
-			const text = (value: unknown) =>
-				typeof value === "string" && value ? value : null;
-			return {
-				type: "media",
-				power: missing ? null : entity.state !== "off",
-				playback: playbacks[entity.state] ?? null,
-				title: text(attributes.media_title),
-				artist: text(attributes.media_artist),
-				volume: volume === null ? null : Math.round(volume * 100),
-				muted:
-					typeof attributes.is_volume_muted === "boolean"
-						? attributes.is_volume_muted
-						: null,
-				source: text(attributes.source),
-				sources: Array.isArray(attributes.source_list)
-					? attributes.source_list.map(String)
-					: [],
-			};
+			return this.#mediaState(entity, missing);
 		}
 		if (kind === "home-assistant-button") {
 			const pressed = Date.parse(entity.state);
@@ -391,7 +334,6 @@ class HaMapping {
 			};
 		}
 		if (kind === "home-assistant-presence") {
-			const battery = number(attributes.battery_level);
 			return {
 				type: "presence",
 				home: missing ? null : entity.state === "home",
@@ -399,32 +341,112 @@ class HaMapping {
 					missing || entity.state === "home" || entity.state === "not_home"
 						? null
 						: entity.state,
-				battery,
+				battery: numberOf(entity.attributes.battery_level),
 			};
 		}
 		if (kind === "home-assistant-sensor") {
-			const deviceClass = attributes.device_class;
-			const unit = attributes.unit_of_measurement;
-			const value = number(entity.state);
-			return {
-				type: "sensor",
-				readings: [
-					{
-						name:
-							typeof deviceClass === "string"
-								? deviceClass.replaceAll("_", " ")
-								: "Value",
-						value: missing
-							? null
-							: entity.entity_id.startsWith("binary_sensor.")
-								? entity.state === "on"
-								: (value ?? entity.state),
-						unit: typeof unit === "string" && unit ? unit : null,
-					},
-				],
-			};
+			return this.#sensorState(entity, missing);
 		}
 		return null;
+	}
+
+	#lightState(entity: HaState, on: boolean | null): LightState {
+		const attributes = entity.attributes;
+		const modes = Array.isArray(attributes.supported_color_modes)
+			? attributes.supported_color_modes.map(String)
+			: [];
+		const features: LightFeature[] = [];
+		if (modes.some((mode) => mode !== "onoff")) {
+			features.push("brightness");
+		}
+		if (modes.includes("color_temp")) {
+			features.push("temperature");
+		}
+		if (modes.some((mode) => colorModes.has(mode))) {
+			features.push("color");
+		}
+		const brightness = numberOf(attributes.brightness);
+		const hs = Array.isArray(attributes.hs_color)
+			? attributes.hs_color.map(numberOf)
+			: [];
+		return {
+			type: "light",
+			on,
+			brightness:
+				brightness === null ? null : Math.round((brightness / 255) * 100),
+			temperature: numberOf(attributes.color_temp_kelvin),
+			minTemperature: numberOf(attributes.min_color_temp_kelvin) ?? 2000,
+			maxTemperature: numberOf(attributes.max_color_temp_kelvin) ?? 6500,
+			color:
+				hs[0] != null && hs[1] != null
+					? { hue: hs[0], saturation: hs[1] }
+					: null,
+			features,
+		};
+	}
+
+	#fanState(entity: HaState, on: boolean | null): FanState {
+		const attributes = entity.attributes;
+		const step = numberOf(attributes.percentage_step);
+		return {
+			type: "fan",
+			on,
+			speed: numberOf(attributes.percentage),
+			speedSteps:
+				attributes.percentage === undefined
+					? 0
+					: Math.round(100 / (step && step > 0 ? step : 1)),
+			oscillating:
+				typeof attributes.oscillating === "boolean"
+					? attributes.oscillating
+					: null,
+		};
+	}
+
+	#mediaState(entity: HaState, missing: boolean): MediaState {
+		const attributes = entity.attributes;
+		const volume = numberOf(attributes.volume_level);
+		const text = (value: unknown) =>
+			typeof value === "string" && value ? value : null;
+		return {
+			type: "media",
+			power: missing ? null : entity.state !== "off",
+			playback: playbacks[entity.state] ?? null,
+			title: text(attributes.media_title),
+			artist: text(attributes.media_artist),
+			volume: volume === null ? null : Math.round(volume * 100),
+			muted:
+				typeof attributes.is_volume_muted === "boolean"
+					? attributes.is_volume_muted
+					: null,
+			source: text(attributes.source),
+			sources: Array.isArray(attributes.source_list)
+				? attributes.source_list.map(String)
+				: [],
+		};
+	}
+
+	#sensorState(entity: HaState, missing: boolean): SensorState {
+		const deviceClass = entity.attributes.device_class;
+		const unit = entity.attributes.unit_of_measurement;
+		const value = numberOf(entity.state);
+		return {
+			type: "sensor",
+			readings: [
+				{
+					name:
+						typeof deviceClass === "string"
+							? deviceClass.replaceAll("_", " ")
+							: "Value",
+					value: missing
+						? null
+						: entity.entity_id.startsWith("binary_sensor.")
+							? entity.state === "on"
+							: (value ?? entity.state),
+					unit: typeof unit === "string" && unit ? unit : null,
+				},
+			],
+		};
 	}
 
 	#controlServices(

@@ -28,6 +28,7 @@ describe("settings", () => {
 			smtp: null,
 			mqtt: null,
 			disabledPlugins: [],
+			pluginFailures: {},
 			sourceTokens: [],
 			multipleHomes: false,
 			passwordSignIn: true,

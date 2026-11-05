@@ -1,10 +1,44 @@
-import type { DeviceState } from "#lib/devices.js";
+import type { ClimateState, DeviceState, LightState } from "#lib/devices.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import type { PluginCard } from "#lib/plugins.js";
 
 export interface SceneMember {
 	deviceId: string;
 	command: DeviceCommand;
+}
+
+function captureLight(state: LightState): DeviceCommand | null {
+	if (state.on === null) {
+		return null;
+	}
+	if (!state.on) {
+		return { type: "light", change: { on: false } };
+	}
+	return {
+		type: "light",
+		change: {
+			on: true,
+			...(state.brightness === null ? {} : { brightness: state.brightness }),
+			...(state.color
+				? { color: state.color }
+				: state.temperature === null
+					? {}
+					: { temperature: state.temperature }),
+		},
+	};
+}
+
+function captureClimate(state: ClimateState): DeviceCommand {
+	return {
+		type: "climate",
+		change: {
+			power: state.power,
+			...(state.mode ? { mode: state.mode } : {}),
+			...(state.targetTemperature === null
+				? {}
+				: { targetTemperature: state.targetTemperature }),
+		},
+	};
 }
 
 /**
@@ -18,40 +52,13 @@ export function captureCommand(
 		case "switch":
 			return state.on === null ? null : { type: "switch", on: state.on };
 		case "light":
-			if (state.on === null) {
-				return null;
-			}
-			return {
-				type: "light",
-				change: state.on
-					? {
-							on: true,
-							...(state.brightness === null
-								? {}
-								: { brightness: state.brightness }),
-							...(state.color
-								? { color: state.color }
-								: state.temperature === null
-									? {}
-									: { temperature: state.temperature }),
-						}
-					: { on: false },
-			};
+			return captureLight(state);
 		case "cover":
 			return state.position === null
 				? null
 				: { type: "cover", move: { position: state.position } };
 		case "climate":
-			return {
-				type: "climate",
-				change: {
-					power: state.power,
-					...(state.mode ? { mode: state.mode } : {}),
-					...(state.targetTemperature === null
-						? {}
-						: { targetTemperature: state.targetTemperature }),
-				},
-			};
+			return captureClimate(state);
 		case "valve":
 			return state.target === null
 				? null

@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 
 import { PluginDTO } from "#lib/dto/plugin.js";
-import { getSetting } from "#lib/dto/setting.js";
+import { getSetting, setSetting } from "#lib/dto/setting.js";
 import type { Plugin } from "#lib/plugin-sdk.js";
 import type { KindCatalog, PluginManifest } from "#lib/plugins.js";
 import { configuration } from "#lib/server/core/config.js";
@@ -230,7 +230,10 @@ class Plugins {
 		this.#failures.delete(id);
 	}
 
-	/** Starts the long-running side of `id` (connections, timers) when it's turned on; a failure is logged. */
+	/**
+	 * Starts the long-running side of `id` (connections, timers) when it's turned on; a failure is logged and kept in the
+	 * `pluginFailures` setting until it starts cleanly.
+	 */
 	async start(id: string): Promise<void> {
 		const hosted = this.get(id);
 		if (!hosted || this.#running.has(id) || !this.enabled(id)) {
@@ -239,9 +242,19 @@ class Plugins {
 		this.#running.add(id);
 		try {
 			await hosted.plugin.start?.(hosted.context);
+			this.#recordFailure(id, null);
 		} catch (error) {
 			logger.warn("Plugin failed to start", { plugin: id }, error);
+			this.#recordFailure(
+				id,
+				error instanceof Error ? error.message : "It failed to start.",
+			);
 		}
+	}
+
+	/** Why the worker couldn't start `id` the last time it tried, if it couldn't. */
+	startFailure(id: string): string | null {
+		return getSetting("pluginFailures")[id] ?? null;
 	}
 
 	/** Stops the long-running side of `id`, clearing its timers and subscriptions; a failure is logged. */
@@ -273,7 +286,7 @@ class Plugins {
 
 	/** Stops every running plugin, for the worker's shutdown. */
 	async stopAll(): Promise<void> {
-		for (const id of [...this.#running]) {
+		for (const id of this.#running) {
 			await this.stop(id);
 		}
 	}
@@ -293,6 +306,17 @@ class Plugins {
 				context: pluginContexts.create(manifest),
 			});
 		}
+	}
+
+	#recordFailure(id: string, message: string | null): void {
+		const { [id]: previous, ...others } = getSetting("pluginFailures");
+		if (previous === (message ?? undefined)) {
+			return;
+		}
+		setSetting(
+			"pluginFailures",
+			message ? { ...others, [id]: message } : others,
+		);
 	}
 
 	#repository(id: string): string {

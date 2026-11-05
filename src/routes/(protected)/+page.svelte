@@ -17,6 +17,7 @@
 	import Fab from "#lib/components/fab.svelte";
 	import PeopleStrip from "#lib/components/house/people-strip.svelte";
 	import WeatherCard from "#lib/components/house/weather-card.svelte";
+	import IntegrationAlerts from "#lib/components/plugins/integration-alerts.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { refill } from "#lib/devices.js";
 	import { houseGroups, roomLabels } from "#lib/house.js";
@@ -119,6 +120,7 @@
 			<ChevronRightIcon class="text-muted-foreground size-4" />
 		</a>
 	{/if}
+	<IntegrationAlerts problems={data.integrationProblems} />
 	<WeatherCard home={data.home} isAdmin={data.isAdmin} />
 	<PeopleStrip people={data.presence} now={live.now} />
 	{#if data.dashboards.length > 0}

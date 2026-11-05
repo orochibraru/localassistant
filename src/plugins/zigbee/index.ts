@@ -1,4 +1,4 @@
-import type { DeviceState } from "#lib/devices.js";
+import type { DeviceState, LightChange, LightState } from "#lib/devices.js";
 import {
 	definePlugin,
 	type DeviceCommand,
@@ -160,36 +160,44 @@ class Zigbee implements Plugin {
 			return { ...state, locked: command.locked, jammed: false };
 		}
 		if (command.type === "light" && state?.type === "light") {
-			const change = command.change;
-			const on =
-				change.on ??
-				(change.brightness === undefined ? state.on : change.brightness > 0);
-			await context.mqtt.publish(target, {
-				state: on === false ? "OFF" : "ON",
-				...(change.brightness === undefined || on === false
-					? {}
-					: { brightness: Math.round((change.brightness / 100) * 254) }),
-				...(change.temperature === undefined
-					? {}
-					: { color_temp: Math.round(1_000_000 / change.temperature) }),
-				...(change.color
-					? {
-							color: {
-								hue: change.color.hue,
-								saturation: change.color.saturation,
-							},
-						}
-					: {}),
-			});
-			return {
-				...state,
-				on,
-				brightness: change.brightness ?? state.brightness,
-				temperature: change.temperature ?? state.temperature,
-				color: change.color ?? state.color,
-			};
+			return this.#light(context, target, state, command.change);
 		}
 		throw new Error("That device doesn't take that command.");
+	}
+
+	async #light(
+		context: PluginContext,
+		target: string,
+		state: LightState,
+		change: LightChange,
+	): Promise<LightState> {
+		const on =
+			change.on ??
+			(change.brightness === undefined ? state.on : change.brightness > 0);
+		await context.mqtt.publish(target, {
+			state: on === false ? "OFF" : "ON",
+			...(change.brightness === undefined || on === false
+				? {}
+				: { brightness: Math.round((change.brightness / 100) * 254) }),
+			...(change.temperature === undefined
+				? {}
+				: { color_temp: Math.round(1_000_000 / change.temperature) }),
+			...(change.color
+				? {
+						color: {
+							hue: change.color.hue,
+							saturation: change.color.saturation,
+						},
+					}
+				: {}),
+		});
+		return {
+			...state,
+			on,
+			brightness: change.brightness ?? state.brightness,
+			temperature: change.temperature ?? state.temperature,
+			color: change.color ?? state.color,
+		};
 	}
 
 	#parse(payload: Buffer): unknown {

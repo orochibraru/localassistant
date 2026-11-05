@@ -9,6 +9,7 @@
 		kindIcon,
 		pluginIconComponents,
 	} from "#lib/components/devices/device-kinds.js";
+	import IntegrationAlerts from "#lib/components/plugins/integration-alerts.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { roomLabels } from "#lib/house.js";
@@ -42,8 +43,11 @@
 	}
 </script>
 
+<IntegrationAlerts problems={data.integrationProblems} />
+
 <div
 	class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(20rem,28rem)_1fr] lg:items-start"
+	class:mt-6={data.integrationProblems.length > 0}
 >
 	<section
 		class="glass flex flex-col gap-2 rounded-2xl p-2"

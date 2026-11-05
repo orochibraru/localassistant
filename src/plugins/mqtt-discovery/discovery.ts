@@ -105,6 +105,13 @@ const abbreviations: Record<string, string> = {
 	val_tpl: "value_template",
 };
 
+const commandedKinds = new Map([
+	["switch", "mqtt-discovery-switch"],
+	["light", "mqtt-discovery-light"],
+	["lock", "mqtt-discovery-lock"],
+	["fan", "mqtt-discovery-fan"],
+	["button", "mqtt-discovery-button"],
+]);
 const contactClasses = new Set(["door", "window", "opening", "garage_door"]);
 
 const climateModes: Record<string, ClimateMode> = {
@@ -315,27 +322,9 @@ class Discovery {
 	}
 
 	#kind(component: string, config: DiscoveryConfig): string | null {
-		const deviceClass =
-			typeof config.device_class === "string" ? config.device_class : "";
-		const unit =
-			typeof config.unit_of_measurement === "string"
-				? config.unit_of_measurement
-				: "";
-		const commanded = typeof config.command_topic === "string";
-		if (component === "switch" && commanded) {
-			return "mqtt-discovery-switch";
-		}
-		if (component === "light" && commanded) {
-			return "mqtt-discovery-light";
-		}
-		if (component === "lock" && commanded) {
-			return "mqtt-discovery-lock";
-		}
-		if (component === "fan" && commanded) {
-			return "mqtt-discovery-fan";
-		}
-		if (component === "button" && commanded) {
-			return "mqtt-discovery-button";
+		const commanded = commandedKinds.get(component);
+		if (commanded && typeof config.command_topic === "string") {
+			return commanded;
 		}
 		if (
 			component === "device_tracker" &&
@@ -349,6 +338,19 @@ class Discovery {
 		) {
 			return "mqtt-discovery-cover";
 		}
+		if (component === "sensor" || component === "binary_sensor") {
+			return this.#sensorKind(component, config);
+		}
+		return component === "climate" ? "mqtt-discovery-climate" : null;
+	}
+
+	#sensorKind(component: string, config: DiscoveryConfig): string | null {
+		const deviceClass =
+			typeof config.device_class === "string" ? config.device_class : "";
+		const unit =
+			typeof config.unit_of_measurement === "string"
+				? config.unit_of_measurement
+				: "";
 		if (component === "binary_sensor" && contactClasses.has(deviceClass)) {
 			return "mqtt-discovery-contact";
 		}
@@ -364,16 +366,12 @@ class Discovery {
 		) {
 			return "mqtt-discovery-energy";
 		}
-		if (
-			(component === "sensor" || component === "binary_sensor") &&
-			typeof config.state_topic === "string" &&
+		return typeof config.state_topic === "string" &&
 			(deviceClass || unit) &&
 			config.entity_category !== "diagnostic" &&
 			config.entity_category !== "config"
-		) {
-			return "mqtt-discovery-sensor";
-		}
-		return component === "climate" ? "mqtt-discovery-climate" : null;
+			? "mqtt-discovery-sensor"
+			: null;
 	}
 }
 

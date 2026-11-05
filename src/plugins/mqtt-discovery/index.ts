@@ -196,7 +196,7 @@ class MqttDiscovery implements Plugin {
 			return { ...previous, energy: unit === "Wh" ? known / 1000 : known };
 		}
 		if (previous.type === "cover") {
-			return this.#cover(previous, role, text, known, config);
+			return this.#cover(previous, role, { text, known }, config);
 		}
 		if (previous.type !== "climate") {
 			return controls.apply(previous, role, value, config);
@@ -341,8 +341,7 @@ class MqttDiscovery implements Plugin {
 	#cover(
 		previous: CoverState,
 		role: Role,
-		text: string,
-		known: number | null,
+		{ text, known }: { text: string; known: number | null },
 		config: DiscoveryConfig,
 	): CoverState {
 		const open =

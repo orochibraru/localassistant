@@ -40,6 +40,7 @@ export const load = ({ cookies, locals, url }) => {
 		kinds,
 		...houseOf(homes.current(cookies), kinds),
 		pluginSetups: admin ? pluginSetup.setups() : [],
+		integrationProblems: admin ? pluginSetup.problems() : [],
 		update: admin ? updates.available() : null,
 		brokerUrl:
 			admin && broker.configured() ? (getSetting("mqtt")?.url ?? null) : null,

@@ -312,17 +312,22 @@ class McpEndpoint {
 		const percent = z.number().min(0).max(100);
 		this.#registerCommand(
 			server,
-			"control_switch",
-			"Turn a switch on or off",
-			"Turns a relay, plug or switch on or off.",
+			{
+				name: "control_switch",
+				title: "Turn a switch on or off",
+				description: "Turns a relay, plug or switch on or off.",
+			},
 			{ on: z.boolean() },
 			({ on }) => ({ type: "switch", on }),
 		);
 		this.#registerCommand(
 			server,
-			"control_light",
-			"Control a light",
-			"Turns a light on or off and sets its brightness (0 to 100), colour temperature in kelvin, or colour as a hue (0 to 360) and saturation (0 to 100), when it has them.",
+			{
+				name: "control_light",
+				title: "Control a light",
+				description:
+					"Turns a light on or off and sets its brightness (0 to 100), colour temperature in kelvin, or colour as a hue (0 to 360) and saturation (0 to 100), when it has them.",
+			},
 			{
 				on: z.boolean().optional(),
 				brightness: percent.optional(),
@@ -335,17 +340,22 @@ class McpEndpoint {
 		);
 		this.#registerCommand(
 			server,
-			"control_lock",
-			"Lock or unlock a door",
-			"Locks or unlocks a door lock.",
+			{
+				name: "control_lock",
+				title: "Lock or unlock a door",
+				description: "Locks or unlocks a door lock.",
+			},
 			{ locked: z.boolean() },
 			({ locked }) => ({ type: "lock", locked }),
 		);
 		this.#registerCommand(
 			server,
-			"control_fan",
-			"Control a fan",
-			"Turns a fan on or off, sets its speed (0 to 100) or its oscillation.",
+			{
+				name: "control_fan",
+				title: "Control a fan",
+				description:
+					"Turns a fan on or off, sets its speed (0 to 100) or its oscillation.",
+			},
 			{
 				on: z.boolean().optional(),
 				speed: percent.optional(),
@@ -355,9 +365,12 @@ class McpEndpoint {
 		);
 		this.#registerCommand(
 			server,
-			"control_media",
-			"Control a speaker or TV",
-			"Turns a speaker or TV on or off, plays, pauses, skips, sets the volume (0 to 100), mutes, or picks a source from its list.",
+			{
+				name: "control_media",
+				title: "Control a speaker or TV",
+				description:
+					"Turns a speaker or TV on or off, plays, pauses, skips, sets the volume (0 to 100), mutes, or picks a source from its list.",
+			},
 			{
 				power: z.boolean().optional(),
 				action: z.enum(mediaActions).optional(),
@@ -369,9 +382,11 @@ class McpEndpoint {
 		);
 		this.#registerCommand(
 			server,
-			"press_button",
-			"Press a button or run a scene",
-			"Presses a button, or runs a scene or script, once.",
+			{
+				name: "press_button",
+				title: "Press a button or run a scene",
+				description: "Presses a button, or runs a scene or script, once.",
+			},
 			{},
 			() => ({ type: "button" }),
 		);
@@ -379,9 +394,11 @@ class McpEndpoint {
 
 	#registerCommand<Shape extends z.ZodRawShape>(
 		server: McpServer,
-		name: string,
-		title: string,
-		description: string,
+		{
+			name,
+			title,
+			description,
+		}: { name: string; title: string; description: string },
 		shape: Shape,
 		toCommand: (input: z.infer<z.ZodObject<Shape>>) => DeviceCommand,
 	): void {

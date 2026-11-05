@@ -48,7 +48,7 @@ class DeviceAdmin {
 		if (this.#roomMissing(homeId, roomId)) {
 			return this.#roomGone();
 		}
-		return this.#attempt(() =>
+		return await this.#attempt(() =>
 			pluginSetup.addDevice(hosted, { homeId, name, roomId }, values),
 		);
 	}
@@ -89,7 +89,7 @@ class DeviceAdmin {
 			device.rename(name, roomId);
 			return { ok: true, value: device };
 		}
-		return this.#attempt(async () => {
+		return await this.#attempt(async () => {
 			await pluginSetup.editDevice(hosted, device, { name, roomId }, values);
 			return device;
 		});
@@ -121,7 +121,7 @@ class DeviceAdmin {
 				error: "Connect the MQTT broker first.",
 			};
 		}
-		return this.#attempt(() =>
+		return await this.#attempt(() =>
 			pluginSetup.connect(hosted, homeId, parsed.data.values),
 		);
 	}
@@ -132,7 +132,7 @@ class DeviceAdmin {
 		if (!hosted) {
 			return this.#gone("That integration is off or gone.");
 		}
-		return this.#attempt(() => pluginSetup.discover(hosted));
+		return await this.#attempt(() => pluginSetup.discover(hosted));
 	}
 
 	/** Forgets the `plugin` `input` names and removes its devices; how many went. */

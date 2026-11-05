@@ -201,8 +201,12 @@ class Child {
 	#write(message: Message): void {
 		const stdin = this.#process?.stdin;
 		if (stdin && typeof stdin !== "number") {
-			stdin.write(`${JSON.stringify(message)}\n`);
-			stdin.flush();
+			void Promise.all([
+				stdin.write(`${JSON.stringify(message)}\n`),
+				stdin.flush(),
+			]).catch((error: unknown) =>
+				this.#logger.warn("Plugin input failed", undefined, error),
+			);
 		}
 	}
 

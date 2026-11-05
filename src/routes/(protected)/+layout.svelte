@@ -72,6 +72,7 @@
 			rooms={data.rooms}
 			floors={data.floors}
 			setups={data.pluginSetups}
+			problems={data.integrationProblems}
 			kinds={data.kinds}
 			brokerUrl={data.brokerUrl}
 			people={data.people}

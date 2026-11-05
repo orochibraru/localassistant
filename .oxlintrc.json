@@ -119,6 +119,12 @@
 			}
 		},
 		{
+			"files": ["src/lib/dto/**"],
+			"rules": {
+				"typescript/no-extraneous-class": ["error", { "allowStaticOnly": true }]
+			}
+		},
+		{
 			"files": ["src/lib/server/db/schema*.ts"],
 			"rules": {
 				"max-lines": "off"

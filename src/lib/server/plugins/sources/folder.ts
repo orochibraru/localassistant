@@ -103,7 +103,7 @@ class FolderSource implements Forge {
 	): Promise<Uint8Array | null> {
 		const file = this.#inside(location.repository, path);
 		return file
-			? Bun.file(file)
+			? await Bun.file(file)
 					.bytes()
 					.catch(() => null)
 			: null;

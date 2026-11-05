@@ -4,7 +4,6 @@ import type {
 	FanState,
 	LightFeature,
 	LightState,
-	LockState,
 	SensorState,
 } from "#lib/devices.js";
 import type { DeviceCommand, PluginContext } from "#lib/plugin-sdk.js";
@@ -174,6 +173,37 @@ class Controls {
 		return null;
 	}
 
+	#jsonLight(previous: LightState, text: string, scale: number): LightState {
+		let parsed: Record<string, unknown>;
+		try {
+			parsed = JSON.parse(text) as Record<string, unknown>;
+		} catch {
+			return previous;
+		}
+		const color = parsed.color as { h?: unknown; s?: unknown } | undefined;
+		return {
+			...previous,
+			on:
+				parsed.state === "ON"
+					? true
+					: parsed.state === "OFF"
+						? false
+						: previous.on,
+			brightness:
+				typeof parsed.brightness === "number"
+					? Math.round((parsed.brightness / scale) * 100)
+					: previous.brightness,
+			temperature:
+				typeof parsed.color_temp === "number" && parsed.color_temp > 0
+					? Math.round(1_000_000 / parsed.color_temp)
+					: previous.temperature,
+			color:
+				typeof color?.h === "number" && typeof color.s === "number"
+					? { hue: color.h, saturation: color.s }
+					: previous.color,
+		};
+	}
+
 	#light(
 		previous: LightState,
 		role: Role,
@@ -187,34 +217,7 @@ class Controls {
 		const number = Number.parseFloat(text);
 		const known = Number.isFinite(number) ? number : null;
 		if (role === "light" && config.schema === "json") {
-			let parsed: Record<string, unknown>;
-			try {
-				parsed = JSON.parse(text) as Record<string, unknown>;
-			} catch {
-				return previous;
-			}
-			const color = parsed.color as { h?: unknown; s?: unknown } | undefined;
-			return {
-				...previous,
-				on:
-					parsed.state === "ON"
-						? true
-						: parsed.state === "OFF"
-							? false
-							: previous.on,
-				brightness:
-					typeof parsed.brightness === "number"
-						? Math.round((parsed.brightness / scale) * 100)
-						: previous.brightness,
-				temperature:
-					typeof parsed.color_temp === "number" && parsed.color_temp > 0
-						? Math.round(1_000_000 / parsed.color_temp)
-						: previous.temperature,
-				color:
-					typeof color?.h === "number" && typeof color.s === "number"
-						? { hue: color.h, saturation: color.s }
-						: previous.color,
-			};
+			return this.#jsonLight(previous, text, scale);
 		}
 		if (role === "light") {
 			const on =
@@ -346,29 +349,12 @@ class Controls {
 					: {}),
 			});
 		} else {
-			if (change.on !== undefined || on === false) {
-				await publish(
-					topic("command_topic") ?? "",
-					on === false
-						? (topic("payload_off") ?? "OFF")
-						: (topic("payload_on") ?? "ON"),
-				);
-			}
-			const brightnessTopic = topic("brightness_command_topic");
-			if (level !== undefined && on !== false && brightnessTopic) {
-				await publish(brightnessTopic, String(level));
-			}
-			const temperatureTopic = topic("color_temp_command_topic");
-			if (mireds !== undefined && temperatureTopic) {
-				await publish(temperatureTopic, String(mireds));
-			}
-			const colorTopic = topic("hs_command_topic");
-			if (change.color && colorTopic) {
-				await publish(
-					colorTopic,
-					`${change.color.hue},${change.color.saturation}`,
-				);
-			}
+			await this.#publishLightTopics(
+				change,
+				{ on, level, mireds },
+				config,
+				publish,
+			);
 		}
 		return {
 			...state,
@@ -377,6 +363,47 @@ class Controls {
 			temperature: change.temperature ?? state.temperature,
 			color: change.color ?? state.color,
 		};
+	}
+
+	async #publishLightTopics(
+		change: Extract<DeviceCommand, { type: "light" }>["change"],
+		{
+			on,
+			level,
+			mireds,
+		}: {
+			on: boolean | null;
+			level: number | undefined;
+			mireds: number | undefined;
+		},
+		config: DiscoveryConfig,
+		publish: Publish,
+	): Promise<void> {
+		const topic = (key: string) =>
+			typeof config[key] === "string" ? (config[key] as string) : null;
+		if (change.on !== undefined || on === false) {
+			await publish(
+				topic("command_topic") ?? "",
+				on === false
+					? (topic("payload_off") ?? "OFF")
+					: (topic("payload_on") ?? "ON"),
+			);
+		}
+		const brightnessTopic = topic("brightness_command_topic");
+		if (level !== undefined && on !== false && brightnessTopic) {
+			await publish(brightnessTopic, String(level));
+		}
+		const temperatureTopic = topic("color_temp_command_topic");
+		if (mireds !== undefined && temperatureTopic) {
+			await publish(temperatureTopic, String(mireds));
+		}
+		const colorTopic = topic("hs_command_topic");
+		if (change.color && colorTopic) {
+			await publish(
+				colorTopic,
+				`${change.color.hue},${change.color.saturation}`,
+			);
+		}
 	}
 
 	async #turnFan(

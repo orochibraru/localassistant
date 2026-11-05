@@ -143,7 +143,7 @@ class Cameras implements Plugin {
 		}
 		for (const camera of cameras) {
 			try {
-				await this.#keepRunning(context, camera, now);
+				this.#keepRunning(context, camera, now);
 				await this.#prune(context, camera, now);
 				context.saveState(camera, await this.#state(context, camera));
 			} catch (error) {
@@ -216,11 +216,7 @@ class Cameras implements Plugin {
 		];
 	}
 
-	async #keepRunning(
-		context: PluginContext,
-		camera: PluginDevice,
-		now: Date,
-	): Promise<void> {
+	#keepRunning(context: PluginContext, camera: PluginDevice, now: Date): void {
 		const url = camera.secret("url");
 		if (!url) {
 			throw new Error("This camera has no RTSP address.");

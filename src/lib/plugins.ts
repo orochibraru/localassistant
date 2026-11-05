@@ -242,6 +242,14 @@ export interface PluginSetup {
 	secretsSet: string[];
 }
 
+export interface IntegrationProblem {
+	pluginId: string;
+	name: string;
+	icon: PluginIcon;
+	message: string;
+	fix: "setup" | "plugins";
+}
+
 export interface PluginSummary {
 	id: string;
 	name: string;

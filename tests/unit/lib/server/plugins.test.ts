@@ -624,6 +624,63 @@ describe("the registry", () => {
 		expect(plugins.failure("demo")).toBeNull();
 	});
 
+	test("reports integrations that fail to load, to start or to reach any device", async () => {
+		await pluginManager.install(repository);
+		const demo = plugins.get("demo");
+		if (!demo) {
+			throw new Error("Not loaded");
+		}
+		expect(pluginSetup.problems()).toEqual([]);
+		const lamp = await pluginSetup.addDevice(
+			demo,
+			{ homeId: homeId(), name: "Desk", roomId: null },
+			{ serial: "L1" },
+		);
+		lamp.saveError("The demo cloud refused the token.");
+		expect(pluginSetup.problems()).toEqual([
+			{
+				pluginId: "demo",
+				name: "Demo lamps",
+				icon: "lightbulb",
+				message:
+					"None of its devices answer: The demo cloud refused the token.",
+				fix: "setup",
+			},
+		]);
+		await devices.refresh(lamp);
+		expect(pluginSetup.problems()).toEqual([]);
+
+		spyOn(demo.plugin, "start").mockImplementation(() => {
+			throw new Error("The demo hub is offline.");
+		});
+		await plugins.start("demo");
+		expect(pluginSetup.problems()).toMatchObject([
+			{ message: "It couldn't start: The demo hub is offline.", fix: "setup" },
+		]);
+		pluginManager.setEnabled("demo", false);
+		expect(pluginSetup.problems()).toEqual([]);
+		pluginManager.setEnabled("demo", true);
+		await plugins.stop("demo");
+		spyOn(demo.plugin, "start").mockImplementation(() => undefined);
+		await plugins.start("demo");
+		expect(getSetting("pluginFailures")).toEqual({});
+
+		const row = PluginDTO.find("demo");
+		if (!row) {
+			throw new Error("Not installed");
+		}
+		PluginDTO.save({
+			...row.toJSON(),
+			ref: "d".repeat(40),
+			status: row.status ?? (await pluginManager.preview(repository)).status,
+		});
+		await plugins.unload("demo");
+		await plugins.loadInstalled();
+		expect(pluginSetup.problems()).toMatchObject([
+			{ pluginId: "demo", name: "Demo lamps", fix: "plugins" },
+		]);
+	});
+
 	test("compares versions with the running app", () => {
 		const base = parseManifest(manifest("1.0.0"));
 		const app = configuration.get().appVersion;

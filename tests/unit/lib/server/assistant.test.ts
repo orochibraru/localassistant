@@ -8,7 +8,10 @@ import {
 	test,
 } from "bun:test";
 
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, {
+	AuthenticationError,
+	RateLimitError,
+} from "@anthropic-ai/sdk";
 
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
@@ -239,14 +242,8 @@ describe("the assistant", () => {
 		setSetting("assistant", { encryptedApiKey: secrets.encrypt("sk-ant-x") });
 		const reply = spyOn(assistant, "reply");
 		for (const [failure, status] of [
-			[
-				new Anthropic.AuthenticationError(401, undefined, "no", new Headers()),
-				502,
-			],
-			[
-				new Anthropic.RateLimitError(429, undefined, "slow", new Headers()),
-				503,
-			],
+			[new AuthenticationError(401, undefined, "no", new Headers()), 502],
+			[new RateLimitError(429, undefined, "slow", new Headers()), 503],
 			[new Error("down"), 502],
 		] as const) {
 			reply.mockRejectedValueOnce(failure);

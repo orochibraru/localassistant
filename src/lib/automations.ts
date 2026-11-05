@@ -1,4 +1,11 @@
-import type { DeviceState } from "#lib/devices.js";
+import type {
+	ClimateChange,
+	CoverMove,
+	DeviceState,
+	FanChange,
+	LightChange,
+	MediaChange,
+} from "#lib/devices.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import type { PluginCard } from "#lib/plugins.js";
 import type { PresenceEvent } from "#lib/presence.js";
@@ -536,6 +543,51 @@ function onOff(
 		: `Set ${device}${details}`;
 }
 
+function coverWords(move: CoverMove, device: string): string {
+	if ("position" in move) {
+		return `Move ${device} to ${move.position}% open`;
+	}
+	const verb =
+		move.action === "stop" ? "Stop" : move.action === "open" ? "Open" : "Close";
+	return `${verb} ${device}`;
+}
+
+function climateDetails(change: ClimateChange): string[] {
+	return [
+		...(change.mode ? [`in ${change.mode} mode`] : []),
+		...(change.targetTemperature === undefined
+			? []
+			: [`at ${change.targetTemperature}°C`]),
+	];
+}
+
+function lightDetails(change: LightChange): string[] {
+	return [
+		...(change.brightness === undefined ? [] : [`at ${change.brightness}%`]),
+		...(change.temperature === undefined ? [] : [`${change.temperature} K`]),
+		...(change.color ? ["in colour"] : []),
+	];
+}
+
+function fanDetails(change: FanChange): string[] {
+	return [
+		...(change.speed === undefined ? [] : [`at ${change.speed}%`]),
+		...(change.oscillating === undefined
+			? []
+			: [change.oscillating ? "oscillating" : "still"]),
+	];
+}
+
+function mediaWords(change: MediaChange, device: string): string {
+	if (change.action) {
+		return `${commandWords[change.action] ?? change.action} ${device}`;
+	}
+	return onOff(change.power, device, [
+		...(change.volume === undefined ? [] : [`at volume ${change.volume}`]),
+		...(change.source === undefined ? [] : [`on ${change.source}`]),
+	]);
+}
+
 /** A device command in words: "Turn Hall lamp on at 40%", "Lock Front door", "Press Doorbell". */
 export function describeCommand(
 	command: DeviceCommand,
@@ -543,55 +595,25 @@ export function describeCommand(
 ): string {
 	switch (command.type) {
 		case "cover":
-			return "position" in command.move
-				? `Move ${device} to ${command.move.position}% open`
-				: `${command.move.action === "stop" ? "Stop" : command.move.action === "open" ? "Open" : "Close"} ${device}`;
-		case "climate": {
-			const change = command.change;
-			return onOff(change.power, device, [
-				...(change.mode ? [`in ${change.mode} mode`] : []),
-				...(change.targetTemperature === undefined
-					? []
-					: [`at ${change.targetTemperature}°C`]),
-			]);
-		}
+			return coverWords(command.move, device);
+		case "climate":
+			return onOff(
+				command.change.power,
+				device,
+				climateDetails(command.change),
+			);
 		case "switch":
 			return onOff(command.on, device, []);
 		case "valve":
 			return `Set ${device} to ${command.target}°C`;
-		case "light": {
-			const change = command.change;
-			return onOff(change.on, device, [
-				...(change.brightness === undefined
-					? []
-					: [`at ${change.brightness}%`]),
-				...(change.temperature === undefined
-					? []
-					: [`${change.temperature} K`]),
-				...(change.color ? ["in colour"] : []),
-			]);
-		}
+		case "light":
+			return onOff(command.change.on, device, lightDetails(command.change));
 		case "lock":
 			return `${command.locked ? "Lock" : "Unlock"} ${device}`;
-		case "fan": {
-			const change = command.change;
-			return onOff(change.on, device, [
-				...(change.speed === undefined ? [] : [`at ${change.speed}%`]),
-				...(change.oscillating === undefined
-					? []
-					: [change.oscillating ? "oscillating" : "still"]),
-			]);
-		}
-		case "media": {
-			const change = command.change;
-			if (change.action) {
-				return `${commandWords[change.action] ?? change.action} ${device}`;
-			}
-			return onOff(change.power, device, [
-				...(change.volume === undefined ? [] : [`at volume ${change.volume}`]),
-				...(change.source === undefined ? [] : [`on ${change.source}`]),
-			]);
-		}
+		case "fan":
+			return onOff(command.change.on, device, fanDetails(command.change));
+		case "media":
+			return mediaWords(command.change, device);
 		case "button":
 			return `Press ${device}`;
 		case "printer":
