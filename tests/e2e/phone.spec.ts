@@ -5,9 +5,9 @@ test("Home fits a phone and the blind drawer opens", async ({ page }) => {
 		localStorage.setItem("localassistant-install-prompted", "e2e"),
 	);
 	await page.goto("/devices");
-	await page.getByRole("button", { name: /Tuya blinds/ }).click();
+	await page.getByRole("button", { name: /^Tuya blinds/ }).click();
 	const sheet = page.getByRole("dialog").last();
-	await expect(sheet.getByLabel("Local key")).toBeVisible();
+	await expect(sheet.getByLabel("Local key", { exact: true })).toBeVisible();
 	await page.keyboard.press("Escape");
 
 	await page.goto("/");
@@ -103,7 +103,11 @@ test("addresses get a URL keyboard and the home's location saves from its drawer
 		localStorage.setItem("localassistant-install-prompted", "e2e"),
 	);
 	await page.goto("/devices");
-	await page.getByRole("button", { name: /Frigate/ }).click();
+	await page.getByRole("button", { name: "Add a device" }).first().click();
+	await page
+		.getByRole("dialog", { name: "Add a device" })
+		.getByRole("button", { name: /Frigate/ })
+		.click();
 	const frigate = page.getByRole("dialog").last();
 	const address = frigate.getByLabel("Address");
 	await expect(address).toHaveAttribute("type", "url");

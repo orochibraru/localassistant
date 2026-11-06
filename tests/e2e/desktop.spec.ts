@@ -11,12 +11,16 @@ test("an admin adds a blind and finds it on Home", async ({ page }) => {
 		.click();
 	await expect(page).toHaveURL(/\/devices$/);
 
-	await page.getByRole("button", { name: /Tuya blinds/ }).click();
+	await page.getByRole("button", { name: "Add a device" }).first().click();
+	await page
+		.getByRole("dialog", { name: "Add a device" })
+		.getByRole("button", { name: /Tuya blinds/ })
+		.click();
 	const sheet = page.getByRole("dialog");
 	await sheet.getByLabel("Name").fill("Office blind");
 	await sheet.getByLabel("IP address").fill("127.0.0.1");
 	await sheet.getByLabel("Device ID").fill("bfabcdabcdabcdabcdgh");
-	await sheet.getByLabel("Local key").fill("abcdabcdabcdabcd");
+	await sheet.getByLabel("Local key", { exact: true }).fill("abcdabcdabcdabcd");
 	await sheet.getByRole("button", { name: "Add the blind" }).click();
 	await expect(page.getByText("Added. It's read in a moment.")).toBeVisible();
 	await expect(page.getByRole("main").getByText("Office blind")).toBeVisible();
@@ -42,7 +46,7 @@ test("adding an integration lists the built-in ones and explains a bad link", as
 	await expect(
 		page.getByRole("heading", { name: "Ready to set up" }),
 	).toBeVisible();
-	await expect(page.getByText("Tuya blinds", { exact: true })).toBeVisible();
+	await expect(page.getByText("Shelly meters", { exact: true })).toBeVisible();
 	await page.getByLabel("Link").fill("not a link");
 	await page.getByRole("button", { name: "Look it up" }).click();
 	await expect(

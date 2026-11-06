@@ -39,6 +39,10 @@
   changes), otherwise it's rebuilt. Tags: `X.Y.Z-canary.N` and `canary`.
 - releaser keeps a `chore(release): X.Y.Z` PR open. Merging it retags the last
   canary as `X.Y.Z` and `latest`. Nothing is rebuilt.
+- A push to `main` that no merged PR carries skips the canary and the release
+  PR: Publish runs the checks, builds `X.Y.Z` and `latest`, and releaser commits
+  `chore(release): X.Y.Z` to `main` and tags it. That release commit publishes
+  nothing.
 - Every Publish that releases (canary or stable) pushes `README.md` to the
   Docker Hub description, relative links turned into GitHub URLs, and
   `package.json`'s description as the short one. The `markdown-links` hook keeps

@@ -28,17 +28,34 @@ jobs:
   version:
     name: Resolve Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       mode: ${{ steps.mode.outputs.mode }}
-      version: ${{ steps.releaser.outputs.version }}
+      version: ${{ steps.direct.outputs.version || steps.releaser.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Tell a merged PR from a direct push
+        id: origin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          merged="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq '[.[] | select(.merged_at != null)] | length')"
+          if [ "$merged" = "0" ]; then
+            echo "direct=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "direct=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Dry-run release to compute the next version
         id: releaser
+        if: steps.origin.outputs.direct == 'false'
         uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
         with:
           branch: main
@@ -47,14 +64,39 @@ jobs:
           release-pr: "true"
           dry-run: "true"
 
-      - name: Tell a merged release PR from a canary push
+      - name: Dry-run a direct release to compute the next version
+        id: direct
+        if: steps.origin.outputs.direct == 'true'
+        uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
+        with:
+          branch: main
+          rules: ${{ env.RELEASE_RULES }}
+          dry-run: "true"
+
+      - name: Tell a release, a canary and a direct push apart
         id: mode
         env:
           VERSION: ${{ steps.releaser.outputs.version }}
           PRERELEASE: ${{ steps.releaser.outputs.prerelease }}
+          DIRECT: ${{ steps.origin.outputs.direct }}
+          DIRECT_VERSION: ${{ steps.direct.outputs.version }}
         run: |
           subject="$(git log -1 --format=%s)"
-          if [[ "$subject" =~ ^chore\(release\):\ [0-9]+\.[0-9]+\.[0-9]+(\ \(#[0-9]+\))?$ ]]; then
+          if git tag --points-at HEAD | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "HEAD is already released: nothing to publish."
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+          elif [ "$DIRECT" = "true" ]; then
+            if [[ "$subject" =~ ^chore\(release\):\ [0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Release commit from a direct release: nothing to publish."
+              echo "mode=none" >> "$GITHUB_OUTPUT"
+            elif [ -z "$DIRECT_VERSION" ]; then
+              echo "No Conventional Commit since the last release: nothing to publish."
+              echo "mode=none" >> "$GITHUB_OUTPUT"
+            else
+              echo "Direct push: releasing $DIRECT_VERSION without a release PR."
+              echo "mode=direct" >> "$GITHUB_OUTPUT"
+            fi
+          elif [[ "$subject" =~ ^chore\(release\):\ [0-9]+\.[0-9]+\.[0-9]+(\ \(#[0-9]+\))?$ ]]; then
             if [ -z "$VERSION" ] || [ "$PRERELEASE" != "false" ]; then
               echo "::error::Merged release PR ($subject), but releaser would release '$VERSION'."
               exit 1
@@ -72,7 +114,7 @@ jobs:
   tested:
     name: Find Tested PR Image
     needs: [version]
-    if: needs.version.outputs.mode == 'canary'
+    if: needs.version.outputs.mode == 'canary' || needs.version.outputs.mode == 'direct'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -128,7 +170,7 @@ jobs:
     needs: [code_quality, version]
     with:
       image_tag: ${{ needs.version.outputs.version }}
-      extra_tag: canary
+      extra_tag: ${{ needs.version.outputs.mode == 'direct' && 'latest' || 'canary' }}
       app_version: ${{ needs.version.outputs.version }}
       image_name: orochibraru/localassistant
       registry_name: docker.io
@@ -250,8 +292,8 @@ jobs:
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
-          prerelease: canary
-          release-pr: "true"
+          prerelease: ${{ needs.version.outputs.mode != 'direct' && 'canary' || '' }}
+          release-pr: ${{ needs.version.outputs.mode != 'direct' && 'true' || 'false' }}
 
       - name: Fail if the release doesn't match the images
         if: steps.releaser.outputs.version != needs.version.outputs.version

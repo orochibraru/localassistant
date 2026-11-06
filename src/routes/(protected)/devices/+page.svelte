@@ -9,6 +9,7 @@
 		kindIcon,
 		pluginIconComponents,
 	} from "#lib/components/devices/device-kinds.js";
+	import Fab from "#lib/components/fab.svelte";
 	import IntegrationAlerts from "#lib/components/plugins/integration-alerts.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -145,3 +146,9 @@
 		</ul>
 	{/if}
 </div>
+
+<Fab
+	label="Add a device"
+	icon={PlusIcon}
+	onclick={() => (sheets.pickDevice = true)}
+/>
