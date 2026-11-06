@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.5](https://github.com/orochibraru/localassistant/compare/v1.0.4...v1.0.5) (2026-11-03)
+
+### Features
+
+* **mobile:** device pages, full controls, adding devices and the APK updater (#10) ([f13a67d](https://github.com/orochibraru/localassistant/commit/f13a67de2f8b534db6286e12a1121b7aa9e20139))
+
 ## [1.0.4](https://github.com/orochibraru/localassistant/compare/v1.0.3...v1.0.4) (2026-11-03)
 
 ### Features
