@@ -63,6 +63,11 @@ function fakeForges(
 	if (url === `${gitlab}/version`) {
 		return Promise.resolve(json({ message: "401 Unauthorized" }, 401));
 	}
+	if (url === "https://private.forge.test/api/v1/version") {
+		return Promise.resolve(
+			json({ message: "Only signed in user is allowed to call APIs." }, 403),
+		);
+	}
 	if (url === `${gitlab}/user`) {
 		return Promise.resolve(
 			headers.get("private-token") === token ? json({ id: 1 }) : json({}, 401),
@@ -248,6 +253,12 @@ describe("plugin sources", () => {
 			kind: "gitea",
 			origin: "http://forge.lan:3000",
 			repository: "me/lamps",
+		});
+		expect(
+			await pluginSources.locate("private.forge.test/me/lamps"),
+		).toMatchObject({
+			kind: "gitea",
+			origin: "https://private.forge.test",
 		});
 		expect(
 			await pluginSources.locate("gitlab.example.test/home/plugins/lamps"),
@@ -453,6 +464,13 @@ describe("plugin sources", () => {
 		expect(() =>
 			forgeHttp.check(new Response("{}", { status: 500 }), "gitlab.com", null),
 		).toThrow("gitlab.com answered 500.");
+		expect(() =>
+			forgeHttp.check(
+				new Response("{}", { status: 403 }),
+				"git.example.test",
+				null,
+			),
+		).toThrow("only answers signed-in accounts");
 		await expect(
 			forgeHttp.bytes(new Response("x", { status: 500 }), "a.js"),
 		).rejects.toThrow("answered 500 for a.js");

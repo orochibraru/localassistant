@@ -248,13 +248,16 @@ class PluginSources {
 		}
 		const site = new URL(origin).host;
 		const gitea = await forgeHttp.get(`${origin}/api/v1/version`, {}, site);
-		if (gitea.ok) {
-			const body = (await gitea.json().catch(() => ({}))) as {
-				version?: unknown;
-			};
-			if (typeof body.version === "string") {
-				return "gitea";
-			}
+		const body = (await gitea.json().catch(() => ({}))) as {
+			version?: unknown;
+			message?: unknown;
+		};
+		if (
+			(gitea.ok && typeof body.version === "string") ||
+			((gitea.status === 401 || gitea.status === 403) &&
+				typeof body.message === "string")
+		) {
+			return "gitea";
 		}
 		const gitLab = await forgeHttp.get(`${origin}/api/v4/version`, {}, site);
 		if (gitLab.ok || gitLab.status === 401) {

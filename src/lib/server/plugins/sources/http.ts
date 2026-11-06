@@ -45,6 +45,11 @@ class ForgeHttp {
 				`${site} is limiting requests from this server. Try again in an hour, or save a token for it.`,
 			);
 		}
+		if ((response.status === 401 || response.status === 403) && !token) {
+			throw new Error(
+				`${site} only answers signed-in accounts. Save a token for it in Admin, Integrations.`,
+			);
+		}
 		if (!response.ok && response.status !== 404 && response.status !== 422) {
 			throw new Error(`${site} answered ${response.status}.`);
 		}
