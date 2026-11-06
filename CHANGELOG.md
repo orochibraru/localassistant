@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.5](https://github.com/orochibraru/localassistant/compare/v1.0.4...v1.0.5) (2026-11-06)
+
+### Features
+
+* **plugins:** let a plugin list a choice field's options with a choices hook, and show the device form only on devices added from it ([79f273c](https://github.com/orochibraru/localassistant/commit/79f273c933bf6523c6ee61d0d386aa9c71872525))
+* **plugins:** let a plugin list a choice field's options with a choices hook, and show the device form only on devices added from it ([131b06e](https://github.com/orochibraru/localassistant/commit/131b06ef8137991c868813551b06a223a9554163))
+* **plugins:** let a plugin list a choice field's options with a choices hook, and show the device form only on devices added from it ([b24610a](https://github.com/orochibraru/localassistant/commit/b24610a1cdf0557c7bf5da76edaf5aa63264a39f))
+* **integrations:** sidebar Integrations page with an add page, RTSP test and reveal, header bell, Renault and Google Cast plugins ([7c18a67](https://github.com/orochibraru/localassistant/commit/7c18a6794c5cca62e402384562e0ab4f448f5fcb))
+* **plugins:** alert admins when an integration is broken, with a button to fix it ([d329514](https://github.com/orochibraru/localassistant/commit/d3295141790c9c948dfa4c3eaf0a2d82d5f7ebb2))
+* **mobile:** device pages, full controls, adding devices and the APK updater (#10) ([f13a67d](https://github.com/orochibraru/localassistant/commit/f13a67de2f8b534db6286e12a1121b7aa9e20139))
+
+### Bug Fixes
+
+* **ci:** green e2e on main, a phone add button on Devices, cover device-admin, and release direct pushes without a PR ([b361984](https://github.com/orochibraru/localassistant/commit/b361984ba8a4e2baa9aba9f62462561a3e61d58d))
+* **plugins:** recognise a Gitea or Forgejo that requires sign-in ([e989797](https://github.com/orochibraru/localassistant/commit/e9897970c65035ec5b08d08d8015c4298afbe269))
+* **renault:** read cars through the MyRenault account and say which data Renault refused ([09dc9b3](https://github.com/orochibraru/localassistant/commit/09dc9b3970efe32ed74c630c618bf35eb4200eb7))
+
 ## [1.0.5](https://github.com/orochibraru/localassistant/compare/v1.0.4...v1.0.5) (2026-11-03)
 
 ### Features
