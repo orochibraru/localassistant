@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,12 @@ fun initialValue(field: PluginField, saved: JsonObject?): String {
 /** The form keys and starting values for `fields`, as the web form names its inputs. */
 fun initialValues(fields: List<PluginField>, saved: JsonObject?): Map<String, String> =
     fields.associate { "value:${it.name}" to if (isSecret(it)) "" else initialValue(it, saved) }
+
+/** Whether a choice field takes its options from its integration, listing none itself. */
+fun suppliesChoices(field: PluginField): Boolean = field.type == "choice" && field.choices.isEmpty()
+
+/** Whether a device was added from its integration's form rather than discovered: one of its stored fields is one of the form's. */
+fun addedFromForm(fields: JsonObject?, form: PluginDeviceForm?): Boolean = form?.fields.orEmpty().any { fields?.containsKey(it.name) == true }
 
 /** Whether a field holds a secret: never sent back, empty keeps the stored one. */
 fun isSecret(field: PluginField): Boolean = field.type == "secret" || field.type == "headers"
@@ -85,7 +92,7 @@ fun FormText(
 /** A choice among `options`, shown as its current label; tapping opens a sheet listing them all. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Picker(label: String, options: List<Pair<String, String>>, value: String, error: String? = null, onPick: (String) -> Unit) {
+fun Picker(label: String, options: List<Pair<String, String>>, value: String, error: String? = null, placeholder: String = "Pick one", onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val current = options.firstOrNull { it.first == value }?.second ?: ""
     Column {
@@ -100,7 +107,7 @@ fun Picker(label: String, options: List<Pair<String, String>>, value: String, er
         ) {
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(current.ifEmpty { "Pick one" }, style = MaterialTheme.typography.bodyLarge)
+                Text(current.ifEmpty { placeholder }, style = MaterialTheme.typography.bodyLarge)
             }
             Icon(Icons.Rounded.UnfoldMore, null)
         }
@@ -142,9 +149,25 @@ fun ChipChoice(options: List<Pair<String, String>>, selected: String?, onPick: (
     }
 }
 
-/** An integration's own form fields, keyed `value:<name>` in `values`; secrets already saved say empty keeps them. */
+/** A choice whose options its integration supplies through `choices`, asked when the form opens; a failure shows as its error. */
 @Composable
-fun PluginFields(fields: List<PluginField>, values: Map<String, String>, secretsSet: List<String>, errors: Map<String, List<String>>, onChange: (String, String) -> Unit) {
+private fun SuppliedPicker(field: PluginField, value: String, error: String?, choices: suspend (String) -> List<FieldChoice>, onPick: (String) -> Unit) {
+    var options by remember(field.name) { mutableStateOf<List<Pair<String, String>>?>(null) }
+    var failure by remember(field.name) { mutableStateOf<String?>(null) }
+    LaunchedEffect(field.name) {
+        runCatching { choices(field.name) }
+            .onSuccess { options = it.map { choice -> choice.value to choice.label } }
+            .onFailure {
+                failure = it.message
+                options = emptyList()
+            }
+    }
+    Picker(field.label, options.orEmpty(), value, failure ?: error, if (options == null) "Loading the options" else "Pick one", onPick)
+}
+
+/** An integration's own form fields, keyed `value:<name>` in `values`; secrets already saved say empty keeps them, and `choices` asks for the options it supplies. */
+@Composable
+fun PluginFields(fields: List<PluginField>, values: Map<String, String>, secretsSet: List<String>, errors: Map<String, List<String>>, choices: suspend (String) -> List<FieldChoice>, onChange: (String, String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (field in fields) {
             val key = "value:${field.name}"
@@ -155,6 +178,7 @@ fun PluginFields(fields: List<PluginField>, values: Map<String, String>, secrets
                     Text(field.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = value == "true", onCheckedChange = { onChange(key, it.toString()) }, modifier = Modifier.semantics { contentDescription = field.label })
                 }
+                suppliesChoices(field) -> SuppliedPicker(field, value, error, choices) { onChange(key, it) }
                 field.type == "choice" && field.choices.size <= 4 -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     ChipChoice(field.choices.map { it.value to it.label }, value) { onChange(key, it) }

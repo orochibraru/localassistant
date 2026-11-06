@@ -105,7 +105,8 @@ fun DeviceSettingsScreen(model: HouseModel, device: Device, onBack: () -> Unit, 
     val progress by model.progress.collectAsState()
     val (setups, loadError) = rememberSetups(model)
     val setup = setups?.setups?.let { setupFor(it, device.kind) }
-    val pluginFields = setup?.device?.fields.orEmpty()
+    val form = setup?.device?.takeIf { addedFromForm(device.fields, it) }
+    val pluginFields = form?.fields.orEmpty()
     var name by remember(device.id) { mutableStateOf(device.name) }
     var room by remember(device.id) { mutableStateOf(device.roomId ?: "house") }
     var owner by remember(device.id) { mutableStateOf(device.ownerId ?: "nobody") }
@@ -130,9 +131,9 @@ fun DeviceSettingsScreen(model: HouseModel, device: Device, onBack: () -> Unit, 
                     Picker("Whose is it", listOf("nobody" to "Nobody") + setups.people.map { it.id to it.name }, owner, errors["ownerId"]?.firstOrNull()) { owner = it }
                 }
             }
-            if (pluginFields.isNotEmpty()) {
+            if (setup != null && pluginFields.isNotEmpty()) {
                 item {
-                    PluginFields(pluginFields, values, pluginFields.filter(::isSecret).map { it.name }, errors) { key, value -> values = values + (key to value) }
+                    PluginFields(pluginFields, values, pluginFields.filter(::isSecret).map { it.name }, errors, { model.api.choices(setup.id, it) }) { key, value -> values = values + (key to value) }
                 }
             }
             item {
@@ -177,7 +178,7 @@ fun DeviceSettingsScreen(model: HouseModel, device: Device, onBack: () -> Unit, 
                 Text(
                     when {
                         device.kind == "app" -> "Add it again from the app's settings, on it."
-                        setup?.device != null -> "Its keys are deleted. Add it again to control it."
+                        form != null -> "Its keys are deleted. Add it again to control it."
                         else -> "Finding new devices brings it back."
                     },
                 )
@@ -291,7 +292,7 @@ fun SetupScreen(model: HouseModel, pluginId: String, onBack: () -> Unit, onAdded
                 } else {
                     item { Text(link.description, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     item {
-                        PluginFields(link.fields, connection, setup.secretsSet, progress.fields[CONNECTING].orEmpty()) { key, value -> connection = connection + (key to value) }
+                        PluginFields(link.fields, connection, setup.secretsSet, progress.fields[CONNECTING].orEmpty(), { model.api.choices(setup.id, it) }) { key, value -> connection = connection + (key to value) }
                     }
                     item {
                         ErrorLine(progress.errors[CONNECTING])
@@ -316,7 +317,7 @@ fun SetupScreen(model: HouseModel, pluginId: String, onBack: () -> Unit, onAdded
                 val errors = progress.fields[ADDING].orEmpty()
                 item { FormText(name, { name = it }, "Name", errors["name"]?.firstOrNull()) }
                 item { Picker("Room", roomOptions(house), room, errors["roomId"]?.firstOrNull()) { room = it } }
-                item { PluginFields(form.fields, fields, emptyList(), errors) { key, value -> fields = fields + (key to value) } }
+                item { PluginFields(form.fields, fields, emptyList(), errors, { model.api.choices(setup.id, it) }) { key, value -> fields = fields + (key to value) } }
                 item {
                     ErrorLine(progress.errors[ADDING])
                     Busy(ADDING in progress.busy, form.submit, Icons.Rounded.Add, enabled = name.isNotBlank()) {

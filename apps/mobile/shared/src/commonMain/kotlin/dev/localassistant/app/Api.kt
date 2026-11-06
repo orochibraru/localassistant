@@ -124,6 +124,9 @@ data class Setups(val setups: List<PluginSetup> = emptyList(), val broker: Boole
 private data class Found(val found: Int? = null)
 
 @Serializable
+private data class Choices(val choices: List<FieldChoice> = emptyList())
+
+@Serializable
 private data class Created(val id: String)
 
 @Serializable
@@ -268,6 +271,9 @@ class Api(val session: Session, private val client: HttpClient = httpClient()) {
     suspend fun disconnect(pluginId: String) {
         call(HttpMethod.Delete, "/setups/$pluginId")
     }
+
+    /** The options an integration supplies for its choice field `field`, asked when its form opens. */
+    suspend fun choices(pluginId: String, field: String): List<FieldChoice> = call(HttpMethod.Get, "/setups/$pluginId/choices/$field").body<Choices>().choices
 
     /** Adds a device through an integration's form; returns its id. */
     suspend fun addDevice(pluginId: String, fields: Map<String, String>): String = call(HttpMethod.Post, "/setups/$pluginId/devices") { setBody(fields) }.body<Created>().id
