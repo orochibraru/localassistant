@@ -26,9 +26,10 @@
   with the bearer header, played by Media3 on Android and `AVPlayer` on iOS.
 - Admin device setup goes through `deviceAdmin` (`#lib/server/devices/`), shared
   with the `/devices` form actions: `GET /api/v1/setups`, `POST .../connect`,
-  `.../discover`, `.../devices` and `DELETE /api/v1/setups/[pluginId]`, and
-  `PUT`/`DELETE /api/v1/devices/[id]`. Bodies are the web form's flat fields as
-  JSON strings (`name`, `roomId`, `ownerId`, `value:<field>`), checked by the
+  `.../discover`, `.../devices`, `GET .../choices/[field]` (the options a plugin
+  supplies, asked when the form opens) and `DELETE /api/v1/setups/[pluginId]`,
+  and `PUT`/`DELETE /api/v1/devices/[id]`. Bodies are the web form's flat fields
+  as JSON strings (`name`, `roomId`, `ownerId`, `value:<field>`), checked by the
   same schemas; a refusal answers `{ message, errors }` per field.
 - The Android updater reads the latest GitHub release, compares it with
   `appVersion` and installs the APK through a `PackageInstaller` session

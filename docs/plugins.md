@@ -78,24 +78,28 @@ Docker image is Alpine: build static binaries (`CGO_ENABLED=0`).
 
 ### Fields
 
-| Key                          | What it is                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------ |
-| `name`                       | Letters and digits. Not `id`, `name`, `roomId` or `plugin`.                          |
-| `label`                      | What the form shows.                                                                 |
-| `type`                       | `text`, `url`, `secret`, `headers`, `number`, `boolean` or `choice` (see below).     |
-| `choices`                    | `[{ "value", "label" }]` for a choice: two to seven show as buttons, more as a list. |
-| `default`                    | Used when the field is left empty.                                                   |
-| `optional`                   | It may stay empty.                                                                   |
-| `min`, `max`                 | Limits of a number.                                                                  |
-| `pattern`                    | A regular expression the value must match, with `message` saying what's wrong.       |
-| `keyboard`                   | `decimal`, `url` or `email`, for phones.                                             |
-| `description`, `placeholder` | Help under and inside the field.                                                     |
+| Key                          | What it is                                                                                                                                |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                       | Letters and digits. Not `id`, `name`, `roomId` or `plugin`.                                                                               |
+| `label`                      | What the form shows.                                                                                                                      |
+| `type`                       | `text`, `url`, `secret`, `headers`, `number`, `boolean` or `choice` (see below).                                                          |
+| `choices`                    | `[{ "value", "label" }]` for a choice: two to seven show as buttons, more as a list. Leave it out to supply them from the `choices` hook. |
+| `default`                    | Used when the field is left empty.                                                                                                        |
+| `optional`                   | It may stay empty.                                                                                                                        |
+| `min`, `max`                 | Limits of a number.                                                                                                                       |
+| `pattern`                    | A regular expression the value must match, with `message` saying what's wrong.                                                            |
+| `keyboard`                   | `decimal`, `url` or `email`, for phones.                                                                                                  |
+| `description`, `placeholder` | Help under and inside the field.                                                                                                          |
 
 The device form also asks for a name and a room; you don't declare those.
 
 - `url` takes an `http://` or `https://` address, internal names and IPs
   included (`http://frigate:5000`, `http://192.168.1.10:5000`), normalized and
   without a trailing slash. Saving checks the server can resolve its host.
+- A `choice` without `choices` asks your `choices` hook when its form opens and
+  shows what it answers in a searchable list; saving checks the value against a
+  fresh answer. Use it for what only the service knows, like the devices a
+  router sees.
 - `secret` is stored encrypted and never shown again: "leave empty to keep".
 - `headers` is for a proxy or firewall in front of a service, like Pangolin or
   an API gateway: one `Name: value` per line, stored encrypted like a secret.
@@ -144,7 +148,7 @@ Implement only what you need. Every hook gets the context (below).
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `connect`  | An admin saves the connection form. Throw to refuse it with a message.                                                                                                                                | nothing                                   |
 | `discover` | Right after `connect`, and on the sheet's find button.                                                                                                                                                | found devices                             |
-| `add`      | An admin adds or edits a device from the device form.                                                                                                                                                 | the device (`kind`, `externalId`, `host`) |
+| `add`      | An admin adds a device from the device form, or edits one added that way. A discovered device, none of whose `fields` are the form's, is only renamed and moved.                                      | the device (`kind`, `externalId`, `host`) |
 | `test`     | An admin taps Test on the device form before adding: try the values without saving anything. Throw with what's wrong.                                                                                 | what it found, one sentence               |
 | `start`    | The worker starts (and after settings change): open connections, subscribe, start timers.                                                                                                             | nothing                                   |
 | `stop`     | The worker stops or restarts the plugin.                                                                                                                                                              | nothing                                   |
@@ -152,6 +156,7 @@ Implement only what you need. Every hook gets the context (below).
 | `command`  | Someone taps a control. `{ type: "cover", move }`, `{ type: "climate", change }`, `{ type: "switch", on }`, `{ type: "valve", target }`, `{ type: "printer", change }`, `{ type: "vacuum", change }`. | the new state, or nothing                 |
 | `serve`    | A page asks for `/media/<device>/<path>`: camera streams, snapshots, clips.                                                                                                                           | a response                                |
 | `clips`    | A camera's page opens.                                                                                                                                                                                | `{ title, empty, clips }`                 |
+| `choices`  | A form with a `choice` field that lists no `choices` opens, and when it's saved; it gets the field's `name`. Throw with what's wrong: it shows under the field.                                       | `[{ value, label }]`                      |
 
 Throw (or return an error) with a sentence a person can act on: it's shown as it
 is, on the card or in the form.
@@ -247,9 +252,10 @@ it implements. It then calls the hooks by name with these params: `connect`,
 `add` and `test` get `{ values }`; `read`, `clips` and `serve` get `{ device }`
 (`serve` also `path`, `method`, `headers`, and answers
 `{ status, headers, body }` with the body in base64); `command` gets
-`{ device, command }`. A device has `id`, `kind`, `name`, `externalId`, `host`,
-`homeId`, `roomId`, `fields`, `state`, `stateAt` and `secrets`, its secrets
-decrypted.
+`{ device, command }`; `choices` gets `{ field }`, the field's `name`, and
+answers `[{ value, label }]`. A device has `id`, `kind`, `name`, `externalId`,
+`host`, `homeId`, `roomId`, `fields`, `state`, `stateAt` and `secrets`, its
+secrets decrypted.
 
 The plugin calls the host the same way, while a hook runs or any time after
 `start`: `settings`, `devices`, `device` (`{ id }`), `found` (`{ devices }`),

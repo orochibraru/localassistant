@@ -105,8 +105,8 @@ fun DeviceSettingsScreen(model: HouseModel, device: Device, onBack: () -> Unit, 
     val progress by model.progress.collectAsState()
     val (setups, loadError) = rememberSetups(model)
     val setup = setups?.setups?.let { setupFor(it, device.kind) }
-    val form = setup?.device?.takeIf { addedFromForm(device.fields, it) }
-    val pluginFields = form?.fields.orEmpty()
+    val deviceForm = setup?.device?.takeIf { addedFromForm(device.fields, it) }
+    val pluginFields = deviceForm?.fields.orEmpty()
     var name by remember(device.id) { mutableStateOf(device.name) }
     var room by remember(device.id) { mutableStateOf(device.roomId ?: "house") }
     var owner by remember(device.id) { mutableStateOf(device.ownerId ?: "nobody") }
@@ -178,7 +178,7 @@ fun DeviceSettingsScreen(model: HouseModel, device: Device, onBack: () -> Unit, 
                 Text(
                     when {
                         device.kind == "app" -> "Add it again from the app's settings, on it."
-                        form != null -> "Its keys are deleted. Add it again to control it."
+                        deviceForm != null -> "Its keys are deleted. Add it again to control it."
                         else -> "Finding new devices brings it back."
                     },
                 )

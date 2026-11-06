@@ -215,5 +215,11 @@ class LogicTest {
         assertEquals(mapOf("value:host" to "192.0.2.1", "value:key" to "", "value:port" to "6668"), initialValues(fields, saved))
         assertEquals("Found 1 new device.", foundText(1))
         assertEquals("2 h 05 min", timeLeft(125))
+        val form = PluginDeviceForm("Add", "", fields, "Add")
+        assertTrue(addedFromForm(saved, form))
+        assertTrue(!addedFromForm(buildJsonObject { put("mac", "x") }, form))
+        assertTrue(!addedFromForm(null, form))
+        assertTrue(suppliesChoices(PluginField("device", "Device", "choice")))
+        assertTrue(!suppliesChoices(PluginField("mode", "Mode", "choice", choices = listOf(FieldChoice("a", "A")))))
     }
 }
