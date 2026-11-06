@@ -3,16 +3,20 @@ import { JobDTO } from "#lib/dto/job.js";
 import { PluginDTO } from "#lib/dto/plugin.js";
 import { getPluginSettings, setPluginSettings } from "#lib/dto/setting.js";
 import {
+	addedFromForm,
 	type IntegrationProblem,
 	isSecretField,
+	type PluginChoice,
 	type PluginField,
 	type PluginSetup,
 	type PluginValues,
+	suppliesChoices,
 } from "#lib/plugins.js";
 import { secrets } from "#lib/server/core/secrets.js";
 import { addresses } from "#lib/server/http/addresses.js";
 import { pluginContexts } from "#lib/server/plugins/context.js";
 import { type HostedPlugin, plugins } from "#lib/server/plugins/registry.js";
+import { suppliedChoicesSchema } from "#lib/server/validation/plugins.js";
 
 interface Split {
 	plain: PluginValues;
@@ -208,7 +212,56 @@ class PluginSetupService {
 	}
 
 	/**
-	 * Saves a device's settings: its name and room, and its plugin's fields with empty secrets kept.
+	 * The options the plugin supplies for its choice field `name`, asked from its `choices` hook.
+	 *
+	 * @throws When the field lists its own options or has none, the plugin can't list them, or the hook fails, saying why.
+	 */
+	async choices(hosted: HostedPlugin, name: string): Promise<PluginChoice[]> {
+		const { manifest, plugin, context } = hosted;
+		const field = [
+			...(manifest.connection?.fields ?? []),
+			...(manifest.device?.fields ?? []),
+		].find((entry) => entry.name === name && suppliesChoices(entry));
+		if (!field) {
+			throw new Error(`${manifest.name} has no options to list for that.`);
+		}
+		if (!plugin.choices) {
+			throw new Error(
+				`${manifest.name} can't list the options of ${field.label.toLowerCase()}.`,
+			);
+		}
+		const answer = suppliedChoicesSchema.safeParse(
+			await plugin.choices(name, context),
+		);
+		if (!answer.success) {
+			throw new Error(
+				`${manifest.name} answered with options it can't use for ${field.label.toLowerCase()}.`,
+			);
+		}
+		return answer.data;
+	}
+
+	/**
+	 * `fields` with the options of those that take them from the plugin filled in, to check a form against.
+	 *
+	 * @throws When the plugin can't list them, saying why.
+	 */
+	async withChoices(
+		hosted: HostedPlugin,
+		fields: PluginField[],
+	): Promise<PluginField[]> {
+		return await Promise.all(
+			fields.map(async (field) =>
+				suppliesChoices(field)
+					? { ...field, choices: await this.choices(hosted, field.name) }
+					: field,
+			),
+		);
+	}
+
+	/**
+	 * Saves a device's settings: its name and room, and its plugin's fields with empty secrets kept. A device that was
+	 * discovered rather than added from the form is only renamed and moved.
 	 *
 	 * @throws When the plugin refuses the values or another device already has the same id.
 	 */
@@ -219,7 +272,7 @@ class PluginSetupService {
 		values: PluginValues,
 	): Promise<void> {
 		const fields = hosted.manifest.device?.fields ?? [];
-		if (fields.length === 0) {
+		if (!addedFromForm(device.fields, hosted.manifest.device)) {
 			device.rename(target.name, target.roomId);
 			return;
 		}

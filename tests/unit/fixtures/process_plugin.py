@@ -69,6 +69,10 @@ class Fixture:
         """No clips."""
         return {"title": "Events", "empty": "None yet.", "clips": []}
 
+    def choices(self, context, field):
+        """One option named after the field."""
+        return [{"value": "warm", "label": "Warm " + field}]
+
 
 if __name__ == "__main__":
     run(Fixture())

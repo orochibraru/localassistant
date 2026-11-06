@@ -32,42 +32,37 @@ const repositoryPath = z
 		"A file path inside the repository.",
 	);
 
-const fieldSchema = z
-	.object({
-		name: z
-			.string()
-			.regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/)
-			.refine((name) => !reservedFields.has(name), "That field name is taken."),
-		label: text(60),
-		type: z.enum(pluginFieldTypes),
-		description: text(400).optional(),
-		placeholder: text(120).optional(),
-		optional: z.boolean().optional(),
-		default: z.union([z.string(), z.number(), z.boolean()]).optional(),
-		choices: z
-			.array(z.object({ value: text(60), label: text(60) }))
-			.min(1)
-			.max(30)
-			.optional(),
-		min: z.number().optional(),
-		max: z.number().optional(),
-		pattern: text(300)
-			.refine((pattern) => {
-				try {
-					RegExp(pattern);
-					return true;
-				} catch {
-					return false;
-				}
-			}, "That pattern isn't a valid regular expression.")
-			.optional(),
-		message: text(200).optional(),
-		keyboard: z.enum(["decimal", "url", "email"]).optional(),
-	})
-	.refine(
-		(field) => field.type !== "choice" || field.choices !== undefined,
-		"A choice field lists its choices.",
-	);
+const fieldSchema = z.object({
+	name: z
+		.string()
+		.regex(/^[a-zA-Z][a-zA-Z0-9]{0,39}$/)
+		.refine((name) => !reservedFields.has(name), "That field name is taken."),
+	label: text(60),
+	type: z.enum(pluginFieldTypes),
+	description: text(400).optional(),
+	placeholder: text(120).optional(),
+	optional: z.boolean().optional(),
+	default: z.union([z.string(), z.number(), z.boolean()]).optional(),
+	choices: z
+		.array(z.object({ value: text(60), label: text(60) }))
+		.min(1)
+		.max(30)
+		.optional(),
+	min: z.number().optional(),
+	max: z.number().optional(),
+	pattern: text(300)
+		.refine((pattern) => {
+			try {
+				RegExp(pattern);
+				return true;
+			} catch {
+				return false;
+			}
+		}, "That pattern isn't a valid regular expression.")
+		.optional(),
+	message: text(200).optional(),
+	keyboard: z.enum(["decimal", "url", "email"]).optional(),
+});
 
 const fieldsSchema = z
 	.array(fieldSchema)
@@ -300,6 +295,15 @@ const roomId = z
 const deviceName = z.string().trim().min(1, "Name the device.").max(60);
 
 export const pluginIdSchema = z.object({ plugin: z.string().trim().min(1) });
+
+export const fieldChoicesSchema = z.object({
+	plugin: z.string().trim().min(1),
+	field: z.string().trim().min(1).max(40),
+});
+
+export const suppliedChoicesSchema = z
+	.array(z.object({ value: text(200), label: text(200) }))
+	.max(1000);
 
 /** The schema of a plugin's add-a-device form: name, room and its own fields. */
 export function addDeviceSchema(fields: PluginField[]) {

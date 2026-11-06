@@ -12,6 +12,7 @@ import type {
 } from "#lib/plugin-sdk.js";
 import {
 	isSecretField,
+	type PluginChoice,
 	type PluginManifest,
 	type PluginValues,
 } from "#lib/plugins.js";
@@ -489,6 +490,10 @@ class ProcessPlugins {
 				(await child.call("clips", {
 					device: child.wire(device),
 				})) as CameraClips;
+		}
+		if (has("choices")) {
+			plugin.choices = async (field) =>
+				((await child.call("choices", { field })) ?? []) as PluginChoice[];
 		}
 		return plugin;
 	}

@@ -8,7 +8,7 @@ import type {
 	PrinterChange,
 	VacuumChange,
 } from "#lib/devices.js";
-import type { PluginValue, PluginValues } from "#lib/plugins.js";
+import type { PluginChoice, PluginValue, PluginValues } from "#lib/plugins.js";
 
 export type DeviceCommand =
 	| { type: "cover"; move: CoverMove }
@@ -154,6 +154,7 @@ export interface Plugin {
 		context: PluginContext,
 	): Promise<Response>;
 	clips?(device: PluginDevice, context: PluginContext): Promise<CameraClips>;
+	choices?(field: string, context: PluginContext): Promise<PluginChoice[]>;
 }
 
 /** Marks `plugin` as a LocalAssistant plugin and types its hooks; it returns it unchanged. */

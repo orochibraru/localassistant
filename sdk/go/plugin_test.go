@@ -36,6 +36,10 @@ func (plugin *lamp) Read(context *Context, device Device) (any, error) {
 	return SwitchState{Type: "switch", On: Bool(settings["token"] == device.Secret("pin"))}, nil
 }
 
+func (plugin *lamp) Choices(context *Context, field string) ([]Choice, error) {
+	return []Choice{{Value: field + "-1", Label: "First"}}, nil
+}
+
 func (plugin *lamp) Serve(context *Context, device Device, request Request) (Response, error) {
 	return Response{Headers: map[string]string{"content-type": "text/plain"}, Body: []byte(request.Path)}, nil
 }
@@ -93,8 +97,15 @@ func TestHooksAndCalls(t *testing.T) {
 		Hooks []string `json:"hooks"`
 	}
 	_ = json.Unmarshal(initialized.Result, &hooks)
-	if len(hooks.Hooks) != 4 || hooks.Hooks[0] != "add" || hooks.Hooks[3] != "serve" {
+	if len(hooks.Hooks) != 5 || hooks.Hooks[0] != "add" || hooks.Hooks[3] != "serve" || hooks.Hooks[4] != "choices" {
 		t.Fatalf("hooks: %v", hooks.Hooks)
+	}
+
+	listed := host.call("choices", map[string]any{"field": "lamp"})
+	var choices []Choice
+	_ = json.Unmarshal(listed.Result, &choices)
+	if len(choices) != 1 || choices[0].Value != "lamp-1" || choices[0].Label != "First" {
+		t.Fatalf("choices: %+v", listed)
 	}
 
 	added := host.call("add", map[string]any{"values": map[string]any{"serial": "L1"}})

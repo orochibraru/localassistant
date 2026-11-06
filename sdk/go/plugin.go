@@ -65,6 +65,11 @@ type Clipper interface {
 	Clips(context *Context, device Device) (CameraClips, error)
 }
 
+// Chooser lists the options of a choice field the manifest gives none, named by field, when its form opens.
+type Chooser interface {
+	Choices(context *Context, field string) ([]Choice, error)
+}
+
 type message struct {
 	JSONRPC string          `json:"jsonrpc"`
 	ID      *int64          `json:"id,omitempty"`
@@ -268,6 +273,9 @@ func hooksOf(plugin any) []string {
 	if _, ok := plugin.(Clipper); ok {
 		hooks = append(hooks, "clips")
 	}
+	if _, ok := plugin.(Chooser); ok {
+		hooks = append(hooks, "choices")
+	}
 	return hooks
 }
 
@@ -278,6 +286,7 @@ type hookParams struct {
 	Path    string            `json:"path"`
 	Method  string            `json:"method"`
 	Headers map[string]string `json:"headers"`
+	Field   string            `json:"field"`
 }
 
 func (context *Context) dispatch(plugin any, method string, raw json.RawMessage) (any, error) {
@@ -337,6 +346,10 @@ func (context *Context) dispatch(plugin any, method string, raw json.RawMessage)
 	case "clips":
 		if hook, ok := plugin.(Clipper); ok {
 			return hook.Clips(context, params.Device)
+		}
+	case "choices":
+		if hook, ok := plugin.(Chooser); ok {
+			return hook.Choices(context, params.Field)
 		}
 	}
 	return nil, fmt.Errorf("the plugin has no %s", method)

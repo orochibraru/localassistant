@@ -29,6 +29,7 @@ const hooks = [
 	"command",
 	"serve",
 	"clips",
+	"choices",
 ] as const;
 
 export interface HostedPlugin {

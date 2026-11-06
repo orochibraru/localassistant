@@ -12,11 +12,16 @@
 	import * as ToggleGroup from "#lib/components/ui/toggle-group/index.js";
 	import {
 		isSecretField,
+		type PluginChoice,
 		type PluginField,
 		type PluginValues,
+		suppliesChoices,
 	} from "#lib/plugins.js";
+	import { pluginChoices } from "#lib/remote/plugins.remote.js";
+	import { toastError } from "#lib/toast.js";
 
 	interface Props {
+		plugin: string;
 		prefix: string;
 		fields: PluginField[];
 		values: PluginValues;
@@ -24,7 +29,8 @@
 		errors: Record<string, string[]>;
 	}
 
-	const { prefix, fields, values, secretsSet, errors }: Props = $props();
+	const { plugin, prefix, fields, values, secretsSet, errors }: Props =
+		$props();
 
 	const inputName = (field: PluginField) => `value:${field.name}`;
 	const errorsOf = (field: PluginField) =>
@@ -33,6 +39,22 @@
 		String(values[field.name] ?? field.default ?? "");
 
 	const choices = $state<Record<string, string>>({});
+	const supplied = $state<
+		Record<string, { options: PluginChoice[] | null; error: string | null }>
+	>({});
+
+	$effect(() => {
+		for (const field of fields.filter((entry) => suppliesChoices(entry))) {
+			supplied[field.name] = { options: null, error: null };
+			void pluginChoices({ plugin, field: field.name })
+				.then((options) => {
+					supplied[field.name] = { options, error: null };
+				})
+				.catch((failure: unknown) => {
+					supplied[field.name] = { options: [], error: toastError(failure) };
+				});
+		}
+	});
 	const shown = $state<Record<string, boolean>>({});
 	const inSentence = (label: string) =>
 		/^[A-Z]{2}/.test(label)
@@ -102,6 +124,30 @@
 				<Field.Description>{field.description}</Field.Description>
 			{/if}
 			<Field.Error errors={errorsOf(field)} />
+		</Field.Field>
+	{:else if suppliesChoices(field)}
+		{@const options = supplied[field.name]}
+		<Field.Field>
+			<Field.Label for={id}>{field.label}</Field.Label>
+			<Picker
+				{id}
+				name={inputName(field)}
+				label={field.label}
+				options={options?.options ?? []}
+				value={initial(field)}
+				placeholder={options?.options ? "Pick one" : "Loading the options"}
+				disabled={!options?.options?.length}
+				search={{
+					placeholder: `Search ${inSentence(field.label)}`,
+					empty: "Nothing matches.",
+				}}
+			/>
+			{#if field.description}
+				<Field.Description>{field.description}</Field.Description>
+			{/if}
+			<Field.Error
+				errors={options?.error ? [{ message: options.error }] : errorsOf(field)}
+			/>
 		</Field.Field>
 	{:else if field.type === "choice"}
 		<Field.Field>

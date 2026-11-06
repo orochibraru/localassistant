@@ -122,6 +122,24 @@ export interface PluginField {
 	keyboard?: "decimal" | "url" | "email";
 }
 
+/** Whether a choice field takes its options from its plugin's `choices` hook, listing none in the manifest. */
+export function suppliesChoices(field: PluginField): boolean {
+	return field.type === "choice" && field.choices === undefined;
+}
+
+/**
+ * Whether a device was added from its plugin's device form rather than discovered: one of its stored fields is one of
+ * the form's.
+ */
+export function addedFromForm(
+	fields: PluginValues,
+	form: { fields: PluginField[] } | null | undefined,
+): boolean {
+	return (form?.fields ?? []).some((field) =>
+		Object.hasOwn(fields, field.name),
+	);
+}
+
 export interface PluginKind {
 	id: string;
 	label: string;

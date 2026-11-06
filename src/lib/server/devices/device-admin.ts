@@ -2,7 +2,12 @@ import { DeviceDTO } from "#lib/dto/device.js";
 import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import { UserDTO } from "#lib/dto/user.js";
-import { kindInfo } from "#lib/plugins.js";
+import {
+	addedFromForm,
+	kindInfo,
+	type PluginChoice,
+	type PluginField,
+} from "#lib/plugins.js";
 import { broker } from "#lib/server/devices/broker.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { type HostedPlugin, plugins } from "#lib/server/plugins/registry.js";
@@ -20,6 +25,7 @@ import {
 	addDeviceSchema,
 	connectionSchema,
 	editDeviceSchema,
+	fieldChoicesSchema,
 	pluginIdSchema,
 	valuesSchema,
 } from "#lib/server/validation/plugins.js";
@@ -38,10 +44,11 @@ class DeviceAdmin {
 		if (!hosted?.manifest.device) {
 			return this.#gone("That integration is off or gone.");
 		}
-		const parsed = parseRecord(
-			addDeviceSchema(hosted.manifest.device.fields),
-			input,
-		);
+		const fields = await this.#fields(hosted, hosted.manifest.device.fields);
+		if (!fields.ok) {
+			return fields;
+		}
+		const parsed = parseRecord(addDeviceSchema(fields.value), input);
 		if (!parsed.success) {
 			return { ok: false, status: 400, errors: parsed.errors };
 		}
@@ -60,10 +67,11 @@ class DeviceAdmin {
 		if (!hosted?.manifest.device) {
 			return this.#gone("That integration is off or gone.");
 		}
-		const parsed = parseRecord(
-			valuesSchema(hosted.manifest.device.fields, false),
-			input,
-		);
+		const fields = await this.#fields(hosted, hosted.manifest.device.fields);
+		if (!fields.ok) {
+			return fields;
+		}
+		const parsed = parseRecord(valuesSchema(fields.value, false), input);
 		if (!parsed.success) {
 			return { ok: false, status: 400, errors: parsed.errors };
 		}
@@ -83,10 +91,15 @@ class DeviceAdmin {
 			return this.#editApp(homeId, device, input);
 		}
 		const hosted = plugins.forKind(device.kind);
-		const parsed = parseRecord(
-			editDeviceSchema(hosted?.manifest.device?.fields ?? []),
-			input,
-		);
+		const form = hosted?.manifest.device;
+		const fields =
+			hosted && form && addedFromForm(device.fields, form)
+				? await this.#fields(hosted, form.fields)
+				: { ok: true as const, value: [] };
+		if (!fields.ok) {
+			return fields;
+		}
+		const parsed = parseRecord(editDeviceSchema(fields.value), input);
 		if (!parsed.success) {
 			return { ok: false, status: 400, errors: parsed.errors };
 		}
@@ -124,8 +137,15 @@ class DeviceAdmin {
 		const connected = pluginSetup
 			.setups()
 			.some((setup) => setup.id === hosted.manifest.id && setup.connected);
+		const fields = await this.#fields(
+			hosted,
+			hosted.manifest.connection.fields,
+		);
+		if (!fields.ok) {
+			return fields;
+		}
 		const parsed = parseRecord(
-			connectionSchema(hosted.manifest.connection.fields, connected),
+			connectionSchema(fields.value, connected),
 			input,
 		);
 		if (!parsed.success) {
@@ -150,6 +170,20 @@ class DeviceAdmin {
 			return this.#gone("That integration is off or gone.");
 		}
 		return await this.#attempt(() => pluginSetup.discover(hosted));
+	}
+
+	/** The options the `plugin` `input` names supplies for its choice `field`, asked when its form opens. */
+	async choices(input: Input): Promise<AdminOutcome<PluginChoice[]>> {
+		const parsed = parseRecord(fieldChoicesSchema, input);
+		const hosted = parsed.success
+			? pluginSetup.plugin(parsed.data.plugin)
+			: undefined;
+		if (!parsed.success || !hosted) {
+			return this.#gone("That integration is off or gone.");
+		}
+		return await this.#attempt(() =>
+			pluginSetup.choices(hosted, parsed.data.field),
+		);
 	}
 
 	/** Forgets the `plugin` `input` names and removes its devices; how many went. */
@@ -199,6 +233,14 @@ class DeviceAdmin {
 		} catch (failure) {
 			return { ok: false, status: 400, error: devices.message(failure) };
 		}
+	}
+
+	/** `fields` with the options the plugin supplies filled in, or its message when it can't list them. */
+	async #fields(
+		hosted: HostedPlugin,
+		fields: PluginField[],
+	): Promise<AdminOutcome<PluginField[]>> {
+		return await this.#attempt(() => pluginSetup.withChoices(hosted, fields));
 	}
 
 	/** The turned-on plugin `input` names, if any. */

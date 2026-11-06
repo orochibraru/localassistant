@@ -258,6 +258,12 @@ type CameraClips struct {
 	Clips []CameraClip `json:"clips"`
 }
 
+// Choice is one option of a choice field whose options the plugin supplies.
+type Choice struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
 // Request is a media request for a device, under /media/<device>/<path>.
 type Request struct {
 	Path    string            `json:"path"`

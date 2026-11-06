@@ -6,7 +6,10 @@ import { access } from "#lib/server/auth/access.js";
 import { deviceAdmin } from "#lib/server/devices/device-admin.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { pluginManager } from "#lib/server/plugins/manager.js";
-import { pluginLinkSchema } from "#lib/server/validation/plugins.js";
+import {
+	fieldChoicesSchema,
+	pluginLinkSchema,
+} from "#lib/server/validation/plugins.js";
 
 function requireAdmin(): void {
 	if (!access.isAdmin(access.requireUser())) {
@@ -46,3 +49,12 @@ export const testDevice = command(
 				};
 	},
 );
+
+export const pluginChoices = query(fieldChoicesSchema, async (input) => {
+	requireAdmin();
+	const outcome = await deviceAdmin.choices(input);
+	if (!outcome.ok) {
+		error(outcome.status, outcome.error ?? "Check the form.");
+	}
+	return outcome.value;
+});

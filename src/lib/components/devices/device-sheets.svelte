@@ -24,6 +24,7 @@
 	import type { DeviceRow } from "#lib/dto/device.js";
 	import { type HouseFloor, type HouseRoom, roomLabels } from "#lib/house.js";
 	import {
+		addedFromForm,
 		type IntegrationProblem,
 		isSecretField,
 		type KindCatalog,
@@ -76,6 +77,11 @@
 			? setups.find(
 					(setup) => setup.id === kindInfo(kinds, editing.kind).plugin,
 				)
+			: undefined,
+	);
+	const editingForm = $derived(
+		editing && addedFromForm(editing.fields, editingSetup?.device)
+			? editingSetup?.device
 			: undefined,
 	);
 	const current = $derived(
@@ -383,6 +389,7 @@
 						>
 							<input type="hidden" name="plugin" value={current.id} />
 							<PluginFields
+								plugin={current.id}
 								prefix="connect-{current.id}"
 								fields={current.connection.fields}
 								values={current.values}
@@ -418,6 +425,7 @@
 						{@render nameField(`add-${current.id}`, "")}
 						{@render roomPicker(`add-${current.id}`, null)}
 						<PluginFields
+							plugin={current.id}
 							prefix="add-{current.id}"
 							fields={current.device.fields}
 							values={{}}
@@ -492,12 +500,13 @@
 					<Field.Error errors={errorsOf("ownerId")} />
 				</Field.Field>
 			{/if}
-			{#if editingSetup?.device}
+			{#if editingSetup && editingForm}
 				<PluginFields
+					plugin={editingSetup.id}
 					prefix="edit"
-					fields={editingSetup.device.fields}
+					fields={editingForm.fields}
 					values={editing.fields}
-					secretsSet={editingSetup.device.fields
+					secretsSet={editingForm.fields
 						.filter((field) => isSecretField(field))
 						.map((field) => field.name)}
 					{errors}
@@ -538,7 +547,7 @@
 					<p class="text-sm">
 						{editing.kind === "app"
 							? "Add it again from Account, This device, on it."
-							: editingSetup?.device
+							: editingForm
 								? "Its keys are deleted. Add it again to control it."
 								: "Finding new devices brings it back."}
 					</p>

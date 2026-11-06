@@ -53,6 +53,7 @@ const fixtureManifest = parseManifest({
 		fields: [
 			{ name: "serial", label: "Serial", type: "text" },
 			{ name: "pin", label: "PIN", type: "secret", optional: true },
+			{ name: "color", label: "Color", type: "choice", optional: true },
 		],
 	},
 	kinds: [
@@ -125,6 +126,7 @@ describe("process plugins", () => {
 		);
 		expect(Object.keys(hosted.plugin).toSorted()).toEqual([
 			"add",
+			"choices",
 			"clips",
 			"command",
 			"connect",
@@ -140,6 +142,9 @@ describe("process plugins", () => {
 		expect(await pluginSetup.connect(hosted, homeId(), { token: "1234" })).toBe(
 			1,
 		);
+		expect(await pluginSetup.choices(hosted, "color")).toEqual([
+			{ value: "warm", label: "Warm color" },
+		]);
 		const lamp = await pluginSetup.addDevice(
 			hosted,
 			{ homeId: homeId(), name: "Desk", roomId: null },

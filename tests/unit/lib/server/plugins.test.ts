@@ -18,6 +18,7 @@ import { PluginDTO } from "#lib/dto/plugin.js";
 import { getPluginSettings, getSetting, setSetting } from "#lib/dto/setting.js";
 import { configuration } from "#lib/server/core/config.js";
 import { secrets } from "#lib/server/core/secrets.js";
+import { deviceAdmin } from "#lib/server/devices/device-admin.js";
 import { deviceEvents } from "#lib/server/devices/device-events.js";
 import { devices } from "#lib/server/devices/devices.js";
 import { pluginContexts } from "#lib/server/plugins/context.js";
@@ -70,6 +71,7 @@ const manifest = (version: string, extra: Record<string, unknown> = {}) => ({
 		fields: [
 			{ name: "serial", label: "Serial", type: "text", pattern: "^L\\d+$" },
 			{ name: "pin", label: "PIN", type: "secret", optional: true },
+			{ name: "color", label: "Color", type: "choice", optional: true },
 		],
 	},
 	kinds: [
@@ -94,6 +96,10 @@ const code = `export default {
 	},
 	async discover() {
 		return [{ kind: "demo-lamp", externalId: "found-1", name: "Found" }];
+	},
+	async choices(field, context) {
+		if (!context.settings()) throw new Error("Connect the demo first.");
+		return [{ value: "warm", label: "Warm " + field }, { value: "cold", label: "Cold" }];
 	},
 	async read(device) {
 		return { type: "switch", on: device.secret("pin") === "1234", power: null, energy: null };
@@ -486,6 +492,77 @@ describe("installing plugins", () => {
 		expect(DeviceDTO.all()[0]?.toJSON().stateError).toBe(
 			"Its integration isn't installed anymore.",
 		);
+	});
+
+	test("lists the options a plugin supplies, checks forms against them, and only renames discovered devices", async () => {
+		await pluginManager.install(repository);
+		const demo = pluginSetup.plugin("demo");
+		if (!demo) {
+			throw new Error("Not loaded");
+		}
+		expect(
+			await deviceAdmin.choices({ plugin: "demo", field: "color" }),
+		).toMatchObject({ ok: false, error: "Connect the demo first." });
+		expect(
+			await deviceAdmin.choices({ plugin: "demo", field: "serial" }),
+		).toMatchObject({
+			ok: false,
+			error: "Demo lamps has no options to list for that.",
+		});
+		expect(
+			await deviceAdmin.choices({ plugin: "gone", field: "color" }),
+		).toMatchObject({
+			ok: false,
+			status: 404,
+		});
+		expect(await pluginSetup.connect(demo, homeId(), { token: "good" })).toBe(
+			1,
+		);
+		expect(await pluginSetup.choices(demo, "color")).toEqual([
+			{ value: "warm", label: "Warm color" },
+			{ value: "cold", label: "Cold" },
+		]);
+		const form = { plugin: "demo", name: "Desk", "value:serial": "L7" };
+		expect(
+			await deviceAdmin.add(homeId(), { ...form, "value:color": "blue" }),
+		).toMatchObject({ ok: false, errors: { "value:color": ["Pick color."] } });
+		const added = await deviceAdmin.add(homeId(), {
+			...form,
+			"value:color": "cold",
+		});
+		expect(added.ok && added.value.toJSON().fields).toEqual({
+			serial: "L7",
+			color: "cold",
+		});
+
+		const found = DeviceDTO.all().find(
+			(device) => device.externalId === "found-1",
+		);
+		if (!found) {
+			throw new Error("Not discovered");
+		}
+		const renamed = await deviceAdmin.edit(homeId(), {
+			id: found.id,
+			name: "Router",
+			roomId: "house",
+		});
+		expect(renamed.ok).toBe(true);
+		expect(DeviceDTO.find(found.id)?.toJSON()).toMatchObject({
+			name: "Router",
+			externalId: "found-1",
+			fields: {},
+		});
+		const handAdded = added.ok ? added.value : found;
+		expect(
+			await deviceAdmin.edit(homeId(), {
+				id: handAdded.id,
+				name: "Desk",
+				roomId: "house",
+			}),
+		).toMatchObject({
+			ok: false,
+			errors: { "value:serial": ["Fill in serial."] },
+		});
 	});
 
 	test("finds updates, installs them, and follows the default branch without releases", async () => {

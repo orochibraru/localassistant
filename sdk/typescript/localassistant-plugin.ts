@@ -655,6 +655,7 @@ export interface Plugin {
 		context: PluginContext,
 	): Promise<Response>;
 	clips?(device: PluginDevice, context: PluginContext): Promise<CameraClips>;
+	choices?(field: string, context: PluginContext): Promise<PluginChoice[]>;
 }
 
 /** Marks `plugin` as a LocalAssistant plugin and types its hooks; it returns it unchanged. */

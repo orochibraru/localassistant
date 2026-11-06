@@ -40,6 +40,10 @@ class Lamp:
         """Answers with the path."""
         return {"headers": {"content-type": "text/plain"}, "body": request["path"]}
 
+    def choices(self, context, field):
+        """One option named after the field."""
+        return [{"value": field + "-1", "label": "First"}]
+
 
 class Host:
     """The LocalAssistant end of the conversation."""
@@ -86,7 +90,8 @@ class SdkTest(unittest.TestCase):
         plugin = Lamp()
         host = Host(plugin)
         hooks = host.call("initialize", {"protocolVersion": 1})["result"]["hooks"]
-        self.assertEqual(hooks, ["add", "start", "read", "command", "serve"])
+        self.assertEqual(hooks, ["add", "start", "read", "command", "serve", "choices"])
+        self.assertEqual(host.call("choices", {"field": "lamp"})["result"], [{"value": "lamp-1", "label": "First"}])
         self.assertEqual(
             host.call("add", {"values": {"serial": "L1"}})["result"],
             {"kind": "demo-lamp", "externalId": "L1"},
