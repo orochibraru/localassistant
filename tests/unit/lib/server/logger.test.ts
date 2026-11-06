@@ -51,6 +51,22 @@ describe("Logger", () => {
 		expect(errorCalls).toBe(1);
 	});
 
+	test("console lines keep colours off a TTY and show a warning's error without its stack", () => {
+		configuration.get().logFormat = "console";
+		configuration.get().logLevel = "info";
+		const errors = spyOn(console, "error").mockImplementation(() => {});
+		const logger = new Logger("Test");
+		logger.warn("read failed", new Error("car shares nothing"));
+		logger.error("crashed", new Error("boom"));
+		const [warning, failure] = errors.mock.calls.map((call) => call.join(" "));
+		errors.mockRestore();
+		expect(warning).toContain("\u001b[33mWARN");
+		expect(warning).toContain("\u001b[33mcar shares nothing\u001b[39m");
+		expect(warning).not.toContain("    at ");
+		expect(failure).toContain("Error: boom");
+		expect(failure).toContain("    at ");
+	});
+
 	test("request lines log 5xx at error level and others at info", () => {
 		configuration.get().logLevel = "info";
 		const output = spyOn(console, "log").mockImplementation(() => {});

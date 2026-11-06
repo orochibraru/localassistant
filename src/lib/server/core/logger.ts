@@ -46,12 +46,12 @@ export class Logger {
 		this.#write("info", message, params);
 	}
 
-	/** Writes a warning line to stderr. */
+	/** Writes a warning line to stderr; an `Error` param shows its message only. */
 	warn(message: string, ...params: unknown[]): void {
 		this.#write("warn", message, params);
 	}
 
-	/** Writes an error line to stderr; an `Error` param is serialised with its stack. */
+	/** Writes an error line to stderr; an `Error` param keeps its stack. */
 	error(message: string, ...params: unknown[]): void {
 		this.#write("error", message, params);
 	}
@@ -73,7 +73,7 @@ export class Logger {
 	/** Prints `art` as it is in console format, nothing in JSON. */
 	art(art: string): void {
 		if (this.#settings().logFormat === "console") {
-			console.log(styleText("magenta", art));
+			console.log(this.#color("magenta", art));
 		}
 	}
 
@@ -85,10 +85,10 @@ export class Logger {
 			return;
 		}
 		const summary = [
-			styleText("bold", line.method),
+			this.#color("bold", line.method),
 			line.path,
-			styleText(this.#statusColor(line.status), String(line.status)),
-			styleText("gray", `${line.durationMs}ms`),
+			this.#color(this.#statusColor(line.status), String(line.status)),
+			this.#color("gray", `${line.durationMs}ms`),
 		].join(" ");
 		this.#write(level, summary, []);
 	}
@@ -96,6 +96,23 @@ export class Logger {
 	/** The level and format to log with, defaulting before the configuration is set. */
 	#settings(): { logLevel: LogLevel; logFormat: "console" | "json" } {
 		return configuration.peek() ?? { logLevel: "info", logFormat: "console" };
+	}
+
+	/** Wraps `text` in `color` even off a TTY, so `docker compose logs` keeps the colours; JSON is the plain format. */
+	#color(color: Parameters<typeof styleText>[0], text: string): string {
+		return styleText(color, text, { validateStream: false });
+	}
+
+	/** How a param reads in console output: an `Error` as its message, with its stack at error level, in the level's colour. */
+	#consoleParam(level: LogLevel, param: unknown): string {
+		if (param instanceof Error) {
+			const text =
+				level === "error" ? (param.stack ?? param.message) : param.message;
+			return this.#color(levelColors[level], text);
+		}
+		return typeof param === "string"
+			? param
+			: inspect(param, { colors: true, depth: 5 });
 	}
 
 	/** The colour of an HTTP status in console output. */
@@ -120,15 +137,11 @@ export class Logger {
 			return;
 		}
 		output(
-			styleText("gray", new Date().toISOString().slice(11, 23)),
-			styleText(levelColors[level], level.toUpperCase().padEnd(5)),
-			styleText("magenta", `[${this.#scope}]`),
+			this.#color("gray", new Date().toISOString().slice(11, 23)),
+			this.#color(levelColors[level], level.toUpperCase().padEnd(5)),
+			this.#color("magenta", `[${this.#scope}]`),
 			message,
-			...params.map((param) =>
-				typeof param === "string"
-					? param
-					: inspect(param, { colors: true, depth: 5 }),
-			),
+			...params.map((param) => this.#consoleParam(level, param)),
 		);
 	}
 
