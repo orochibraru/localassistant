@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.6](https://github.com/orochibraru/localassistant/compare/v1.0.5...v1.0.6) (2026-11-06)
+
+### Bug Fixes
+
+* **logger:** keep colours off a TTY and log a warning's error as its message, not a stack dump ([8a8f14a](https://github.com/orochibraru/localassistant/commit/8a8f14a73705754de27c47d007a8f140f9845396))
+
 ## [1.0.5](https://github.com/orochibraru/localassistant/compare/v1.0.4...v1.0.5) (2026-11-06)
 
 ### Features
