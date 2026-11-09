@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.7](https://github.com/orochibraru/localassistant/compare/v1.0.6...v1.0.7) (2026-11-09)
+
+### Features
+
+* **automations:** tell everyone why a routine step failed, and have Dreame refuse a start it can't clean with the reason ([551cb2e](https://github.com/orochibraru/localassistant/commit/551cb2e5e54dca1b149b308556f79b140ef81dd3))
+
 ## [1.0.6](https://github.com/orochibraru/localassistant/compare/v1.0.5...v1.0.6) (2026-11-06)
 
 ### Bug Fixes
