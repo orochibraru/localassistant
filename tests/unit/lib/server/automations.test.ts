@@ -16,6 +16,7 @@ import {
 } from "#lib/dto/automation.js";
 import { DeviceDTO } from "#lib/dto/device.js";
 import { HomeDTO } from "#lib/dto/home.js";
+import { JobDTO } from "#lib/dto/job.js";
 import { RoomDTO } from "#lib/dto/room.js";
 import type { DeviceCommand } from "#lib/plugin-sdk.js";
 import { automations } from "#lib/server/automations/automations.js";
@@ -405,6 +406,20 @@ describe("automations", () => {
 		expect(row?.runError).toBe(
 			"Pump: MELCloud is down. A device it drives is gone.",
 		);
+		const pushes: unknown[] = [];
+		for (let job = JobDTO.claimNext(); job; job = JobDTO.claimNext()) {
+			if (job.type === "push.send") {
+				pushes.push(job.payload);
+			}
+		}
+		expect(pushes).toEqual([
+			{
+				userIds: [],
+				title: "Evening didn't fully run",
+				body: "Pump: MELCloud is down. A device it drives is gone.",
+				url: "/automations/history",
+			},
+		]);
 		expect(sent).toContainEqual({
 			type: "climate",
 			change: { power: true, mode: "heat", targetTemperature: 19 },

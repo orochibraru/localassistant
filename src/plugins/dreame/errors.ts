@@ -1,3 +1,5 @@
+import type { VacuumState } from "#lib/devices.js";
+
 interface VacuumError {
 	text: string;
 	hint: string;
@@ -166,4 +168,28 @@ export function vacuumError(code: number): VacuumError {
 /** Whether `code` says the robot is stuck or blocked, which it sometimes reports when it isn't. */
 export function isStuck(code: number): boolean {
 	return stuckCodes.has(code);
+}
+
+/**
+ * Why a robot in `state` can't start cleaning, or null when nothing it reports stands in the way. A stuck robot can:
+ * starting is how it carries on.
+ */
+export function startRefusal(state: VacuumState): string | null {
+	if (state.errorCode && !isStuck(state.errorCode)) {
+		const { text, hint } = vacuumError(state.errorCode);
+		return `${text}. ${hint}`;
+	}
+	if (state.mode === null || state.mode === "vacuum") {
+		return null;
+	}
+	if (state.dock.cleanWater === "missing") {
+		return "Clean water tank missing. Put it back in the station.";
+	}
+	if (state.dock.cleanWater === "low") {
+		return `Clean water low. ${cleanWater}`;
+	}
+	if (state.dock.dirtyWater === "full") {
+		return `Dirty water tank full. ${dirtyWater}`;
+	}
+	return null;
 }

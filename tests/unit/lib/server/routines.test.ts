@@ -323,8 +323,15 @@ describe("routine triggers and steps", () => {
 		expect(AutomationDTO.find(routine.id)?.toJSON().runError).toBe(
 			"Broken: It's offline.",
 		);
-		const job = JobDTO.claimNext(new Date(Date.now() + 6 * 60_000));
-		expect(job?.payload).toMatchObject({ by: "Front door", step: 2 });
+		const later = new Date(Date.now() + 6 * 60_000);
+		expect(JobDTO.claimNext(later)?.payload).toMatchObject({
+			title: "Test didn't fully run",
+			body: "Broken: It's offline.",
+		});
+		expect(JobDTO.claimNext(later)?.payload).toMatchObject({
+			by: "Front door",
+			step: 2,
+		});
 		restore();
 	});
 

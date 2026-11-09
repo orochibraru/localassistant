@@ -128,6 +128,12 @@ describe("notifications", () => {
 				actions: [{ action: sceneAction(scene.id), title: "Lock up" }],
 			},
 			{ userIds: [ada], title: "Just you", body: "", url: "/", actions: [] },
+			{
+				userIds: [ada],
+				title: "Door didn't fully run",
+				body: "Nobody to tell: that account is gone. Nobody to tell: that account is gone.",
+				url: "/automations/history",
+			},
 		]);
 		const names = {
 			devices: new Map(),

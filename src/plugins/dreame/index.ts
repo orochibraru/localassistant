@@ -21,7 +21,7 @@ import {
 } from "#lib/plugin-sdk.js";
 import type { PluginValues } from "#lib/plugins.js";
 
-import { isStuck, vacuumError } from "./errors.js";
+import { isStuck, startRefusal, vacuumError } from "./errors.js";
 
 type DreameRegion = "eu" | "us" | "cn" | "sg" | "ru";
 
@@ -77,6 +77,15 @@ const dockCodes = {
 
 type PropertyName = keyof typeof properties;
 type Readings = Partial<Record<PropertyName, number>>;
+
+const startChecks: PropertyName[] = [
+	"error",
+	"mode",
+	"selfWashBase",
+	"dustCollection",
+	"cleanWaterTank",
+	"dirtyWaterTank",
+];
 
 const modesWithMopLifting: readonly VacuumMode[] = ["both", "mop", "vacuum"];
 const modesWithoutMopLifting: readonly VacuumMode[] = ["vacuum", "mop", "both"];
@@ -151,9 +160,9 @@ class DreameCloud implements Plugin {
 
 	/**
 	 * Applies a robot vacuum's cleaning settings, resets a replaced part's wear, then starts, pauses, stops or docks it,
-	 * and has the worker read where it's at.
+	 * and has the worker read where it's at. A start first reads the robot and refuses, changing nothing, when it can't clean.
 	 *
-	 * @throws DreameError when Dreame can't be reached or the robot refuses.
+	 * @throws DreameError when Dreame can't be reached, the robot refuses, or it can't clean (with why).
 	 */
 	async command(
 		device: PluginDevice,
@@ -164,6 +173,13 @@ class DreameCloud implements Plugin {
 			throw new DreameError("A robot vacuum only takes vacuum commands.");
 		}
 		const change = command.change;
+		if (change.command === "start") {
+			const now = this.#state(await this.#get(device, context, startChecks));
+			const refusal = startRefusal({ ...now, mode: change.mode ?? now.mode });
+			if (refusal) {
+				throw new DreameError(refusal);
+			}
+		}
 		await this.configure(device, change, context);
 		if (change.reset) {
 			await this.resetPart(device, change.reset, context);

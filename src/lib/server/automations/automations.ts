@@ -279,8 +279,8 @@ class Automations {
 	}
 
 	/**
-	 * Runs the steps of `automation` from `fromStep` one after the other, recording the run and what failed; a delay
-	 * stops here and has the worker carry on after it. Radiator valves close in the room of the sensor that `opened`, or
+	 * Runs the steps of `automation` from `fromStep` one after the other, recording the run and what failed and telling
+	 * everyone why when a step failed; a delay stops here and has the worker carry on after it. Radiator valves close in the room of the sensor that `opened`, or
 	 * everywhere when run by hand. Never throws.
 	 */
 	async run(
@@ -315,6 +315,7 @@ class Automations {
 				);
 				if (failures.length > 0) {
 					automation.recordRun(failures.join(" "));
+					this.#tellFailure(automation, failures);
 				}
 				return;
 			}
@@ -323,6 +324,9 @@ class Automations {
 		const error = failures.length > 0 ? failures.join(" ") : null;
 		record.finish(error);
 		automation.recordRun(error);
+		if (failures.length > 0) {
+			this.#tellFailure(automation, failures);
+		}
 		LogbookEntryDTO.add({
 			homeId: automation.homeId,
 			name: automation.name,
@@ -405,6 +409,15 @@ class Automations {
 			}),
 		});
 		return [];
+	}
+
+	#tellFailure(automation: AutomationDTO, failures: string[]): void {
+		JobDTO.enqueue("push.send", {
+			userIds: UserDTO.people().map((person) => person.id),
+			title: `${automation.name} didn't fully run`,
+			body: failures.join(" "),
+			url: "/automations/history",
+		});
 	}
 
 	#cause(automation: AutomationDTO, opened: Opened | undefined): string {

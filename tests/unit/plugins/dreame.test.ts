@@ -369,6 +369,61 @@ describe("Dreame cloud", () => {
 		notify.mockRestore();
 	});
 
+	test("refuses to start a robot that can't clean, says why, and still starts a stuck one", async () => {
+		connect();
+		const robot = addRobot();
+		const answerWith = (
+			error: number,
+			mode: number,
+			cleanWater: number,
+			dirtyWater = 0,
+		) => {
+			answers["/dreame-iot-com-10001/device/sendCommand"] = () =>
+				json({
+					code: 0,
+					data: {
+						result: [
+							{ siid: 2, piid: 2, value: error, code: 0 },
+							{ siid: 4, piid: 23, value: mode, code: 0 },
+							{ siid: 27, piid: 1, value: cleanWater, code: 0 },
+							{ siid: 27, piid: 2, value: dirtyWater, code: 0 },
+						],
+					},
+				});
+		};
+		const start = () =>
+			devices.command(robot, {
+				type: "vacuum",
+				change: { command: "start" },
+			});
+		const starts = () =>
+			calls.filter(
+				(call) => JSON.parse(call.body || "{}").data?.method === "action",
+			).length;
+		answerWith(10, 0, 0);
+		await expect(start()).rejects.toThrow(
+			"Water tank empty. Fill the clean water tank.",
+		);
+		answerWith(0, 2, 2);
+		await expect(start()).rejects.toThrow(
+			"Clean water low. Fill the clean water tank.",
+		);
+		answerWith(0, 1, 1);
+		await expect(start()).rejects.toThrow(
+			"Clean water tank missing. Put it back in the station.",
+		);
+		answerWith(0, 1, 0, 1);
+		await expect(start()).rejects.toThrow(
+			"Dirty water tank full. Empty the dirty water tank and rinse it.",
+		);
+		expect(starts()).toBe(0);
+		answerWith(0, 0, 2);
+		await start();
+		answerWith(17, 2, 0);
+		await start();
+		expect(starts()).toBe(2);
+	});
+
 	test("reads the cleaning settings, last clean and parts, and writes settings in the robot's numbering", async () => {
 		connect();
 		const robot = addRobot();
