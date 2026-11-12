@@ -56,7 +56,7 @@ jobs:
       - name: Dry-run release to compute the next version
         id: releaser
         if: steps.origin.outputs.direct == 'false'
-        uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
@@ -67,7 +67,7 @@ jobs:
       - name: Dry-run a direct release to compute the next version
         id: direct
         if: steps.origin.outputs.direct == 'true'
-        uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
@@ -288,7 +288,7 @@ jobs:
 
       - name: Tag, release and update the release PR
         id: releaser
-        uses: orochibraru/releaser@5f572d5bd52a72b28860dfb7489835c2828e4112 # v1.7.2
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
