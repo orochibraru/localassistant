@@ -2,7 +2,7 @@ import { getSetting, setSetting } from "#lib/dto/setting.js";
 import { configuration } from "#lib/server/core/config.js";
 
 const releasesUrl =
-	"https://api.github.com/repos/orochibraru/localassistant/releases/latest";
+	"https://api.github.com/repos/zedensix/localassistant/releases/latest";
 
 export interface UpdateNotice {
 	version: string;

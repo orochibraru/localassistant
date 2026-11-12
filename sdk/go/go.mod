@@ -1,3 +1,3 @@
-module github.com/orochibraru/localassistant/sdk/go
+module github.com/zedensix/localassistant/sdk/go
 
 go 1.22

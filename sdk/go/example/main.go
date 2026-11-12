@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	localassistant "github.com/orochibraru/localassistant/sdk/go"
+	localassistant "github.com/zedensix/localassistant/sdk/go"
 )
 
 type tasmota struct {

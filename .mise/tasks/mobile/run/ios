@@ -13,5 +13,5 @@ if [ -z "$device" ]; then
   xcrun simctl boot "$device"
 fi
 xcrun simctl install "$device" build/Build/Products/Debug-iphonesimulator/LocalAssistant.app
-xcrun simctl launch "$device" com.orochibraru.localassistant
+xcrun simctl launch "$device" com.zedensix.localassistant
 open -a Simulator 2>/dev/null || open -b com.apple.dt.Devices 2>/dev/null || true

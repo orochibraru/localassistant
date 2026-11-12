@@ -57,9 +57,9 @@
 
 ## One-time setup
 
-- Secrets: `DOCKER_REGISTRY_PASSWORD` (a Docker Hub access token for
-  `orochibraru` with read, write and delete scope: deleting PR tags needs it)
-  and `RELEASE_DEPLOY_KEY` (private half of a deploy key with write access,
+- Secrets: `DOCKER_REGISTRY_PASSWORD` (a Docker Hub access token for `zedensix`
+  with read, write and delete scope: deleting PR tags needs it) and
+  `RELEASE_DEPLOY_KEY` (private half of a deploy key with write access,
   bypassing the branch and tag rulesets).
 - Android secrets: `ANDROID_KEYSTORE_BASE64` (the upload keystore, base64),
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. The

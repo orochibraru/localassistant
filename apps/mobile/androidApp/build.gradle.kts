@@ -12,7 +12,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.orochibraru.localassistant"
+        applicationId = "com.zedensix.localassistant"
         minSdk = 29
         targetSdk = 36
         versionCode = releaseCode

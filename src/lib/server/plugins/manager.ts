@@ -211,7 +211,7 @@ class PluginManager {
 								pluginSources.fromKey(row.repository, row.path),
 							),
 				url: official
-					? `https://github.com/orochibraru/localassistant/tree/main/src/plugins/${manifest.id}`
+					? `https://github.com/zedensix/localassistant/tree/main/src/plugins/${manifest.id}`
 					: (status.url ?? null),
 				status,
 				updateAvailable:

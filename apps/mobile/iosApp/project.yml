@@ -15,7 +15,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleURLTypes:
-          - CFBundleURLName: com.orochibraru.localassistant
+          - CFBundleURLName: com.zedensix.localassistant
             CFBundleURLSchemes: [localassistant]
         UILaunchScreen: {}
         CADisableMinimumFrameDurationOnPhone: true
@@ -28,7 +28,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.orochibraru.localassistant
+        PRODUCT_BUNDLE_IDENTIFIER: com.zedensix.localassistant
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

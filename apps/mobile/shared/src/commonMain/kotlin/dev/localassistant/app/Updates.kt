@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-private const val RELEASES = "https://api.github.com/repos/orochibraru/localassistant/releases/latest"
+private const val RELEASES = "https://api.github.com/repos/zedensix/localassistant/releases/latest"
 
 @Serializable
 private data class ReleaseAsset(val name: String, @SerialName("browser_download_url") val url: String)

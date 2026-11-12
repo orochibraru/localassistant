@@ -179,9 +179,9 @@ function fakeGitHub(input: string | URL | Request): Promise<Response> {
 			respond({
 				items: [
 					{
-						full_name: "orochibraru/localassistant",
+						full_name: "zedensix/localassistant",
 						description: "This app",
-						html_url: "https://github.com/orochibraru/localassistant",
+						html_url: "https://github.com/zedensix/localassistant",
 						stargazers_count: 10,
 						archived: false,
 						pushed_at: repo.pushedAt,

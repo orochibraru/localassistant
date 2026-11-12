@@ -7,16 +7,16 @@ built-in cards, and calls your code to connect, find, read and drive devices.
 
 Write it in TypeScript, Go or Python. Each has an SDK and the same example, a
 Tasmota plug, under
-[`sdk/`](https://github.com/orochibraru/localassistant/tree/main/sdk):
+[`sdk/`](https://github.com/zedensix/localassistant/tree/main/sdk):
 
-| Language   | Runtime   | SDK                                            | Example                   |
-| ---------- | --------- | ---------------------------------------------- | ------------------------- |
-| TypeScript | `bun`     | `sdk/typescript/localassistant-plugin.ts`      | `sdk/typescript/example/` |
-| Go         | `process` | `github.com/orochibraru/localassistant/sdk/go` | `sdk/go/example/`         |
-| Python     | `process` | `sdk/python/localassistant_plugin.py`          | `sdk/python/example/`     |
+| Language   | Runtime   | SDK                                         | Example                   |
+| ---------- | --------- | ------------------------------------------- | ------------------------- |
+| TypeScript | `bun`     | `sdk/typescript/localassistant-plugin.ts`   | `sdk/typescript/example/` |
+| Go         | `process` | `github.com/zedensix/localassistant/sdk/go` | `sdk/go/example/`         |
+| Python     | `process` | `sdk/python/localassistant_plugin.py`       | `sdk/python/example/`     |
 
 The official integrations in
-[`src/plugins/`](https://github.com/orochibraru/localassistant/tree/main/src/plugins)
+[`src/plugins/`](https://github.com/zedensix/localassistant/tree/main/src/plugins)
 use the same manifest and hooks; read them for real-world examples.
 
 ## The manifest
@@ -198,7 +198,7 @@ process.
 ## Go
 
 ```bash
-go get github.com/orochibraru/localassistant/sdk/go
+go get github.com/zedensix/localassistant/sdk/go
 ```
 
 Implement the hooks as methods (`Add`, `Read`, `Command`, ...) and call
