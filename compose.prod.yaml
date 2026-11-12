@@ -1,6 +1,6 @@
 services:
   localassistant:
-    image: docker.io/orochibraru/localassistant:latest
+    image: docker.io/zedensix/localassistant:latest
     restart: unless-stopped
     ports:
       - 3000:3000

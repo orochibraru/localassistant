@@ -15,8 +15,8 @@
 
 - `pull_request.yaml` runs code quality (prek over every file, then the pre-push
   hooks), builds the image on native amd64 and arm64 runners and tags it
-  `pr-<number>` on Docker Hub (`docker.io/orochibraru/localassistant`). A PR
-  from a fork gets no credentials: its image is built, not pushed.
+  `pr-<number>` on Docker Hub (`docker.io/zedensix/localassistant`). A PR from a
+  fork gets no credentials: its image is built, not pushed.
 - A docs-only PR gets the checks but no image. A release PR (`releaser/release`)
   may only touch `CHANGELOG.md` and `package.json`'s version, and builds
   nothing.
@@ -53,7 +53,7 @@
   for AltStore or Sideloadly to re-sign. Neither store is published to yet. Both
   build numbers are `run_number * 10 + run_attempt`, so they only grow.
 - Every image, PR, canary and release, lives on Docker Hub only
-  (`docker.io/orochibraru/localassistant`). Nothing is pushed to ghcr.io.
+  (`docker.io/zedensix/localassistant`). Nothing is pushed to ghcr.io.
 
 ## One-time setup
 

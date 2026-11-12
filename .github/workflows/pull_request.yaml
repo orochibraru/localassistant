@@ -73,9 +73,9 @@ jobs:
       push:
         ${{ github.event.pull_request.head.repo.full_name == github.repository
         }}
-      image_name: orochibraru/localassistant
+      image_name: zedensix/localassistant
       registry_name: docker.io
-      registry_username: orochibraru
+      registry_username: zedensix
       bake_target: app
     secrets:
       registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
@@ -86,9 +86,9 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/docker-manifest.yaml
     with:
-      image_name: orochibraru/localassistant
+      image_name: zedensix/localassistant
       registry_name: docker.io
-      registry_username: orochibraru
+      registry_username: zedensix
       bake_target: app
     secrets:
       registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}

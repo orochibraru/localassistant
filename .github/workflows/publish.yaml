@@ -131,14 +131,14 @@ jobs:
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: docker.io
-          username: orochibraru
+          username: zedensix
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
 
       - name: Match the merged PR's image by source tree
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
-          IMAGE: docker.io/orochibraru/localassistant
+          IMAGE: docker.io/zedensix/localassistant
         run: |
           number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
             --jq '[.[] | select(.merged_at != null)][0].number // empty')"
@@ -172,9 +172,9 @@ jobs:
       image_tag: ${{ needs.version.outputs.version }}
       extra_tag: ${{ needs.version.outputs.mode == 'direct' && 'latest' || 'canary' }}
       app_version: ${{ needs.version.outputs.version }}
-      image_name: orochibraru/localassistant
+      image_name: zedensix/localassistant
       registry_name: docker.io
-      registry_username: orochibraru
+      registry_username: zedensix
       bake_target: app
     secrets:
       registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
@@ -184,9 +184,9 @@ jobs:
     needs: [version, build-app]
     uses: ./.github/workflows/docker-manifest.yaml
     with:
-      image_name: orochibraru/localassistant
+      image_name: zedensix/localassistant
       registry_name: docker.io
-      registry_username: orochibraru
+      registry_username: zedensix
       bake_target: app
     secrets:
       registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
@@ -204,7 +204,7 @@ jobs:
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: docker.io
-          username: orochibraru
+          username: zedensix
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
 
       - name: Tag the tested image
@@ -214,8 +214,8 @@ jobs:
         run: |
           printf 'FROM %s\nENV APP_VERSION=%s\n' "$SOURCE" "$VERSION" \
             | docker buildx build --platform linux/amd64,linux/arm64 --push \
-              -t "docker.io/orochibraru/localassistant:$VERSION" \
-              -t docker.io/orochibraru/localassistant:canary -
+              -t "docker.io/zedensix/localassistant:$VERSION" \
+              -t docker.io/zedensix/localassistant:canary -
 
   stable-images:
     name: Promote Canary to ${{ needs.version.outputs.version }}
@@ -247,7 +247,7 @@ jobs:
             exit 1
           fi
           echo "Releasing $tag ($commit)."
-          echo "image=docker.io/orochibraru/localassistant:${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "image=docker.io/zedensix/localassistant:${tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -256,7 +256,7 @@ jobs:
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: docker.io
-          username: orochibraru
+          username: zedensix
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
 
       - name: Tag the canary image
@@ -266,9 +266,9 @@ jobs:
         run: |
           printf 'FROM %s\nENV APP_VERSION=%s\n' "$SOURCE" "$VERSION" \
             | docker buildx build --platform linux/amd64,linux/arm64 --push \
-              -t "docker.io/orochibraru/localassistant:$VERSION" \
-              -t docker.io/orochibraru/localassistant:latest \
-              -t docker.io/orochibraru/localassistant:canary -
+              -t "docker.io/zedensix/localassistant:$VERSION" \
+              -t docker.io/zedensix/localassistant:latest \
+              -t docker.io/zedensix/localassistant:canary -
 
   release:
     name: Release ${{ needs.version.outputs.version }}
@@ -422,9 +422,9 @@ jobs:
       - name: Push README.md to Docker Hub
         uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
-          username: orochibraru
+          username: zedensix
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
-          repository: orochibraru/localassistant
+          repository: zedensix/localassistant
           short-description: ${{ steps.package.outputs.description }}
           enable-url-completion: true
 

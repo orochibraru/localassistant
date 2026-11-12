@@ -82,7 +82,7 @@ first run, and how to get each device's credentials.
 ## Install
 
 LocalAssistant is one container and one SQLite file. The image,
-[`docker.io/orochibraru/localassistant`](https://hub.docker.com/r/orochibraru/localassistant),
+[`docker.io/zedensix/localassistant`](https://hub.docker.com/r/zedensix/localassistant),
 is built for `linux/amd64` and `linux/arm64`.
 
 Save this as `compose.yaml` in a folder of its own:
@@ -90,7 +90,7 @@ Save this as `compose.yaml` in a folder of its own:
 ```yaml
 services:
   localassistant:
-    image: docker.io/orochibraru/localassistant:latest
+    image: docker.io/zedensix/localassistant:latest
     restart: unless-stopped
     ports:
       - 3000:3000

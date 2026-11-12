@@ -11,7 +11,7 @@ Save this as `compose.yaml` in a folder of its own:
 ```yaml
 services:
   localassistant:
-    image: docker.io/orochibraru/localassistant:latest
+    image: docker.io/zedensix/localassistant:latest
     restart: unless-stopped
     ports:
       - 3000:3000
@@ -54,7 +54,7 @@ URL you open.
 
 ## The image
 
-`docker.io/orochibraru/localassistant`, for `linux/amd64` and `linux/arm64`:
-Alpine with ffmpeg and Python 3 (for plugins written in Python) and two compiled
-Bun binaries, the server and the background worker it starts. `latest` is the
-last release, `canary` the last merge.
+`docker.io/zedensix/localassistant`, for `linux/amd64` and `linux/arm64`: Alpine
+with ffmpeg and Python 3 (for plugins written in Python) and two compiled Bun
+binaries, the server and the background worker it starts. `latest` is the last
+release, `canary` the last merge.
