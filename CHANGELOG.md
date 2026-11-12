@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.9](https://github.com/zedensix/localassistant/compare/v1.0.8...v1.0.9) (2026-11-12)
+
+### Bug Fixes
+
+* docs and refs (oro to zn6) ([5adfeb5](https://github.com/zedensix/localassistant/commit/5adfeb5b465a6dfc2e6f5bcd95451906848eb89d))
+
 ## [1.0.7](https://github.com/zedensix/localassistant/compare/v1.0.6...v1.0.7) (2026-11-09)
 
 ### Features
