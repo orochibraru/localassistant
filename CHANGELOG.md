@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.10](https://github.com/zedensix/localassistant/compare/v1.0.9...v1.0.10) (2026-11-13)
+
+### Bug Fixes
+
+* point the footer links at zedensix ([df73104](https://github.com/zedensix/localassistant/commit/df73104f9f3ea52c814fbf2fa8b9484a8eeefb77))
+
 ## [1.0.9](https://github.com/zedensix/localassistant/compare/v1.0.8...v1.0.9) (2026-11-12)
 
 ### Bug Fixes
